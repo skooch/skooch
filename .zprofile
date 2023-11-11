@@ -1,0 +1,1 @@
+case $- in (*l*) echo "This is a logon shell and .zprofile was read, this is probably not what you want."; esac
