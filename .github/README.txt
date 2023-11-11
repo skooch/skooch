@@ -1,0 +1,1 @@
+githubbers, hubbies, gitters, whatever yall are called internally, please let me have a public repository under my own name, with a README that displays, without it also displaying on my profile. just an option to disable the profile readme would be perfect. please and thank you.
