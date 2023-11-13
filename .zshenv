@@ -4,8 +4,7 @@
 # zmodload zsh/zprof
 
 ### homebrew
-command -v brew >/dev/null && \
-    eval "$(/opt/homebrew/bin/brew shellenv)"
+[[ -s "/opt/homebrew/bin/brew" ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
 
 ### jetbrains toolbox
 [[ -s "$HOME/Library/Application Support/JetBrains/Toolbox/scripts" ]] && \
