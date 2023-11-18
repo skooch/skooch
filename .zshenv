@@ -12,8 +12,8 @@ command -v brew >/dev/null && \
     export PATH="$PATH:$HOME/Library/Application Support/JetBrains/Toolbox/scripts"
 
 ### rsync
-setopt no_nullglob
 # We have to account for versioning
+setopt no_nullglob
 rsync_glob=(/opt/homebrew/Cellar/rsync/*/bin/)
 if [[ $? -eq 0 ]]; then
     export PATH="$PATH:$rsync_glob[1]"
