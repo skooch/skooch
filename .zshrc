@@ -16,5 +16,20 @@ compinit -C
 ### colour ls
 typeset -xg CLICOLOR=1
 
+# refresh dns
+refreshdns() {
+    sudo dscacheutil -flushcache
+    sudo killall -HUP mDNSResponder
+}
+# end refresh dns
+
+# trifecta
+trifecta() {
+    git add -u
+    git commit --amend --no-edit
+    git push --force
+}
+# end trifecta
+
 # zprof - comment back in in .zshenv first to use
 # zprof

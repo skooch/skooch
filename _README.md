@@ -4,6 +4,12 @@ This is all the stuff I use, requires brew to be installed and shell reconfigure
 
 [If you want to understand the behaviour I use, read the path_helper doc.](path_helper.md)
 
+[A brief installation guide is here.](INSTALL.md)
+
+I prefer to have a clean `$PATH` and the minimum amount of environment variables where possible.
+
+I also prefer to run an up to date version of ZSH, by installing it through Homebrew. I don't support older ZSH versions.
+
 ## what's in it
 
 ### homebrew
@@ -33,7 +39,7 @@ This is all the stuff I use, requires brew to be installed and shell reconfigure
 
 ### zsh
 
-I like to have my shells to have the same environment regardless if they're interactive or not. Only interactive shells get inclusions that affect interactivity.
+I like to have my shells to have relatively same environment regardless if they're interactive or not. Only interactive shells get inclusions that affect interactivity.
 
 Because of path_helper on macos, I only use `.zshrc` and `.zshenv`. `.zprofile` will warn you if you accidentally run a login shell.
 
