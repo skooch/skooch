@@ -2,6 +2,8 @@
 
 This is all the stuff I use, requires brew to be installed and shell reconfigured to homebrew's zsh.
 
+[If you want to understand the behaviour I use, read the path_helper doc.](path_helper.md)
+
 ## what's in it
 
 ### homebrew
