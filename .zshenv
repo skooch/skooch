@@ -24,30 +24,30 @@ setopt nullglob
     source ~/.orbstack/shell/init.zsh 2>/dev/null || :
 
 ### pyenv
-export PYENV_ROOT="$HOME/.pyenv"
-command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
-command -v pyenv >/dev/null && eval "$(pyenv init -)"
+# export PYENV_ROOT="$HOME/.pyenv"
+# command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
+# command -v pyenv >/dev/null && eval "$(pyenv init -)"
 
 ### pnpm
 export PNPM_HOME="$HOME/Library/pnpm"
-case ":$PATH:" in
-  *":$PNPM_HOME:"*) ;;
-  *) export PATH="$PNPM_HOME:$PATH" ;;
-esac
+# case ":$PATH:" in
+#   *":$PNPM_HOME:"*) ;;
+#   *) export PATH="$PNPM_HOME:$PATH" ;;
+# esac
 
 ### rbenv
-command -v rbenv >/dev/null && \
-    eval "$(rbenv init - zsh --no-rehash)"
+# command -v rbenv >/dev/null && \
+#     eval "$(rbenv init - zsh --no-rehash)"
 
 ### sdkman
 # ensure to edit  ~/.sdkman/etc/config to turn off autocomplete
-[[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && \
-    export SDKMAN_DIR="$HOME/.sdkman" && \
-    source "$HOME/.sdkman/bin/sdkman-init.sh"
+# [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && \
+#     export SDKMAN_DIR="$HOME/.sdkman" && \
+#     source "$HOME/.sdkman/bin/sdkman-init.sh"
 
 ### gvm
-[[ -s "/Users/skooch/.gvm/scripts/gvm" ]] && \
-    source "/Users/skooch/.gvm/scripts/gvm"
+# [[ -s "/Users/skooch/.gvm/scripts/gvm" ]] && \
+#     source "/Users/skooch/.gvm/scripts/gvm"
 
 ### android
 [[ -s "$HOME/Library/Android/sdk" ]] && \
@@ -59,9 +59,4 @@ command -v direnv >/dev/null && \
     eval "$(direnv hook zsh)"
 
 ### llvm
-export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
-
-### volta
-[[ -s "$HOME/.volta" ]] && \
-    export VOLTA_HOME="$HOME/.volta" && \
-    export PATH="$VOLTA_HOME/bin:$PATH"
+# export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
