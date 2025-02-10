@@ -23,6 +23,9 @@ setopt nullglob
 [[ -s "$HOME/.orbstack/shell/init.zsh" ]] && \
     source ~/.orbstack/shell/init.zsh 2>/dev/null || :
 
+### mise
+eval "$(/opt/homebrew/bin/mise activate zsh)"
+
 ### pyenv
 # export PYENV_ROOT="$HOME/.pyenv"
 # command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
