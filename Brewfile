@@ -12,11 +12,14 @@ brew "watch"
 brew "wget"
 brew "zsh"
 brew "mise"
-# these are for node-gyp to build sharp
+# req. for node-gyp to build sharp
 brew "pixman"
 brew "pkg-config"
 brew "pango"
 # end node-gyp for sharp
+# req. for mise to build ruby@3
+brew "libyaml"
+# end mise to build ruby@3
 cask "orbstack"
 cask "visual-studio-code"
 cask "iterm2"
