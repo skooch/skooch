@@ -1,5 +1,5 @@
 # Profile switcher - applies dotfiles profiles (vscode, brew, etc.)
-# Supports multiple active profiles: profile switch embedded b
+# Supports multiple active profiles: profile use embedded b
 
 DOTFILES_DIR="$HOME/projects/skooch"
 PROFILES_DIR="$DOTFILES_DIR/profiles"
@@ -203,7 +203,7 @@ _profile_check_drift() {
 
     if [[ "$current_hash" != "$stored_hash" ]]; then
         local display="${active// /, }"
-        echo "Profile(s) '$display' have unsynced changes. Run 'profile status' for details or 'profile switch $active' to apply."
+        echo "Profile(s) '$display' have unsynced changes. Run 'profile status' for details or 'profile use $active' to apply."
     fi
 }
 
@@ -1097,7 +1097,7 @@ _profile_update_vscode() {
 _profile_status() {
     local active=$(_profile_active)
     if [[ -z "$active" ]]; then
-        echo "No active profile. Run 'profile switch <name>' first."
+        echo "No active profile. Run 'profile use <name>' first."
         return 0
     fi
 
@@ -1105,7 +1105,7 @@ _profile_status() {
     echo "Active profiles: $display"
 
     if [[ ! -f "$PROFILE_SNAPSHOT_FILE" ]]; then
-        echo "No snapshot found. Run 'profile switch $active' to create one."
+        echo "No snapshot found. Run 'profile use $active' to create one."
         return 0
     fi
 
@@ -1117,7 +1117,7 @@ _profile_status() {
         echo "Everything is in sync."
     else
         echo "Profile files have changed since last switch."
-        echo "Run 'profile switch $active' to re-apply, or 'profile update' to sync local state back."
+        echo "Run 'profile use $active' to re-apply, or 'profile update' to sync local state back."
     fi
 }
 
@@ -1128,7 +1128,7 @@ _profile_register() {
     local active=$(_profile_active)
 
     if [[ -z "$active" ]]; then
-        echo "No active profiles. Run 'profile switch <name>' first."
+        echo "No active profiles. Run 'profile use <name>' first."
         return 1
     fi
 
@@ -1234,7 +1234,7 @@ profile() {
     shift 2>/dev/null
 
     case "$subcmd" in
-        switch|s)
+        use|s)
             _profile_check_deps || return 1
             # Parse -f/--force flag
             local force=false
@@ -1248,7 +1248,7 @@ profile() {
             set -- "${args[@]}"
 
             if [[ $# -eq 0 ]]; then
-                echo "Usage: profile switch [-f] <name> [name2 ...]"
+                echo "Usage: profile use [-f] <name> [name2 ...]  (default is always applied)"
                 return 1
             fi
             for p in "$@"; do
@@ -1341,7 +1341,7 @@ profile() {
             _profile_check_deps || return 1
             local active=$(_profile_active)
             if [[ -z "$active" ]]; then
-                echo "No active profile. Run 'profile switch <name>' first."
+                echo "No active profile. Run 'profile use <name>' first."
                 return 1
             fi
             _profile_update_brew "$active"
@@ -1367,15 +1367,15 @@ profile() {
             echo "Usage: profile <command> [args]"
             echo ""
             echo "Commands:"
-            echo "  switch <name> [name2 ...]  (s)   Apply profiles (brew + vscode + iterm + git + mise)"
-            echo "  diff [name] [name2 ...]    (d)   Preview what switch would change"
+            echo "  use <name> [name2 ...]     (s)   Apply profiles (brew + vscode + iterm + git + mise); default is always applied"
+            echo "  diff [name] [name2 ...]    (d)   Preview what use would change"
             echo "  update                     (u)   Sync local changes back to profile files"
             echo "  status                     (st)  Show active profiles and drift"
             echo "  register                         Save hostname + active profiles to hosts.json"
             echo "  hosts                            Show all host mappings"
             echo ""
             echo "Flags:"
-            echo "  -f, --force                      Force switch even if already up to date"
+            echo "  -f, --force                      Force use even if already up to date"
             echo ""
             echo "Available profiles:"
             local active=$(_profile_active)

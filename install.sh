@@ -233,12 +233,12 @@ if [ "$all_good" = 1 ]; then
     echo "Next steps:"
     echo "  1. Restart your shell"
     if [ -n "$recommended" ]; then
-        echo "  2. Run: profile switch $recommended  (from hosts.json for $(hostname))"
+        echo "  2. Run: profile use $recommended  (from hosts.json for $(hostname))"
     else
-        echo "  2. Run: profile switch <name> [name2 ...]  (e.g. embedded, b)"
+        echo "  2. Run: profile use <name> [name2 ...]  (e.g. embedded, b)"
     fi
     echo ""
-    echo "Note: 'profile switch' will overwrite VSCode settings/keybindings,"
+    echo "Note: 'profile use' will overwrite VSCode settings/keybindings,"
     echo "iTerm dynamic profiles, ~/.gitconfig, and ~/.config/mise/config.toml,"
     echo "and will automatically run 'mise install'."
     echo "You will be prompted before any unmanaged files are replaced."

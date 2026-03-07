@@ -16,7 +16,7 @@
 
 3. Restart your shell, then apply a profile:
    ```sh
-   profile switch embedded   # or: profile s b, profile s default
+   profile use embedded   # or: profile s b  (default is always applied)
    ```
 
 4. Install runtimes managed by mise:
