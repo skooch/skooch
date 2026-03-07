@@ -1,7 +1,7 @@
 # Profile switcher - applies dotfiles profiles (vscode, brew, etc.)
 
 DOTFILES_DIR="$HOME/projects/skooch"
-PROFILES_DIR="$DOTFILES_DIR/vscode/profiles"
+PROFILES_DIR="$DOTFILES_DIR/profiles"
 
 _profile_find_vscode() {
     local vscode_dir
@@ -63,8 +63,8 @@ profile() {
 
 _profile_apply_vscode() {
     local profile_name="$1"
-    local profile_dir="$PROFILES_DIR/$profile_name"
-    local default_dir="$PROFILES_DIR/default"
+    local profile_dir="$PROFILES_DIR/$profile_name/vscode"
+    local default_dir="$PROFILES_DIR/default/vscode"
     local vscode_user_dir
 
     vscode_user_dir=$(_profile_find_vscode) || return 1
