@@ -33,7 +33,7 @@ ZSH_AUTOSUGGEST_USE_ASYNC=1
 for f in "$HOME/.zsh_functions"/*.sh(N); do source "$f"; done
 
 ### Profile drift check
-if [[ -f "$HOME/.profile_active" && -f "$HOME/.profile_snapshot" ]]; then
+if [[ -f "${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/active" ]]; then
     _profile_check_drift
 fi
 
