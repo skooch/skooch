@@ -135,7 +135,55 @@ _profile_compute_hash() {
 
 # --- Drift check (file-only, no subprocesses) ---
 
+# --- Dedup auto-added lines in shell dotfiles ---
+
+_profile_dedup_dotfiles() {
+    local -a files=(
+        "$DOTFILES_DIR/.zshenv"
+        "$DOTFILES_DIR/.zshrc"
+        "$DOTFILES_DIR/.zprofile"
+    )
+
+    for file in "${files[@]}"; do
+        [[ -f "$file" ]] || continue
+
+        local -A seen=()
+        local -a output=()
+        local removed=0
+
+        while IFS= read -r line; do
+            # Always keep blank lines and comments
+            if [[ -z "$line" || "$line" =~ '^[[:space:]]*(#|$)' ]]; then
+                output+=("$line")
+                continue
+            fi
+
+            # Always keep indented lines and shell structure keywords
+            if [[ "$line" =~ '^[[:space:]]' || "$line" =~ '^(fi|done|esac|else|then|do|\{|\})$' ]]; then
+                output+=("$line")
+                continue
+            fi
+
+            # Skip exact duplicate non-trivial lines
+            if [[ -n "${seen[$line]+x}" ]]; then
+                (( removed++ ))
+                continue
+            fi
+
+            seen[$line]=1
+            output+=("$line")
+        done < "$file"
+
+        if [[ $removed -gt 0 ]]; then
+            printf '%s\n' "${output[@]}" > "$file"
+            echo "Removed $removed duplicate line(s) from $(basename "$file")"
+        fi
+    done
+}
+
 _profile_check_drift() {
+    _profile_dedup_dotfiles
+
     local active=$(_profile_active)
     [[ -z "$active" ]] && return 0
     [[ ! -f "$PROFILE_SNAPSHOT_FILE" ]] && return 0
