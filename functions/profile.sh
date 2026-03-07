@@ -362,6 +362,37 @@ _profile_update_vscode() {
     fi
 }
 
+# --- iTerm ---
+
+_profile_apply_iterm() {
+    local profile_name="$1"
+    local default_iterm="$PROFILES_DIR/default/iterm/profile.json"
+    local profile_iterm="$PROFILES_DIR/$profile_name/iterm/profile.json"
+    local dynamic_dir="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
+
+    # Skip if no iTerm config exists
+    if [[ ! -f "$default_iterm" && ! -f "$profile_iterm" ]]; then
+        return 0
+    fi
+
+    # Skip if iTerm2 isn't installed
+    if [[ ! -d "$HOME/Library/Application Support/iTerm2" ]]; then
+        return 0
+    fi
+
+    mkdir -p "$dynamic_dir"
+
+    if [[ "$profile_name" != "default" && -f "$profile_iterm" ]]; then
+        # Merge: default profile object + profile overrides, then re-wrap
+        jq -s '{"Profiles": [.[0].Profiles[0] * .[1].Profiles[0]]}' \
+            "$default_iterm" "$profile_iterm" > "$dynamic_dir/dotfiles.json"
+        echo "Applying iTerm profile: default + $profile_name"
+    elif [[ -f "$default_iterm" ]]; then
+        cp "$default_iterm" "$dynamic_dir/dotfiles.json"
+        echo "Applying iTerm profile: default"
+    fi
+}
+
 # --- Status ---
 
 _profile_status() {
@@ -447,6 +478,7 @@ profile() {
             fi
             _profile_apply_brew "$profile_name"
             _profile_apply_vscode "$profile_name"
+            _profile_apply_iterm "$profile_name"
             echo "$profile_name" > "$PROFILE_ACTIVE_FILE"
             echo "Taking snapshot..."
             _profile_take_snapshot "$profile_name"
