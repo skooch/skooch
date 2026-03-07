@@ -1,0 +1,36 @@
+{
+  "cmake.pinnedCommands": [
+    "workbench.action.tasks.configureTaskRunner",
+    "workbench.action.tasks.runTask"
+  ],
+  "cmake.showOptionsMovedNotification": false,
+  "cmake.additionalCompilerSearchDirs": [
+    "~/.espressif/tools"
+  ],
+  "custom-format.formatters": [
+    {
+      "command": "/Users/skooch/.local/share/mise/installs/python/3.11/bin/gersemi --in-place -",
+      "language": "cmake"
+    }
+  ],
+  "[cmake]": {
+    "editor.defaultFormatter": "Vehmloewff.custom-format"
+  },
+  "idf.hasWalkthroughBeenShown": true,
+  "idf.espIdfPath": "/Users/skooch/esp/esp-idf",
+  "idf.toolsPath": "/Users/skooch/.espressif",
+  "idf.gitPath": "git",
+  "idf.pythonInstallPath": "/Users/skooch/.local/share/mise/shims/python",
+  "idf.showOnboardingOnInit": false,
+  "rust-analyzer.procMacro.enable": false,
+  "[rust]": {
+    "editor.tabSize": 2
+  },
+  "[cpp]": {
+    "editor.wordBasedSuggestions": "off",
+    "editor.semanticHighlighting.enabled": true,
+    "editor.stickyScroll.defaultModel": "foldingProviderModel",
+    "editor.suggest.insertMode": "replace"
+  },
+  "zig.zls.enabled": "on"
+}

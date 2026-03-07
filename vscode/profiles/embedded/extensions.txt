@@ -1,0 +1,11 @@
+bscotch.bscotch-stitch-vscode
+espressif.esp-idf-extension
+ms-vscode.cmake-tools
+ms-vscode.cpp-devtools
+ms-vscode.cpptools
+ms-vscode.cpptools-extension-pack
+ms-vscode.cpptools-themes
+ms-vscode.makefile-tools
+platformio.platformio-ide
+rust-lang.rust-analyzer
+ziglang.vscode-zig
