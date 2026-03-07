@@ -1,6 +1,7 @@
 # .zsh_plugins.txt - antidote plugin list
 
 # OMZ core libs (needed for theme and plugins)
+ohmyzsh/ohmyzsh path:lib/async_prompt.zsh
 ohmyzsh/ohmyzsh path:lib/git.zsh
 ohmyzsh/ohmyzsh path:lib/theme-and-appearance.zsh
 ohmyzsh/ohmyzsh path:lib/prompt_info_functions.zsh
