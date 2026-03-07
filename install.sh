@@ -67,12 +67,25 @@ else
     ok "Homebrew zsh"
 fi
 
+if ! grep -qFx "$BREW_ZSH" /etc/shells 2>/dev/null; then
+    echo "  Adding $BREW_ZSH to /etc/shells (requires sudo)..."
+    echo "$BREW_ZSH" | sudo tee -a /etc/shells >/dev/null
+    ok "Added to /etc/shells"
+fi
+
 current_shell=$(dscl . -read /Users/"$(whoami)" UserShell 2>/dev/null | awk '{print $2}')
 if [ "$current_shell" = "$BREW_ZSH" ]; then
     ok "Default shell is Homebrew zsh"
 else
-    warn "Default shell is $current_shell, not $BREW_ZSH"
-    printf "  Run: chsh -s %s\n" "$BREW_ZSH"
+    echo "  Setting login shell to $BREW_ZSH..."
+    chsh -s "$BREW_ZSH"
+    ok "Login shell set to Homebrew zsh"
+fi
+
+# git-lfs
+if command -v git-lfs >/dev/null 2>&1; then
+    git lfs install >/dev/null 2>&1
+    ok "git-lfs initialized"
 fi
 
 echo ""

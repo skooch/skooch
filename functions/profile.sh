@@ -370,6 +370,34 @@ _profile_apply_brew() {
     echo "Applying Brewfile: $label"
     brew bundle --file="$tmpfile"
     rm -f "$tmpfile"
+
+    _profile_post_brew
+}
+
+_profile_post_brew() {
+    local BREW_ZSH="/opt/homebrew/bin/zsh"
+
+    # zsh: add to /etc/shells and set as login shell
+    if [[ -x "$BREW_ZSH" ]]; then
+        if ! grep -qFx "$BREW_ZSH" /etc/shells 2>/dev/null; then
+            echo "Adding $BREW_ZSH to /etc/shells (requires sudo)..."
+            echo "$BREW_ZSH" | sudo tee -a /etc/shells >/dev/null
+        fi
+        local current_shell
+        current_shell=$(dscl . -read /Users/"$(whoami)" UserShell 2>/dev/null | awk '{print $2}')
+        if [[ "$current_shell" != "$BREW_ZSH" ]]; then
+            echo "Setting login shell to $BREW_ZSH..."
+            chsh -s "$BREW_ZSH"
+        fi
+    fi
+
+    # git-lfs: install hooks
+    if command -v git-lfs &>/dev/null; then
+        if ! git lfs env 2>/dev/null | grep -q "filter.lfs"; then
+            echo "Initializing git-lfs..."
+            git lfs install
+        fi
+    fi
 }
 
 _profile_apply_vscode() {

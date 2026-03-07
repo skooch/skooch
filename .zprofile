@@ -31,8 +31,15 @@ fi
     export ANDROID_SDK_ROOT="$HOME/Library/Android/sdk" && \
     export PATH="$PATH:$HOME/Library/Android/sdk/cmdline-tools/latest/bin"
 
+### GNU coreutils & grep (unprefixed)
+[[ -d "/opt/homebrew/opt/coreutils/libexec/gnubin" ]] && export PATH="/opt/homebrew/opt/coreutils/libexec/gnubin:$PATH"
+[[ -d "/opt/homebrew/opt/grep/libexec/gnubin" ]] && export PATH="/opt/homebrew/opt/grep/libexec/gnubin:$PATH"
+
 ### libpq (Postgres CLI without full server)
 [[ -d "/opt/homebrew/opt/libpq/bin" ]] && export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
+
+### fzf
+command -v fzf >/dev/null && eval "$(fzf --zsh)"
 
 ### PATH additions
 export PATH="$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
