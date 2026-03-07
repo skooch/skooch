@@ -13,6 +13,15 @@ alias esp="source ~/esp/esp-idf/export.sh"
 ### Source private dotfiles (secrets, machine-specific config)
 source ~/projects/dotfiles-private/.zshrc.private 2>/dev/null
 
+### mise
+command -v mise >/dev/null && eval "$(mise activate zsh)"
+
+### direnv
+command -v direnv >/dev/null && eval "$(direnv hook zsh)"
+
+### fzf
+command -v fzf >/dev/null && eval "$(fzf --zsh)"
+
 ### iterm2 integration
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 

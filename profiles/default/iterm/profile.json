@@ -68,7 +68,7 @@
       "Sync Title": false,
       "Prompt Before Closing 2": 2,
       "BM Growl": true,
-      "Command": "login -fql skooch /opt/homebrew/bin/zsh",
+      "Command": "/opt/homebrew/bin/zsh -i",
       "Description": "Default",
       "AWDS Pane Directory": "",
       "Disable Window Resizing": true,
