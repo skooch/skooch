@@ -655,7 +655,23 @@ _profile_apply_mise() {
     {
         for section in "${(@k)sections}"; do
             [[ "$section" != "_top" ]] && echo "$section"
-            printf '%s' "${sections[$section]}"
+            # Deduplicate by key (last value wins)
+            local -A seen_keys=()
+            local -a ordered_lines=()
+            while IFS= read -r line; do
+                [[ -z "$line" ]] && continue
+                local key="${line%%=*}"
+                key="${key%% }"
+                if [[ -n "${seen_keys[$key]+x}" ]]; then
+                    # Replace previous occurrence
+                    local idx="${seen_keys[$key]}"
+                    ordered_lines[$idx]="$line"
+                else
+                    ordered_lines+=("$line")
+                    seen_keys[$key]="${#ordered_lines}"
+                fi
+            done <<< "${sections[$section]}"
+            printf '%s\n' "${ordered_lines[@]}"
             echo ""
         done
     } > "$target"
@@ -737,7 +753,21 @@ _profile_diff() {
         {
             for section in "${(@k)diff_sections}"; do
                 [[ "$section" != "_top" ]] && echo "$section"
-                printf '%s' "${diff_sections[$section]}"
+                local -A diff_seen_keys=()
+                local -a diff_ordered_lines=()
+                while IFS= read -r line; do
+                    [[ -z "$line" ]] && continue
+                    local key="${line%%=*}"
+                    key="${key%% }"
+                    if [[ -n "${diff_seen_keys[$key]+x}" ]]; then
+                        local idx="${diff_seen_keys[$key]}"
+                        diff_ordered_lines[$idx]="$line"
+                    else
+                        diff_ordered_lines+=("$line")
+                        diff_seen_keys[$key]="${#diff_ordered_lines}"
+                    fi
+                done <<< "${diff_sections[$section]}"
+                printf '%s\n' "${diff_ordered_lines[@]}"
                 echo ""
             done
         } > "$tmpfile"
