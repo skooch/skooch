@@ -1,4 +1,3 @@
-bscotch.bscotch-stitch-vscode
 espressif.esp-idf-extension
 ms-vscode.cmake-tools
 ms-vscode.cpp-devtools

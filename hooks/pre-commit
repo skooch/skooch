@@ -63,6 +63,6 @@ done
 
 if [ "$errors" -ne 0 ]; then
     echo ""
-    echo "shellcheck found issues. Fix them before committing."
+    echo "Pre-commit checks failed. Fix the issues above before committing."
     exit 1
 fi

@@ -68,7 +68,7 @@ _profile_read_brew_packages() {
     local -a files=("$@")
     for f in "${files[@]}"; do
         [[ -f "$f" ]] || continue
-        while IFS= read -r line; do
+        while IFS= read -r line || [[ -n "$line" ]]; do
             line="${line%%#*}"  # strip comments
             if [[ "$line" =~ ^brew\ +\"([^\"]+)\" ]]; then
                 echo "brew:${match[1]}"
@@ -85,7 +85,7 @@ _profile_read_extensions() {
     local -a files=("$@")
     for f in "${files[@]}"; do
         [[ -f "$f" ]] || continue
-        while IFS= read -r ext; do
+        while IFS= read -r ext || [[ -n "$ext" ]]; do
             ext="${ext%%#*}"
             ext="${ext// /}"
             [[ -n "$ext" ]] && echo "$ext"
@@ -463,7 +463,7 @@ _profile_apply_vscode() {
 
     local -a desired_extensions=()
     for ext_file in "${ext_files[@]}"; do
-        while IFS= read -r ext; do
+        while IFS= read -r ext || [[ -n "$ext" ]]; do
             ext="${ext%%#*}"
             ext="${ext// /}"
             [[ -n "$ext" ]] && desired_extensions+=("$ext")
@@ -646,7 +646,7 @@ _profile_apply_mise() {
     local -A sections
     local current_section="_top"
     for f in "${mise_files[@]}"; do
-        while IFS= read -r line; do
+        while IFS= read -r line || [[ -n "$line" ]]; do
             if [[ "$line" =~ '^\[' ]]; then
                 current_section="$line"
             elif [[ -n "$line" ]]; then
@@ -745,7 +745,7 @@ _profile_diff() {
         local -A diff_sections
         local diff_current_section="_top"
         for f in "${diff_mise_files[@]}"; do
-            while IFS= read -r line; do
+            while IFS= read -r line || [[ -n "$line" ]]; do
                 if [[ "$line" =~ '^\[' ]]; then
                     diff_current_section="$line"
                 elif [[ -n "$line" ]]; then

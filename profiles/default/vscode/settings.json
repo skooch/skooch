@@ -1,12 +1,16 @@
 {
   "terminal.integrated.automationProfile.osx": {
     "path": "/opt/homebrew/bin/zsh",
-    "args": ["-i"]
+    "args": [
+      "-i"
+    ]
   },
   "terminal.integrated.profiles.osx": {
     "zsh-brew": {
       "path": "/opt/homebrew/bin/zsh",
-      "args": ["-i"],
+      "args": [
+        "-i"
+      ],
       "icon": "game"
     }
   },
@@ -16,17 +20,14 @@
   "terminal.integrated.initialHint": false,
   "terminal.integrated.enableMultiLinePasteWarning": "never",
   "editor.formatOnSave": true,
-  "eslint.format.enable": true,
-  "eslint.lintTask.enable": true,
-  "eslint.quiet": true,
   "[typescriptreact]": {
-    "editor.defaultFormatter": "dbaeumer.vscode-eslint"
+    "editor.defaultFormatter": "vscode.typescript-language-features"
   },
   "[typescript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "vscode.typescript-language-features"
   },
   "[json]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "vscode.json-language-features"
   },
   "[jsonc]": {
     "editor.defaultFormatter": "vscode.json-language-features"
@@ -45,18 +46,6 @@
   },
   "[github-actions-workflow]": {
     "editor.defaultFormatter": "redhat.vscode-yaml"
-  },
-  "python.analysis.autoImportCompletions": true,
-  "python.analysis.autoFormatStrings": true,
-  "python.analysis.diagnosticMode": "workspace",
-  "python.analysis.typeCheckingMode": "basic",
-  "python.terminal.activateEnvInCurrentTerminal": true,
-  "[python]": {
-    "diffEditor.ignoreTrimWhitespace": false,
-    "editor.defaultColorDecorators": "never",
-    "gitlens.codeLens.symbolScopes": ["!Module"],
-    "editor.formatOnType": true,
-    "editor.wordBasedSuggestions": "off"
   },
   "go.alternateTools": {},
   "go.toolsManagement.autoUpdate": true,
@@ -80,22 +69,11 @@
     "ejs": "html",
     "eta": "html"
   },
-  "githubPullRequests.terminalLinksHandler": "github",
-  "githubPullRequests.pullBranch": "never",
-  "githubPullRequests.codingAgent.enabled": false,
-  "githubPullRequests.experimental.chat": false,
   "github.copilot.nextEditSuggestions.fixes": false,
   "github.copilot.chat.agent.currentEditorContext.enabled": false,
   "github.copilot.chat.agent.autoFix": false,
   "github.copilot.chat.copilotDebugCommand.enabled": false,
-  "chat.commandCenter.enabled": false,
-  "chat.checkpoints.enabled": false,
-  "chat.detectParticipant.enabled": false,
   "chat.disableAIFeatures": true,
-  "chat.notifyWindowOnConfirmation": "off",
-  "chat.agent.enabled": false,
-  "chat.agent.codeBlockProgress": false,
-  "chat.tools.terminal.outputLocation": "chat",
   "biome.requireConfiguration": true,
   "typescript.updateImportsOnFileMove.enabled": "always",
   "javascript.preferGoToSourceDefinition": true,
@@ -139,9 +117,6 @@
   "docker.lsp.experimental.vulnerabilityScanning": false,
   "docker.lsp.telemetry": "off",
   "docker.extension.enableComposeLanguageServer": false,
-  "opentofu.codelens.referenceCount": true,
-  "opentofu.experimentalFeatures.prefillRequiredFields": true,
-  "opentofu.experimentalFeatures.validateOnSave": true,
   "json.schemaDownload.trustedDomains": {
     "https://schemastore.azurewebsites.net/": true,
     "https://raw.githubusercontent.com/microsoft/vscode/": true,
@@ -157,5 +132,6 @@
   },
   "claudeCode.useCtrlEnterToSend": true,
   "claudeCode.preferredLocation": "panel",
-  "claudeCode.selectedModel": "opus"
+  "claudeCode.selectedModel": "opus",
+  "zig.zls.enabled": "on"
 }

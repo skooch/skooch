@@ -32,5 +32,18 @@
     "editor.stickyScroll.defaultModel": "foldingProviderModel",
     "editor.suggest.insertMode": "replace"
   },
-  "zig.zls.enabled": "on"
+  "python.analysis.autoImportCompletions": true,
+  "python.analysis.autoFormatStrings": true,
+  "python.analysis.diagnosticMode": "workspace",
+  "python.analysis.typeCheckingMode": "basic",
+  "python.terminal.activateEnvInCurrentTerminal": true,
+  "[python]": {
+    "diffEditor.ignoreTrimWhitespace": false,
+    "editor.defaultColorDecorators": "never",
+    "gitlens.codeLens.symbolScopes": [
+      "!Module"
+    ],
+    "editor.formatOnType": true,
+    "editor.wordBasedSuggestions": "off"
+  }
 }

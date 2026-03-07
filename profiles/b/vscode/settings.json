@@ -1,0 +1,11 @@
+{
+  "githubPullRequests.terminalLinksHandler": "github",
+  "githubPullRequests.pullBranch": "never",
+  "githubPullRequests.codingAgent.enabled": false,
+  "githubPullRequests.experimental.chat": false,
+  "chat.disableAIFeatures": false,
+  "biome.requireConfiguration": true,
+  "opentofu.codelens.referenceCount": true,
+  "opentofu.experimentalFeatures.prefillRequiredFields": true,
+  "opentofu.experimentalFeatures.validateOnSave": true
+}
