@@ -20,32 +20,40 @@ fi
 
 # --- Detection helpers ---
 
-_profile_find_vscode() {
-    for dir in "$HOME/Library/Application Support/Code - Insiders/User" \
-               "$HOME/Library/Application Support/Code/User"; do
-        if [[ -d "$dir" ]]; then
-            echo "$dir"
-            return 0
+_profile_vscode_instances() {
+    # Outputs "label|user_dir|cli" for each found VS Code installation
+    local -a dirs=("$HOME/Library/Application Support/Code - Insiders/User"
+                   "$HOME/Library/Application Support/Code/User")
+    local -a labels=("Code Insiders" "Code")
+    local -a cli_cmds=(code-insiders code)
+    local -a cli_apps=("/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code"
+                       "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code")
+
+    for i in 1 2; do
+        if [[ -d "${dirs[$i]}" ]]; then
+            local cli=""
+            if command -v "${cli_cmds[$i]}" &>/dev/null; then
+                cli="${cli_cmds[$i]}"
+            elif [[ -x "${cli_apps[$i]}" ]]; then
+                cli="${cli_apps[$i]}"
+            fi
+            [[ -n "$cli" ]] && echo "${labels[$i]}|${dirs[$i]}|${cli}"
         fi
     done
-    return 1
+}
+
+_profile_find_vscode() {
+    local first
+    first=$(_profile_vscode_instances | head -1)
+    [[ -z "$first" ]] && return 1
+    echo "$first" | cut -d'|' -f2
 }
 
 _profile_find_vscode_cli() {
-    for cmd in code-insiders code; do
-        if command -v "$cmd" &>/dev/null; then
-            echo "$cmd"
-            return 0
-        fi
-    done
-    for app in "/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code" \
-               "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"; do
-        if [[ -x "$app" ]]; then
-            echo "$app"
-            return 0
-        fi
-    done
-    return 1
+    local first
+    first=$(_profile_vscode_instances | head -1)
+    [[ -z "$first" ]] && return 1
+    echo "$first" | cut -d'|' -f3
 }
 
 _profile_active() {
@@ -282,18 +290,17 @@ _profile_target_paths() {
     [[ "$has_mise" == "true" ]] && paths+=("$HOME/.config/mise/config.toml")
 
     # VSCode
-    local vscode_user_dir
-    vscode_user_dir=$(_profile_find_vscode 2>/dev/null)
-    if [[ -n "$vscode_user_dir" ]]; then
-        local has_vscode=false
-        [[ -d "$PROFILES_DIR/default/vscode" ]] && has_vscode=true
-        for p in ${=profiles}; do
-            [[ -d "$PROFILES_DIR/$p/vscode" ]] && has_vscode=true
-        done
-        if [[ "$has_vscode" == "true" ]]; then
+    local has_vscode=false
+    [[ -d "$PROFILES_DIR/default/vscode" ]] && has_vscode=true
+    for p in ${=profiles}; do
+        [[ -d "$PROFILES_DIR/$p/vscode" ]] && has_vscode=true
+    done
+    if [[ "$has_vscode" == "true" ]]; then
+        while IFS='|' read -r _label vscode_user_dir _cli; do
+            [[ -z "$_label" ]] && continue
             paths+=("$vscode_user_dir/settings.json")
             paths+=("$vscode_user_dir/keybindings.json")
-        fi
+        done < <(_profile_vscode_instances 2>/dev/null)
     fi
 
     # iTerm
@@ -411,26 +418,17 @@ _profile_apply_vscode() {
     done
     [[ "$has_config" == "false" ]] && return 0
 
-    local vscode_user_dir
-    vscode_user_dir=$(_profile_find_vscode)
-    if [[ $? -ne 0 ]]; then
+    local instances
+    instances=$(_profile_vscode_instances)
+    if [[ -z "$instances" ]]; then
         echo "VSCode: no installation found, skipping"
         return 0
     fi
 
-    local vscode_cli
-    vscode_cli=$(_profile_find_vscode_cli)
-    if [[ $? -ne 0 ]]; then
-        echo "VSCode: no CLI found, skipping"
-        return 0
-    fi
-
-    local label="default"
+    local profile_label="default"
     for p in ${=profiles}; do
-        label+=" + $p"
+        profile_label+=" + $p"
     done
-    echo "Applying VSCode profile: $label"
-    echo "  Target: $vscode_user_dir"
 
     local conflicts
     conflicts=$(_profile_detect_vscode_conflicts "$profiles")
@@ -448,26 +446,12 @@ _profile_apply_vscode() {
         [[ -f "$pf" ]] && settings_files+=("$pf")
     done
 
-    if [[ ${#settings_files[@]} -gt 0 ]]; then
-        if [[ ${#settings_files[@]} -eq 1 ]]; then
-            cp "${settings_files[1]}" "$vscode_user_dir/settings.json"
-        else
-            jq -s 'reduce .[] as $item ({}; . * $item)' "${settings_files[@]}" \
-                > "$vscode_user_dir/settings.json"
-        fi
-        echo "  Settings merged"
-    fi
-
     # Keybindings: last profile wins
     local kb_source=""
     [[ -f "$default_dir/keybindings.json" ]] && kb_source="$default_dir/keybindings.json"
     for p in ${=profiles}; do
         [[ -f "$PROFILES_DIR/$p/vscode/keybindings.json" ]] && kb_source="$PROFILES_DIR/$p/vscode/keybindings.json"
     done
-    if [[ -n "$kb_source" ]]; then
-        cp "$kb_source" "$vscode_user_dir/keybindings.json"
-        echo "  Keybindings applied"
-    fi
 
     # Extensions: union
     local -a ext_files=()
@@ -487,54 +471,75 @@ _profile_apply_vscode() {
     done
     local -aU desired_extensions=("${desired_extensions[@]}")
 
-    if [[ ${#desired_extensions} -gt 0 ]]; then
-        local installed
-        installed=$("$vscode_cli" --list-extensions 2>/dev/null)
-        local to_install=()
-        for ext in "${desired_extensions[@]}"; do
-            if ! echo "$installed" | grep -qi "^${ext}$"; then
-                to_install+=("$ext")
-            fi
-        done
+    while IFS='|' read -r inst_label vscode_user_dir vscode_cli; do
+        [[ -z "$inst_label" ]] && continue
+        echo "Applying VSCode profile ($inst_label): $profile_label"
+        echo "  Target: $vscode_user_dir"
 
-        if [[ ${#to_install} -gt 0 ]]; then
-            echo "  Installing ${#to_install} extensions..."
-            for ext in "${to_install[@]}"; do
-                "$vscode_cli" --install-extension "$ext" --force 2>/dev/null &
-            done
-            wait
-            echo "  Extensions installed"
-        else
-            echo "  All extensions already installed"
+        if [[ ${#settings_files[@]} -gt 0 ]]; then
+            if [[ ${#settings_files[@]} -eq 1 ]]; then
+                cp "${settings_files[1]}" "$vscode_user_dir/settings.json"
+            else
+                jq -s 'reduce .[] as $item ({}; . * $item)' "${settings_files[@]}" \
+                    > "$vscode_user_dir/settings.json"
+            fi
+            echo "  Settings merged"
         fi
 
-        # Uninstall extensions not in any active profile
-        local to_uninstall=()
-        while IFS= read -r ext; do
-            [[ -z "$ext" ]] && continue
-            local found=0
-            for desired in "${desired_extensions[@]}"; do
-                if [[ "${ext:l}" == "${desired:l}" ]]; then
-                    found=1
-                    break
+        if [[ -n "$kb_source" ]]; then
+            cp "$kb_source" "$vscode_user_dir/keybindings.json"
+            echo "  Keybindings applied"
+        fi
+
+        if [[ ${#desired_extensions} -gt 0 ]]; then
+            local installed
+            installed=$("$vscode_cli" --list-extensions 2>/dev/null)
+            local to_install=()
+            for ext in "${desired_extensions[@]}"; do
+                if ! echo "$installed" | grep -qi "^${ext}$"; then
+                    to_install+=("$ext")
                 fi
             done
-            if [[ $found -eq 0 ]]; then
-                to_uninstall+=("$ext")
+
+            if [[ ${#to_install} -gt 0 ]]; then
+                echo "  Installing ${#to_install} extensions..."
+                for ext in "${to_install[@]}"; do
+                    "$vscode_cli" --install-extension "$ext" --force 2>/dev/null &
+                done
+                wait
+                echo "  Extensions installed"
+            else
+                echo "  All extensions already installed"
             fi
-        done <<< "$installed"
 
-        if [[ ${#to_uninstall} -gt 0 ]]; then
-            echo "  Uninstalling ${#to_uninstall} extensions not in profile..."
-            for ext in "${to_uninstall[@]}"; do
-                "$vscode_cli" --uninstall-extension "$ext" 2>/dev/null &
-            done
-            wait
-            echo "  Extensions uninstalled"
+            # Uninstall extensions not in any active profile
+            local to_uninstall=()
+            while IFS= read -r ext; do
+                [[ -z "$ext" ]] && continue
+                local found=0
+                for desired in "${desired_extensions[@]}"; do
+                    if [[ "${ext:l}" == "${desired:l}" ]]; then
+                        found=1
+                        break
+                    fi
+                done
+                if [[ $found -eq 0 ]]; then
+                    to_uninstall+=("$ext")
+                fi
+            done <<< "$installed"
+
+            if [[ ${#to_uninstall} -gt 0 ]]; then
+                echo "  Uninstalling ${#to_uninstall} extensions not in profile..."
+                for ext in "${to_uninstall[@]}"; do
+                    "$vscode_cli" --uninstall-extension "$ext" 2>/dev/null &
+                done
+                wait
+                echo "  Extensions uninstalled"
+            fi
         fi
-    fi
 
-    echo "  Done. Restart VSCode to apply changes."
+        echo "  Done. Restart $inst_label to apply changes."
+    done <<< "$instances"
 }
 
 # --- iTerm ---
@@ -782,18 +787,34 @@ _profile_diff() {
     fi
 
     # VSCode settings
-    local vscode_user_dir
-    vscode_user_dir=$(_profile_find_vscode 2>/dev/null)
-    if [[ -n "$vscode_user_dir" ]]; then
-        local default_dir="$PROFILES_DIR/default/vscode"
+    local default_dir="$PROFILES_DIR/default/vscode"
 
-        # Settings
-        local -a settings_files=()
-        [[ -f "$default_dir/settings.json" ]] && settings_files+=("$default_dir/settings.json")
-        for p in ${=profiles}; do
-            local pf="$PROFILES_DIR/$p/vscode/settings.json"
-            [[ -f "$pf" ]] && settings_files+=("$pf")
-        done
+    # Settings files (shared across instances)
+    local -a settings_files=()
+    [[ -f "$default_dir/settings.json" ]] && settings_files+=("$default_dir/settings.json")
+    for p in ${=profiles}; do
+        local pf="$PROFILES_DIR/$p/vscode/settings.json"
+        [[ -f "$pf" ]] && settings_files+=("$pf")
+    done
+
+    # Keybindings: last profile wins
+    local kb_source=""
+    [[ -f "$default_dir/keybindings.json" ]] && kb_source="$default_dir/keybindings.json"
+    for p in ${=profiles}; do
+        [[ -f "$PROFILES_DIR/$p/vscode/keybindings.json" ]] && kb_source="$PROFILES_DIR/$p/vscode/keybindings.json"
+    done
+
+    # Extensions
+    local -a ext_files=()
+    [[ -f "$default_dir/extensions.txt" ]] && ext_files+=("$default_dir/extensions.txt")
+    for p in ${=profiles}; do
+        local ef="$PROFILES_DIR/$p/vscode/extensions.txt"
+        [[ -f "$ef" ]] && ext_files+=("$ef")
+    done
+
+    while IFS='|' read -r inst_label vscode_user_dir vscode_cli; do
+        [[ -z "$inst_label" ]] && continue
+
         if [[ ${#settings_files[@]} -gt 0 ]]; then
             local tmpfile=$(mktemp)
             if [[ ${#settings_files[@]} -eq 1 ]]; then
@@ -803,7 +824,7 @@ _profile_diff() {
             fi
             result=$($diff_cmd "$vscode_user_dir/settings.json" "$tmpfile" 2>/dev/null)
             if [[ -n "$result" ]]; then
-                echo "=== vscode/settings ==="
+                echo "=== vscode/settings ($inst_label) ==="
                 echo "$result"
                 echo ""
                 has_diff=true
@@ -811,49 +832,32 @@ _profile_diff() {
             rm -f "$tmpfile"
         fi
 
-        # Keybindings
-        local kb_source=""
-        [[ -f "$default_dir/keybindings.json" ]] && kb_source="$default_dir/keybindings.json"
-        for p in ${=profiles}; do
-            [[ -f "$PROFILES_DIR/$p/vscode/keybindings.json" ]] && kb_source="$PROFILES_DIR/$p/vscode/keybindings.json"
-        done
         if [[ -n "$kb_source" && -f "$vscode_user_dir/keybindings.json" ]]; then
             result=$($diff_cmd "$vscode_user_dir/keybindings.json" "$kb_source" 2>/dev/null)
             if [[ -n "$result" ]]; then
-                echo "=== vscode/keybindings ==="
+                echo "=== vscode/keybindings ($inst_label) ==="
                 echo "$result"
                 echo ""
                 has_diff=true
             fi
         fi
 
-        # Extensions
-        local -a ext_files=()
-        [[ -f "$default_dir/extensions.txt" ]] && ext_files+=("$default_dir/extensions.txt")
-        for p in ${=profiles}; do
-            local ef="$PROFILES_DIR/$p/vscode/extensions.txt"
-            [[ -f "$ef" ]] && ext_files+=("$ef")
-        done
-        if [[ ${#ext_files[@]} -gt 0 ]]; then
-            local vscode_cli
-            vscode_cli=$(_profile_find_vscode_cli 2>/dev/null)
-            if [[ -n "$vscode_cli" ]]; then
-                local installed
-                installed=$("$vscode_cli" --list-extensions 2>/dev/null | sort)
-                local desired
-                desired=$(_profile_read_extensions "${ext_files[@]}")
-                local missing=$(comm -23 <(echo "$desired") <(echo "$installed"))
-                local extra=$(comm -13 <(echo "$desired") <(echo "$installed"))
-                if [[ -n "$missing" || -n "$extra" ]]; then
-                    echo "=== vscode/extensions ==="
-                    [[ -n "$missing" ]] && echo "$missing" | sed 's/^/  + /'
-                    [[ -n "$extra" ]] && echo "$extra" | sed 's/^/  - /'
-                    echo ""
-                    has_diff=true
-                fi
+        if [[ ${#ext_files[@]} -gt 0 && -n "$vscode_cli" ]]; then
+            local installed
+            installed=$("$vscode_cli" --list-extensions 2>/dev/null | sort)
+            local desired
+            desired=$(_profile_read_extensions "${ext_files[@]}")
+            local missing=$(comm -23 <(echo "$desired") <(echo "$installed"))
+            local extra=$(comm -13 <(echo "$desired") <(echo "$installed"))
+            if [[ -n "$missing" || -n "$extra" ]]; then
+                echo "=== vscode/extensions ($inst_label) ==="
+                [[ -n "$missing" ]] && echo "$missing" | sed 's/^/  + /'
+                [[ -n "$extra" ]] && echo "$extra" | sed 's/^/  - /'
+                echo ""
+                has_diff=true
             fi
         fi
-    fi
+    done < <(_profile_vscode_instances 2>/dev/null)
 
     # Brew
     local default_brewfile="$PROFILES_DIR/default/Brewfile"
@@ -1023,16 +1027,24 @@ _profile_update_vscode() {
     local profiles="$1"
     local default_ext="$PROFILES_DIR/default/vscode/extensions.txt"
 
-    local vscode_cli
-    vscode_cli=$(_profile_find_vscode_cli)
-    if [[ $? -ne 0 ]]; then
+    local instances
+    instances=$(_profile_vscode_instances)
+    if [[ -z "$instances" ]]; then
         echo "VSCode: no CLI found, skipping extension sync"
         return 0
     fi
 
     echo "Syncing VSCode extensions..."
 
-    local current=$("$vscode_cli" --list-extensions 2>/dev/null | sort)
+    # Union of extensions from all VS Code instances
+    local -a all_current=()
+    while IFS='|' read -r inst_label _dir vscode_cli; do
+        [[ -z "$inst_label" ]] && continue
+        while IFS= read -r ext; do
+            [[ -n "$ext" ]] && all_current+=("$ext")
+        done < <("$vscode_cli" --list-extensions 2>/dev/null)
+    done <<< "$instances"
+    local current=$(printf '%s\n' "${all_current[@]}" | sort -u)
 
     local -a ext_files=("$default_ext")
     for p in ${=profiles}; do
