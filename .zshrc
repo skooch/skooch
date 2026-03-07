@@ -22,30 +22,7 @@ ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE="20"
 ZSH_AUTOSUGGEST_USE_ASYNC=1
 
 ### Functions
-
-refreshdns() {
-    sudo dscacheutil -flushcache
-    sudo killall -HUP mDNSResponder
-}
-
-trifecta() {
-    git add -u
-    git commit --amend --no-edit
-    git push --force
-}
-
-listening() {
-    if [ $# -eq 0 ]; then
-        sudo lsof -iTCP -sTCP:LISTEN -n -P
-    elif [ $# -eq 1 ]; then
-        sudo lsof -iTCP -sTCP:LISTEN -n -P | grep -i --color $1
-    else
-        echo "Usage: listening [pattern]"
-    fi
-}
-
-### Sonos utilities
-[[ -f "$HOME/.zsh_sonos.sh" ]] && source "$HOME/.zsh_sonos.sh"
+for f in "$HOME/.zsh_functions"/*.sh(N); do source "$f"; done
 
 ### Aliases
 alias p="pnpm"

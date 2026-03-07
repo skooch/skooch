@@ -22,7 +22,7 @@ chsh -s /opt/homebrew/bin/zsh
    ln -sf ~/projects/skooch/.zshrc ~/.zshrc
    ln -sf ~/projects/skooch/.zprofile ~/.zprofile
    ln -sf ~/projects/skooch/.zsh_plugins.txt ~/.zsh_plugins.txt
-   ln -sf ~/projects/skooch/.zsh_sonos.sh ~/.zsh_sonos.sh
+   ln -sfn ~/projects/skooch/functions ~/.zsh_functions
    ```
 
 4. Install the Brewfile:
