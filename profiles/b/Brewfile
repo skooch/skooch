@@ -1,3 +1,5 @@
 brew "helm"
 brew "skaffold"
 cask "gcloud-cli"
+brew "biome"            # JS/TS linter + formatter
+cask "1password-cli"

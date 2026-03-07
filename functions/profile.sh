@@ -1,9 +1,11 @@
 # Profile switcher - applies dotfiles profiles (vscode, brew, etc.)
+# Supports multiple active profiles: profile switch embedded b
 
 DOTFILES_DIR="$HOME/projects/skooch"
 PROFILES_DIR="$DOTFILES_DIR/profiles"
 PROFILE_ACTIVE_FILE="$HOME/.profile_active"
 PROFILE_SNAPSHOT_FILE="$HOME/.profile_snapshot"
+HOSTS_FILE="$DOTFILES_DIR/hosts.json"
 
 # --- Detection helpers ---
 
@@ -44,7 +46,6 @@ _profile_active() {
 # --- Read expected packages/extensions from profile Brewfiles/extensions.txt ---
 
 _profile_read_brew_packages() {
-    # Reads brew/cask package names from one or more Brewfiles
     local -a files=("$@")
     for f in "${files[@]}"; do
         [[ -f "$f" ]] || continue
@@ -73,28 +74,30 @@ _profile_read_extensions() {
     done | sort -u
 }
 
+# --- Collect profile dirs for active profiles ---
+
+_profile_collect_dirs() {
+    # Returns: default dir, then each active profile dir
+    # Args: space-separated profile names (from $PROFILE_ACTIVE_FILE)
+    local profiles="$1"
+    echo "$PROFILES_DIR/default"
+    for p in ${=profiles}; do
+        [[ "$p" != "default" ]] && echo "$PROFILES_DIR/$p"
+    done
+}
+
 # --- Snapshot ---
 
 _profile_take_snapshot() {
-    local profile_name="$1"
-    local default_dir="$PROFILES_DIR/default"
-    local profile_dir="$PROFILES_DIR/$profile_name"
-
-    # Hash the profile source files so drift check can detect changes
-    local -a files_to_hash=(
-        "$default_dir/Brewfile"
-        "$default_dir/vscode/extensions.txt"
-    )
-    [[ "$profile_name" != "default" ]] && files_to_hash+=(
-        "$profile_dir/Brewfile"
-        "$profile_dir/vscode/extensions.txt"
-    )
-
+    local profiles="$1"
     local hash=""
-    for f in "${files_to_hash[@]}"; do
-        [[ -f "$f" ]] && hash+=$(md5 -q "$f" 2>/dev/null)
+    for dir in $(_profile_collect_dirs "$profiles"); do
+        for f in "$dir/Brewfile" "$dir/vscode/extensions.txt" \
+                 "$dir/vscode/settings.json" "$dir/vscode/keybindings.json" \
+                 "$dir/iterm/profile.json"; do
+            [[ -f "$f" ]] && hash+=$(md5 -q "$f" 2>/dev/null)
+        done
     done
-
     echo "$hash" > "$PROFILE_SNAPSHOT_FILE"
 }
 
@@ -105,37 +108,78 @@ _profile_check_drift() {
     [[ -z "$active" ]] && return 0
     [[ ! -f "$PROFILE_SNAPSHOT_FILE" ]] && return 0
 
-    local default_dir="$PROFILES_DIR/default"
-    local profile_dir="$PROFILES_DIR/$active"
-
-    # Recompute hash of current profile files
-    local -a files_to_hash=(
-        "$default_dir/Brewfile"
-        "$default_dir/vscode/extensions.txt"
-    )
-    [[ "$active" != "default" ]] && files_to_hash+=(
-        "$profile_dir/Brewfile"
-        "$profile_dir/vscode/extensions.txt"
-    )
-
     local current_hash=""
-    for f in "${files_to_hash[@]}"; do
-        [[ -f "$f" ]] && current_hash+=$(md5 -q "$f" 2>/dev/null)
+    for dir in $(_profile_collect_dirs "$active"); do
+        for f in "$dir/Brewfile" "$dir/vscode/extensions.txt" \
+                 "$dir/vscode/settings.json" "$dir/vscode/keybindings.json" \
+                 "$dir/iterm/profile.json"; do
+            [[ -f "$f" ]] && current_hash+=$(md5 -q "$f" 2>/dev/null)
+        done
     done
 
     local stored_hash=$(cat "$PROFILE_SNAPSHOT_FILE" 2>/dev/null)
 
     if [[ "$current_hash" != "$stored_hash" ]]; then
-        echo "⚠ Profile '$active' has unsynced changes. Run 'profile status' for details or 'profile switch $active' to apply."
+        local display="${active// /, }"
+        echo "Profile(s) '$display' have unsynced changes. Run 'profile status' for details or 'profile switch $active' to apply."
     fi
+}
+
+# --- Conflict detection for VSCode settings ---
+
+_profile_detect_vscode_conflicts() {
+    # Args: profile names (space-separated, not including default)
+    local profiles="$1"
+    local -a settings_files=()
+    local -a profile_names=()
+
+    local default_settings="$PROFILES_DIR/default/vscode/settings.json"
+    if [[ -f "$default_settings" ]]; then
+        settings_files+=("$default_settings")
+        profile_names+=("default")
+    fi
+
+    for p in ${=profiles}; do
+        local pf="$PROFILES_DIR/$p/vscode/settings.json"
+        if [[ -f "$pf" ]]; then
+            settings_files+=("$pf")
+            profile_names+=("$p")
+        fi
+    done
+
+    [[ ${#settings_files[@]} -lt 2 ]] && return 0
+
+    # For each pair of profiles, find keys set by both to different values
+    local i j
+    for (( i=0; i < ${#settings_files[@]}; i++ )); do
+        for (( j=i+1; j < ${#settings_files[@]}; j++ )); do
+            local file_a="${settings_files[$((i+1))]}"
+            local file_b="${settings_files[$((j+1))]}"
+            local name_a="${profile_names[$((i+1))]}"
+            local name_b="${profile_names[$((j+1))]}"
+
+            # Find keys that exist in both files
+            local common_keys
+            common_keys=$(jq -r 'keys[]' "$file_a" "$file_b" 2>/dev/null | sort | uniq -d)
+
+            for key in ${(f)common_keys}; do
+                [[ -z "$key" ]] && continue
+                local val_a val_b
+                val_a=$(jq -c --arg k "$key" '.[$k]' "$file_a" 2>/dev/null)
+                val_b=$(jq -c --arg k "$key" '.[$k]' "$file_b" 2>/dev/null)
+                if [[ "$val_a" != "$val_b" ]]; then
+                    echo "  VSCode conflict: \"$key\" set by both $name_a ($val_a) and $name_b ($val_b) -- $name_b wins"
+                fi
+            done
+        done
+    done
 }
 
 # --- Apply functions ---
 
 _profile_apply_brew() {
-    local profile_name="$1"
+    local profiles="$1"
     local default_brewfile="$PROFILES_DIR/default/Brewfile"
-    local profile_brewfile="$PROFILES_DIR/$profile_name/Brewfile"
 
     if [[ ! -f "$default_brewfile" ]]; then
         echo "Brew: no default Brewfile found, skipping"
@@ -145,26 +189,32 @@ _profile_apply_brew() {
     local tmpfile=$(mktemp)
     cat "$default_brewfile" > "$tmpfile"
 
-    if [[ "$profile_name" != "default" && -f "$profile_brewfile" ]]; then
-        echo "" >> "$tmpfile"
-        cat "$profile_brewfile" >> "$tmpfile"
-        echo "Applying Brewfile: default + $profile_name"
-    else
-        echo "Applying Brewfile: default"
-    fi
+    local label="default"
+    for p in ${=profiles}; do
+        local pf="$PROFILES_DIR/$p/Brewfile"
+        if [[ -f "$pf" ]]; then
+            echo "" >> "$tmpfile"
+            cat "$pf" >> "$tmpfile"
+            label+=" + $p"
+        fi
+    done
 
+    echo "Applying Brewfile: $label"
     brew bundle --file="$tmpfile"
     rm -f "$tmpfile"
 }
 
 _profile_apply_vscode() {
-    local profile_name="$1"
-    local profile_dir="$PROFILES_DIR/$profile_name/vscode"
+    local profiles="$1"
     local default_dir="$PROFILES_DIR/default/vscode"
 
-    if [[ ! -d "$default_dir" && ! -d "$profile_dir" ]]; then
-        return 0
-    fi
+    # Check if any vscode config exists
+    local has_config=false
+    [[ -d "$default_dir" ]] && has_config=true
+    for p in ${=profiles}; do
+        [[ -d "$PROFILES_DIR/$p/vscode" ]] && has_config=true
+    done
+    [[ "$has_config" == "false" ]] && return 0
 
     local vscode_user_dir
     vscode_user_dir=$(_profile_find_vscode)
@@ -180,43 +230,69 @@ _profile_apply_vscode() {
         return 0
     fi
 
-    if [[ "$profile_name" == "default" ]]; then
-        echo "Applying VSCode profile: default"
-    else
-        echo "Applying VSCode profile: default + $profile_name"
-    fi
+    local label="default"
+    for p in ${=profiles}; do
+        label+=" + $p"
+    done
+    echo "Applying VSCode profile: $label"
     echo "  Target: $vscode_user_dir"
 
-    # Merge settings
-    if [[ -f "$default_dir/settings.json" ]]; then
-        if [[ -f "$profile_dir/settings.json" ]]; then
-            jq -s '.[0] * .[1]' "$default_dir/settings.json" "$profile_dir/settings.json" \
-                > "$vscode_user_dir/settings.json"
+    # Conflict detection
+    local conflicts
+    conflicts=$(_profile_detect_vscode_conflicts "$profiles")
+    if [[ -n "$conflicts" ]]; then
+        echo ""
+        echo "$conflicts"
+        echo ""
+    fi
+
+    # Merge settings: chain-merge default * profile1 * profile2 ...
+    local -a settings_files=()
+    [[ -f "$default_dir/settings.json" ]] && settings_files+=("$default_dir/settings.json")
+    for p in ${=profiles}; do
+        local pf="$PROFILES_DIR/$p/vscode/settings.json"
+        [[ -f "$pf" ]] && settings_files+=("$pf")
+    done
+
+    if [[ ${#settings_files[@]} -gt 0 ]]; then
+        if [[ ${#settings_files[@]} -eq 1 ]]; then
+            cp "${settings_files[1]}" "$vscode_user_dir/settings.json"
         else
-            cp "$default_dir/settings.json" "$vscode_user_dir/settings.json"
+            jq -s 'reduce .[] as $item ({}; . * $item)' "${settings_files[@]}" \
+                > "$vscode_user_dir/settings.json"
         fi
         echo "  Settings merged"
     fi
 
-    # Keybindings
-    local kb_source="$default_dir/keybindings.json"
-    [[ -f "$profile_dir/keybindings.json" ]] && kb_source="$profile_dir/keybindings.json"
-    if [[ -f "$kb_source" ]]; then
+    # Keybindings: last profile with keybindings.json wins
+    local kb_source=""
+    [[ -f "$default_dir/keybindings.json" ]] && kb_source="$default_dir/keybindings.json"
+    for p in ${=profiles}; do
+        [[ -f "$PROFILES_DIR/$p/vscode/keybindings.json" ]] && kb_source="$PROFILES_DIR/$p/vscode/keybindings.json"
+    done
+    if [[ -n "$kb_source" ]]; then
         cp "$kb_source" "$vscode_user_dir/keybindings.json"
         echo "  Keybindings applied"
     fi
 
-    # Extensions
-    local -a desired_extensions=()
-    for ext_file in "$default_dir/extensions.txt" "$profile_dir/extensions.txt"; do
-        if [[ -f "$ext_file" ]]; then
-            while IFS= read -r ext; do
-                ext="${ext%%#*}"
-                ext="${ext// /}"
-                [[ -n "$ext" ]] && desired_extensions+=("$ext")
-            done < "$ext_file"
-        fi
+    # Extensions: union of all extensions.txt files
+    local -a ext_files=()
+    [[ -f "$default_dir/extensions.txt" ]] && ext_files+=("$default_dir/extensions.txt")
+    for p in ${=profiles}; do
+        local ef="$PROFILES_DIR/$p/vscode/extensions.txt"
+        [[ -f "$ef" ]] && ext_files+=("$ef")
     done
+
+    local -a desired_extensions=()
+    for ext_file in "${ext_files[@]}"; do
+        while IFS= read -r ext; do
+            ext="${ext%%#*}"
+            ext="${ext// /}"
+            [[ -n "$ext" ]] && desired_extensions+=("$ext")
+        done < "$ext_file"
+    done
+    # Deduplicate
+    local -aU desired_extensions=("${desired_extensions[@]}")
 
     if [[ ${#desired_extensions} -gt 0 ]]; then
         local installed
@@ -243,25 +319,78 @@ _profile_apply_vscode() {
     echo "  Done. Restart VSCode to apply changes."
 }
 
+# --- iTerm ---
+
+_profile_apply_iterm() {
+    local profiles="$1"
+    local default_iterm="$PROFILES_DIR/default/iterm/profile.json"
+    local dynamic_dir="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
+
+    # Check if any iTerm config exists
+    local has_config=false
+    [[ -f "$default_iterm" ]] && has_config=true
+    for p in ${=profiles}; do
+        [[ -f "$PROFILES_DIR/$p/iterm/profile.json" ]] && has_config=true
+    done
+    [[ "$has_config" == "false" ]] && return 0
+
+    # Skip if iTerm2 isn't installed
+    if [[ ! -d "$HOME/Library/Application Support/iTerm2" ]]; then
+        return 0
+    fi
+
+    mkdir -p "$dynamic_dir"
+
+    # Chain-merge: default * profile1 * profile2 ...
+    local -a iterm_files=()
+    [[ -f "$default_iterm" ]] && iterm_files+=("$default_iterm")
+    for p in ${=profiles}; do
+        local pf="$PROFILES_DIR/$p/iterm/profile.json"
+        [[ -f "$pf" ]] && iterm_files+=("$pf")
+    done
+
+    if [[ ${#iterm_files[@]} -eq 1 ]]; then
+        cp "${iterm_files[1]}" "$dynamic_dir/dotfiles.json"
+        echo "Applying iTerm profile: default"
+    elif [[ ${#iterm_files[@]} -gt 1 ]]; then
+        jq -s 'reduce .[] as $item ({}; {"Profiles": [(.Profiles[0] // {}) * ($item.Profiles[0] // {})]})' \
+            "${iterm_files[@]}" > "$dynamic_dir/dotfiles.json"
+        local label="default"
+        for p in ${=profiles}; do
+            [[ -f "$PROFILES_DIR/$p/iterm/profile.json" ]] && label+=" + $p"
+        done
+        echo "Applying iTerm profile: $label"
+    fi
+}
+
 # --- Update (sync local state back to profile files) ---
 
 _profile_update_brew() {
-    local profile_name="$1"
+    local profiles="$1"
     local default_brewfile="$PROFILES_DIR/default/Brewfile"
-    local profile_brewfile="$PROFILES_DIR/$profile_name/Brewfile"
 
     echo "Syncing brew packages..."
+
+    # Determine target profile for additions (last active profile)
+    local target_profile=""
+    for p in ${=profiles}; do
+        target_profile="$p"
+    done
+    local target_brewfile="$PROFILES_DIR/$target_profile/Brewfile"
+    # If no non-default profiles, target is default
+    [[ -z "$target_profile" ]] && target_brewfile="$default_brewfile"
 
     # Get currently installed
     local current_formulae=$(brew leaves 2>/dev/null | sort)
     local current_casks=$(brew list --cask 2>/dev/null | sort)
 
-    # Get what's in the Brewfiles
-    local default_expected=$(_profile_read_brew_packages "$default_brewfile")
-    local profile_expected=""
-    [[ "$profile_name" != "default" && -f "$profile_brewfile" ]] && \
-        profile_expected=$(_profile_read_brew_packages "$profile_brewfile")
-    local all_expected=$(echo -e "${default_expected}\n${profile_expected}" | sort -u)
+    # Get what's in all Brewfiles
+    local -a brewfiles=("$default_brewfile")
+    for p in ${=profiles}; do
+        local pf="$PROFILES_DIR/$p/Brewfile"
+        [[ -f "$pf" ]] && brewfiles+=("$pf")
+    done
+    local all_expected=$(_profile_read_brew_packages "${brewfiles[@]}")
 
     # Build current set in same format
     local current_set=$( (echo "$current_formulae" | sed 's/^/brew:/'; echo "$current_casks" | sed 's/^/cask:/') | sort -u)
@@ -281,15 +410,12 @@ _profile_update_brew() {
     if [[ -n "$added" ]]; then
         echo "  New packages to add to profile:"
         echo "$added" | sed 's/^/    + /'
-        # Append to profile Brewfile (or default if profile is default)
-        local target="$profile_brewfile"
-        [[ "$profile_name" == "default" ]] && target="$default_brewfile"
         for pkg in ${(f)added}; do
             local type="${pkg%%:*}"
             local name="${pkg#*:}"
-            echo "$type \"$name\"" >> "$target"
+            echo "$type \"$name\"" >> "$target_brewfile"
         done
-        echo "  Written to $(basename "$(dirname "$target")")/Brewfile"
+        echo "  Written to $(basename "$(dirname "$target_brewfile")")/Brewfile"
     fi
 
     if [[ -n "$removed" ]]; then
@@ -303,18 +429,28 @@ _profile_update_brew() {
             if grep -q "$pattern" "$default_brewfile" 2>/dev/null; then
                 sed -i '' "/$pattern/d" "$default_brewfile"
             fi
-            if [[ -f "$profile_brewfile" ]] && grep -q "$pattern" "$profile_brewfile" 2>/dev/null; then
-                sed -i '' "/$pattern/d" "$profile_brewfile"
-            fi
+            for p in ${=profiles}; do
+                local pf="$PROFILES_DIR/$p/Brewfile"
+                if [[ -f "$pf" ]] && grep -q "$pattern" "$pf" 2>/dev/null; then
+                    sed -i '' "/$pattern/d" "$pf"
+                fi
+            done
         done
         echo "  Removed from Brewfiles"
     fi
 }
 
 _profile_update_vscode() {
-    local profile_name="$1"
+    local profiles="$1"
     local default_ext="$PROFILES_DIR/default/vscode/extensions.txt"
-    local profile_ext="$PROFILES_DIR/$profile_name/vscode/extensions.txt"
+
+    # Determine target profile for additions (last active profile)
+    local target_profile=""
+    for p in ${=profiles}; do
+        target_profile="$p"
+    done
+    local target_ext="$PROFILES_DIR/$target_profile/vscode/extensions.txt"
+    [[ -z "$target_profile" || ! -d "$(dirname "$target_ext")" ]] && target_ext="$default_ext"
 
     local vscode_cli
     vscode_cli=$(_profile_find_vscode_cli)
@@ -326,7 +462,14 @@ _profile_update_vscode() {
     echo "Syncing VSCode extensions..."
 
     local current=$("$vscode_cli" --list-extensions 2>/dev/null | sort)
-    local expected=$(_profile_read_extensions "$default_ext" "$profile_ext")
+
+    # Gather all extension files
+    local -a ext_files=("$default_ext")
+    for p in ${=profiles}; do
+        local ef="$PROFILES_DIR/$p/vscode/extensions.txt"
+        [[ -f "$ef" ]] && ext_files+=("$ef")
+    done
+    local expected=$(_profile_read_extensions "${ext_files[@]}")
 
     local added=$(comm -23 <(echo "$current") <(echo "$expected"))
     local removed=$(comm -13 <(echo "$current") <(echo "$expected"))
@@ -339,12 +482,10 @@ _profile_update_vscode() {
     if [[ -n "$added" ]]; then
         echo "  New extensions to add to profile:"
         echo "$added" | sed 's/^/    + /'
-        local target="$profile_ext"
-        [[ "$profile_name" == "default" || ! -d "$(dirname $profile_ext)" ]] && target="$default_ext"
         for ext in ${(f)added}; do
-            echo "$ext" >> "$target"
+            echo "$ext" >> "$target_ext"
         done
-        echo "  Written to $(basename "$(dirname "$(dirname "$target")")")/vscode/extensions.txt"
+        echo "  Written to $(basename "$(dirname "$(dirname "$target_ext")")")/vscode/extensions.txt"
     fi
 
     if [[ -n "$removed" ]]; then
@@ -354,42 +495,14 @@ _profile_update_vscode() {
             if grep -qi "^${ext}$" "$default_ext" 2>/dev/null; then
                 sed -i '' "/^${ext}$/Id" "$default_ext"
             fi
-            if [[ -f "$profile_ext" ]] && grep -qi "^${ext}$" "$profile_ext" 2>/dev/null; then
-                sed -i '' "/^${ext}$/Id" "$profile_ext"
-            fi
+            for p in ${=profiles}; do
+                local ef="$PROFILES_DIR/$p/vscode/extensions.txt"
+                if [[ -f "$ef" ]] && grep -qi "^${ext}$" "$ef" 2>/dev/null; then
+                    sed -i '' "/^${ext}$/Id" "$ef"
+                fi
+            done
         done
         echo "  Removed from extensions.txt"
-    fi
-}
-
-# --- iTerm ---
-
-_profile_apply_iterm() {
-    local profile_name="$1"
-    local default_iterm="$PROFILES_DIR/default/iterm/profile.json"
-    local profile_iterm="$PROFILES_DIR/$profile_name/iterm/profile.json"
-    local dynamic_dir="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
-
-    # Skip if no iTerm config exists
-    if [[ ! -f "$default_iterm" && ! -f "$profile_iterm" ]]; then
-        return 0
-    fi
-
-    # Skip if iTerm2 isn't installed
-    if [[ ! -d "$HOME/Library/Application Support/iTerm2" ]]; then
-        return 0
-    fi
-
-    mkdir -p "$dynamic_dir"
-
-    if [[ "$profile_name" != "default" && -f "$profile_iterm" ]]; then
-        # Merge: default profile object + profile overrides, then re-wrap
-        jq -s '{"Profiles": [.[0].Profiles[0] * .[1].Profiles[0]]}' \
-            "$default_iterm" "$profile_iterm" > "$dynamic_dir/dotfiles.json"
-        echo "Applying iTerm profile: default + $profile_name"
-    elif [[ -f "$default_iterm" ]]; then
-        cp "$default_iterm" "$dynamic_dir/dotfiles.json"
-        echo "Applying iTerm profile: default"
     fi
 }
 
@@ -402,61 +515,84 @@ _profile_status() {
         return 0
     fi
 
-    echo "Active profile: $active"
+    local display="${active// /, }"
+    echo "Active profiles: $display"
 
     if [[ ! -f "$PROFILE_SNAPSHOT_FILE" ]]; then
         echo "No snapshot found. Run 'profile switch $active' to create one."
         return 0
     fi
 
-    local default_dir="$PROFILES_DIR/default"
-    local profile_dir="$PROFILES_DIR/$active"
+    # Recompute hash and compare
+    local current_hash=""
+    for dir in $(_profile_collect_dirs "$active"); do
+        for f in "$dir/Brewfile" "$dir/vscode/extensions.txt" \
+                 "$dir/vscode/settings.json" "$dir/vscode/keybindings.json" \
+                 "$dir/iterm/profile.json"; do
+            [[ -f "$f" ]] && current_hash+=$(md5 -q "$f" 2>/dev/null)
+        done
+    done
 
-    # Brew drift
-    local -a brewfiles=("$default_dir/Brewfile")
-    [[ "$active" != "default" && -f "$profile_dir/Brewfile" ]] && brewfiles+=("$profile_dir/Brewfile")
-    local expected_brew=$(_profile_read_brew_packages "${brewfiles[@]}")
-    local snap_brew=$(jq -r '(.brew[] | "brew:" + .), (.casks[] | "cask:" + .)' "$PROFILE_SNAPSHOT_FILE" 2>/dev/null | sort -u)
+    local stored_hash=$(cat "$PROFILE_SNAPSHOT_FILE" 2>/dev/null)
 
-    local brew_added=$(comm -23 <(echo "$snap_brew") <(echo "$expected_brew"))
-    local brew_removed=$(comm -13 <(echo "$snap_brew") <(echo "$expected_brew"))
-    # Filter taps
-    brew_removed=$(echo "$brew_removed" | grep -v "^tap:")
-
-    # Extension drift
-    local -a extfiles=("$default_dir/vscode/extensions.txt")
-    [[ "$active" != "default" && -f "$profile_dir/vscode/extensions.txt" ]] && \
-        extfiles+=("$profile_dir/vscode/extensions.txt")
-    local expected_ext=$(_profile_read_extensions "${extfiles[@]}")
-    local snap_ext=$(jq -r '.extensions[]' "$PROFILE_SNAPSHOT_FILE" 2>/dev/null | sort -u)
-
-    local ext_added=$(comm -23 <(echo "$snap_ext") <(echo "$expected_ext"))
-    local ext_removed=$(comm -13 <(echo "$snap_ext") <(echo "$expected_ext"))
-
-    if [[ -z "$brew_added" && -z "$brew_removed" && -z "$ext_added" && -z "$ext_removed" ]]; then
+    if [[ "$current_hash" == "$stored_hash" ]]; then
         echo "Everything is in sync."
+    else
+        echo "Profile files have changed since last switch."
+        echo "Run 'profile switch $active' to re-apply, or 'profile update' to sync local state back."
+    fi
+}
+
+# --- Host mapping ---
+
+_profile_register() {
+    local hostname=$(hostname)
+    local active=$(_profile_active)
+
+    if [[ -z "$active" ]]; then
+        echo "No active profiles. Run 'profile switch <name>' first."
+        return 1
+    fi
+
+    # Read active profiles as JSON array
+    local -a profile_list=(${=active})
+    local json_array
+    json_array=$(printf '%s\n' "${profile_list[@]}" | jq -R . | jq -s .)
+
+    # Create or update hosts.json
+    if [[ -f "$HOSTS_FILE" ]]; then
+        local updated
+        updated=$(jq --arg host "$hostname" --argjson profiles "$json_array" \
+            '.[$host] = $profiles' "$HOSTS_FILE")
+        echo "$updated" > "$HOSTS_FILE"
+    else
+        jq -n --arg host "$hostname" --argjson profiles "$json_array" \
+            '{($host): $profiles}' > "$HOSTS_FILE"
+    fi
+
+    local display="${active// /, }"
+    echo "Registered $hostname -> [$display] in hosts.json"
+}
+
+_profile_hosts() {
+    if [[ ! -f "$HOSTS_FILE" ]]; then
+        echo "No hosts.json found. Run 'profile register' to create one."
         return 0
     fi
 
+    local current_hostname=$(hostname)
+    echo "Host mappings:"
     echo ""
-    if [[ -n "$brew_added" ]]; then
-        echo "Brew packages installed but not in profile:"
-        echo "$brew_added" | sed 's/^/  + /'
-    fi
-    if [[ -n "$brew_removed" ]]; then
-        echo "Brew packages in profile but not installed:"
-        echo "$brew_removed" | sed 's/^/  - /'
-    fi
-    if [[ -n "$ext_added" ]]; then
-        echo "Extensions installed but not in profile:"
-        echo "$ext_added" | sed 's/^/  + /'
-    fi
-    if [[ -n "$ext_removed" ]]; then
-        echo "Extensions in profile but not installed:"
-        echo "$ext_removed" | sed 's/^/  - /'
-    fi
-    echo ""
-    echo "Run 'profile update' to sync changes back to profile files."
+    jq -r 'to_entries[] | "  \(.key): \(.value | join(", "))"' "$HOSTS_FILE" | while IFS= read -r line; do
+        local host="${line%%:*}"
+        # Trim leading spaces for comparison
+        local trimmed_host="${host## }"
+        if [[ "$trimmed_host" == "$current_hostname" ]]; then
+            echo "$line  (this machine)"
+        else
+            echo "$line"
+        fi
+    done
 }
 
 # --- Main entry point ---
@@ -467,55 +603,77 @@ profile() {
 
     case "$subcmd" in
         switch|s)
-            local profile_name="$1"
-            if [[ -z "$profile_name" ]]; then
-                echo "Usage: profile switch <name>"
+            if [[ $# -eq 0 ]]; then
+                echo "Usage: profile switch <name> [name2 ...]"
                 return 1
             fi
-            if [[ ! -d "$PROFILES_DIR/$profile_name" ]]; then
-                echo "Error: profile '$profile_name' not found" >&2
-                return 1
-            fi
-            _profile_apply_brew "$profile_name"
-            _profile_apply_vscode "$profile_name"
-            _profile_apply_iterm "$profile_name"
-            echo "$profile_name" > "$PROFILE_ACTIVE_FILE"
+            # Validate all profiles exist
+            for p in "$@"; do
+                if [[ ! -d "$PROFILES_DIR/$p" ]]; then
+                    echo "Error: profile '$p' not found" >&2
+                    return 1
+                fi
+            done
+            # Build space-separated profile list (excluding default, it's always included)
+            local active_set=""
+            for p in "$@"; do
+                [[ "$p" == "default" ]] && continue
+                if [[ -n "$active_set" ]]; then
+                    active_set+=" $p"
+                else
+                    active_set="$p"
+                fi
+            done
+            # If only default was specified
+            [[ -z "$active_set" ]] && active_set="default"
+
+            _profile_apply_brew "$active_set"
+            _profile_apply_vscode "$active_set"
+            _profile_apply_iterm "$active_set"
+            echo "$active_set" > "$PROFILE_ACTIVE_FILE"
             echo "Taking snapshot..."
-            _profile_take_snapshot "$profile_name"
-            echo "Profile '$profile_name' is now active."
+            _profile_take_snapshot "$active_set"
+            local display="${active_set// /, }"
+            echo "Active profiles: $display"
             ;;
         update|u)
-            local profile_name="${1:-$(_profile_active)}"
-            if [[ -z "$profile_name" ]]; then
-                echo "No active profile. Specify one: profile update <name>"
+            local active=$(_profile_active)
+            if [[ -z "$active" ]]; then
+                echo "No active profile. Run 'profile switch <name>' first."
                 return 1
             fi
-            if [[ ! -d "$PROFILES_DIR/$profile_name" ]]; then
-                echo "Error: profile '$profile_name' not found" >&2
-                return 1
-            fi
-            _profile_update_brew "$profile_name"
-            _profile_update_vscode "$profile_name"
+            _profile_update_brew "$active"
+            _profile_update_vscode "$active"
             echo "Taking snapshot..."
-            _profile_take_snapshot "$profile_name"
-            echo "Profile '$profile_name' updated."
+            _profile_take_snapshot "$active"
+            local display="${active// /, }"
+            echo "Profiles updated: $display"
             ;;
         status|st)
             _profile_status
+            ;;
+        register)
+            _profile_register
+            ;;
+        hosts)
+            _profile_hosts
             ;;
         help|*)
             echo "Usage: profile <command> [args]"
             echo ""
             echo "Commands:"
-            echo "  switch <name>   (s)   Apply a profile (brew + vscode)"
-            echo "  update [name]   (u)   Sync local changes back to profile files"
-            echo "  status          (st)  Show active profile and drift"
+            echo "  switch <name> [name2 ...]  (s)   Apply profiles (brew + vscode + iterm)"
+            echo "  update                     (u)   Sync local changes back to profile files"
+            echo "  status                     (st)  Show active profiles and drift"
+            echo "  register                         Save hostname + active profiles to hosts.json"
+            echo "  hosts                            Show all host mappings"
             echo ""
             echo "Available profiles:"
+            local active=$(_profile_active)
             for dir in "$PROFILES_DIR"/*/; do
                 local name=$(basename "$dir")
                 local marker=""
-                [[ "$name" == "$(_profile_active)" ]] && marker=" (active)"
+                [[ " $active " == *" $name "* || "$active" == "$name" ]] && marker=" (active)"
                 echo "  $name$marker"
             done
             ;;

@@ -12,7 +12,6 @@ brew "zsh"
 
 # Dev tools
 brew "act"              # Run GitHub Actions locally
-brew "biome"            # JS/TS linter + formatter
 brew "direnv"
 brew "fzf"
 brew "gdu"              # Disk usage analyzer
@@ -26,7 +25,6 @@ brew "trufflehog"       # Secret scanner
 
 # Languages & runtimes
 brew "cargo-binstall"
-brew "python@3.13"
 # req. for mise to build ruby@3
 brew "libyaml"
 
@@ -50,7 +48,6 @@ brew "nmap"
 brew "ollama", restart_service: :changed
 
 # Media
-brew "devil"            # Image library
 brew "ffmpeg"
 brew "yt-dlp"
 
