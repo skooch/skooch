@@ -24,6 +24,11 @@ ZSH_AUTOSUGGEST_USE_ASYNC=1
 ### Functions
 for f in "$HOME/.zsh_functions"/*.sh(N); do source "$f"; done
 
+### Profile drift check
+if [[ -f "$HOME/.profile_active" && -f "$HOME/.profile_snapshot" ]]; then
+    _profile_check_drift
+fi
+
 ### Aliases
 alias p="pnpm"
 alias code="code-insiders"

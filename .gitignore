@@ -5,3 +5,5 @@
 .claude
 .zcompdump*
 .zsh_plugins.zsh
+.profile_active
+.profile_snapshot
