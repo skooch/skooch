@@ -15,7 +15,9 @@ if (( $+commands[gh] )); then
     fpath=("${HOME}/.zcompcache" $fpath)
 fi
 autoload -Uz compinit
-if [ "$(date +'%j')" != "$(stat -f '%Sm' -t '%j' ~/.zcompdump 2>/dev/null)" ]; then
+local _zcomp_mtime
+_zcomp_mtime=$(stat -c %Y ~/.zcompdump 2>/dev/null || stat -f %m ~/.zcompdump 2>/dev/null || echo 0)
+if (( $(date +%s) - _zcomp_mtime > 86400 )); then
     compinit
 else
     compinit -C

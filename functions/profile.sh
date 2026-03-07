@@ -1142,8 +1142,7 @@ _profile_check_remote() {
     local fetch_head="$DOTFILES_DIR/.git/FETCH_HEAD"
     if [[ -f "$fetch_head" ]]; then
         local mtime
-        mtime=$(stat -f %m "$fetch_head" 2>/dev/null)
-        # Guard against non-BSD stat (e.g. GNU coreutils) returning non-numeric output
+        mtime=$(stat -c %Y "$fetch_head" 2>/dev/null || stat -f %m "$fetch_head" 2>/dev/null)
         [[ "$mtime" =~ ^[0-9]+$ ]] || return 0
         local fetch_age=$(( $(date +%s) - mtime ))
         # Only check if last fetch was within the last hour (already cached)
