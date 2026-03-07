@@ -22,8 +22,10 @@ else
 fi
 
 ### Antidote plugin manager
-source "$HOME/.antidote/antidote.zsh"
-antidote load
+if [[ -f "$HOME/.antidote/antidote.zsh" ]]; then
+    source "$HOME/.antidote/antidote.zsh"
+    antidote load
+fi
 
 ### Autosuggestions performance
 ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE="20"

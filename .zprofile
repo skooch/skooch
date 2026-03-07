@@ -4,7 +4,7 @@
 [[ -s "/opt/homebrew/bin/brew" ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
 
 ### mise
-eval "$(mise activate zsh)"
+command -v mise >/dev/null && eval "$(mise activate zsh)"
 
 ### direnv
 command -v direnv >/dev/null && eval "$(direnv hook zsh)"

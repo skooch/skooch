@@ -24,31 +24,56 @@ if [ "$(uname)" != "Darwin" ]; then
 fi
 ok "macOS"
 
-if ! command -v brew >/dev/null 2>&1; then
-    fail "Homebrew not installed. Visit https://brew.sh"
-    exit 1
-fi
-ok "Homebrew"
-
-BREW_ZSH="/opt/homebrew/bin/zsh"
-if [ ! -x "$BREW_ZSH" ]; then
-    warn "Homebrew zsh not found at $BREW_ZSH — will be installed via profile"
-else
-    ok "Homebrew zsh"
-    current_shell=$(dscl . -read /Users/"$(whoami)" UserShell 2>/dev/null | awk '{print $2}')
-    if [ "$current_shell" = "$BREW_ZSH" ]; then
-        ok "Default shell is Homebrew zsh"
-    else
-        warn "Default shell is $current_shell, not $BREW_ZSH"
-        printf "  Run: chsh -s %s\n" "$BREW_ZSH"
-    fi
-fi
-
 if [ ! -d "$DOTFILES_DIR" ]; then
     fail "Dotfiles repo not found at $DOTFILES_DIR"
     exit 1
 fi
 ok "Dotfiles repo"
+
+echo ""
+
+# --- Core tools ---
+
+echo "Checking core tools..."
+
+# Homebrew
+if ! command -v brew >/dev/null 2>&1; then
+    echo "  Installing Homebrew..."
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+    ok "Homebrew installed"
+else
+    ok "Homebrew"
+fi
+
+# Core formulae needed by the dotfiles themselves
+for tool in git jq mise; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        echo "  Installing $tool..."
+        brew install "$tool"
+        ok "$tool installed"
+    else
+        ok "$tool"
+    fi
+done
+
+# Homebrew zsh
+BREW_ZSH="/opt/homebrew/bin/zsh"
+if [ ! -x "$BREW_ZSH" ]; then
+    echo "  Installing Homebrew zsh..."
+    brew install zsh
+    ok "Homebrew zsh installed"
+else
+    ok "Homebrew zsh"
+fi
+
+current_shell=$(dscl . -read /Users/"$(whoami)" UserShell 2>/dev/null | awk '{print $2}')
+if [ "$current_shell" = "$BREW_ZSH" ]; then
+    ok "Default shell is Homebrew zsh"
+else
+    warn "Default shell is $current_shell, not $BREW_ZSH"
+    printf "  Run: chsh -s %s\n" "$BREW_ZSH"
+fi
 
 echo ""
 
@@ -169,6 +194,15 @@ else
     all_good=0
 fi
 
+for tool in brew git jq mise; do
+    if command -v "$tool" >/dev/null 2>&1; then
+        ok "$tool available"
+    else
+        fail "$tool missing"
+        all_good=0
+    fi
+done
+
 echo ""
 
 if [ "$all_good" = 1 ]; then
@@ -178,7 +212,7 @@ if [ "$all_good" = 1 ]; then
     # Check hosts.json for recommended profiles
     HOSTS_FILE="$DOTFILES_DIR/hosts.json"
     recommended=""
-    if [ -f "$HOSTS_FILE" ] && command -v jq >/dev/null 2>&1; then
+    if [ -f "$HOSTS_FILE" ]; then
         current_host=$(hostname)
         recommended=$(jq -r --arg h "$current_host" '.[$h] // empty | join(" ")' "$HOSTS_FILE" 2>/dev/null)
     fi

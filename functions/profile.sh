@@ -1033,6 +1033,21 @@ _profile_hosts() {
     done
 }
 
+# --- Dependency check ---
+
+_profile_check_deps() {
+    local -a missing=()
+    for cmd in brew jq; do
+        command -v "$cmd" &>/dev/null || missing+=("$cmd")
+    done
+    if [[ ${#missing[@]} -gt 0 ]]; then
+        echo "Missing required tools: ${missing[*]}" >&2
+        echo "Run install.sh first, or install manually: brew install ${missing[*]}" >&2
+        return 1
+    fi
+    return 0
+}
+
 # --- Main entry point ---
 
 profile() {
@@ -1041,6 +1056,7 @@ profile() {
 
     case "$subcmd" in
         switch|s)
+            _profile_check_deps || return 1
             # Parse -f/--force flag
             local force=false
             local -a args=()
@@ -1112,6 +1128,7 @@ profile() {
             echo "Active profiles: $display"
             ;;
         diff|d)
+            _profile_check_deps || return 1
             if [[ $# -eq 0 ]]; then
                 # Default to current active profiles
                 local active=$(_profile_active)
@@ -1141,6 +1158,7 @@ profile() {
             fi
             ;;
         update|u)
+            _profile_check_deps || return 1
             local active=$(_profile_active)
             if [[ -z "$active" ]]; then
                 echo "No active profile. Run 'profile switch <name>' first."
@@ -1157,6 +1175,7 @@ profile() {
             _profile_status
             ;;
         register)
+            _profile_check_deps || return 1
             _profile_register
             ;;
         hosts)
