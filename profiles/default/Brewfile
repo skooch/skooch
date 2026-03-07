@@ -1,13 +1,4 @@
-# Taps
 tap "homebrew/autoupdate"
-tap "homebrew/bundle"
-
-# Build tools
-brew "cairo"
-brew "ccache"
-brew "cmake"
-brew "ninja"
-brew "pixman"
 
 # Core CLI
 brew "coreutils"
@@ -28,11 +19,9 @@ brew "gdu"              # Disk usage analyzer
 brew "gh"
 brew "git"
 brew "git-lfs"
-brew "helm"
 brew "jj"               # Jujutsu VCS
 brew "mise"
 brew "shellcheck"
-brew "skaffold"
 brew "trufflehog"       # Secret scanner
 
 # Languages & runtimes
@@ -67,14 +56,11 @@ brew "yt-dlp"
 
 # Casks
 cask "1password-cli"
-cask "android-platform-tools"
 cask "bruno"            # API client
 cask "claude-code"
-cask "gcloud-cli"
 cask "iterm2"
 cask "lagrange"         # Gemini browser
 cask "orbstack"         # Docker/Linux VMs
 cask "qmk-toolbox"     # Keyboard firmware
 cask "visual-studio-code@insiders"
-cask "xcodes"
 cask "xcodes-app"

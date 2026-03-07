@@ -25,10 +25,11 @@ chsh -s /opt/homebrew/bin/zsh
    ln -sfn ~/projects/skooch/functions ~/.zsh_functions
    ```
 
-4. Install the Brewfile:
+4. Restart your shell, then apply a profile to install packages and configure VSCode:
    ```sh
-   brew bundle --file=~/projects/skooch/Brewfile
+   profile embedded   # or: profile b, profile default
    ```
+   This installs Homebrew packages (default + profile) and applies VSCode settings/extensions.
 
 5. Install runtimes managed by mise:
    ```sh
@@ -41,5 +42,3 @@ chsh -s /opt/homebrew/bin/zsh
    ```sh
    curl -L https://iterm2.com/shell_integration/zsh -o ~/.iterm2_shell_integration.zsh
    ```
-
-8. Restart your shell

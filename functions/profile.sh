@@ -4,7 +4,6 @@ DOTFILES_DIR="$HOME/projects/skooch"
 PROFILES_DIR="$DOTFILES_DIR/profiles"
 
 _profile_find_vscode() {
-    local vscode_dir
     for dir in "$HOME/Library/Application Support/Code - Insiders/User" \
                "$HOME/Library/Application Support/Code/User"; do
         if [[ -d "$dir" ]]; then
@@ -12,7 +11,6 @@ _profile_find_vscode() {
             return 0
         fi
     done
-    echo "Error: no VSCode user directory found" >&2
     return 1
 }
 
@@ -23,7 +21,6 @@ _profile_find_vscode_cli() {
             return 0
         fi
     done
-    # Fall back to app binary
     for app in "/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code" \
                "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code"; do
         if [[ -x "$app" ]]; then
@@ -31,7 +28,6 @@ _profile_find_vscode_cli() {
             return 0
         fi
     done
-    echo "Error: no VSCode CLI found" >&2
     return 1
 }
 
@@ -58,18 +54,58 @@ profile() {
         return 1
     fi
 
+    _profile_apply_brew "$profile_name"
     _profile_apply_vscode "$profile_name"
+}
+
+_profile_apply_brew() {
+    local profile_name="$1"
+    local default_brewfile="$PROFILES_DIR/default/Brewfile"
+    local profile_brewfile="$PROFILES_DIR/$profile_name/Brewfile"
+
+    if [[ ! -f "$default_brewfile" ]]; then
+        echo "Brew: no default Brewfile found, skipping"
+        return 0
+    fi
+
+    local tmpfile=$(mktemp)
+    cat "$default_brewfile" > "$tmpfile"
+
+    if [[ "$profile_name" != "default" && -f "$profile_brewfile" ]]; then
+        echo "" >> "$tmpfile"
+        cat "$profile_brewfile" >> "$tmpfile"
+        echo "Applying Brewfile: default + $profile_name"
+    else
+        echo "Applying Brewfile: default"
+    fi
+
+    brew bundle --file="$tmpfile"
+    rm -f "$tmpfile"
 }
 
 _profile_apply_vscode() {
     local profile_name="$1"
     local profile_dir="$PROFILES_DIR/$profile_name/vscode"
     local default_dir="$PROFILES_DIR/default/vscode"
-    local vscode_user_dir
 
-    vscode_user_dir=$(_profile_find_vscode) || return 1
+    # Skip if no vscode config exists for default or this profile
+    if [[ ! -d "$default_dir" && ! -d "$profile_dir" ]]; then
+        return 0
+    fi
+
+    local vscode_user_dir
+    vscode_user_dir=$(_profile_find_vscode)
+    if [[ $? -ne 0 ]]; then
+        echo "VSCode: no installation found, skipping"
+        return 0
+    fi
+
     local vscode_cli
-    vscode_cli=$(_profile_find_vscode_cli) || return 1
+    vscode_cli=$(_profile_find_vscode_cli)
+    if [[ $? -ne 0 ]]; then
+        echo "VSCode: no CLI found, skipping"
+        return 0
+    fi
 
     if [[ "$profile_name" == "default" ]]; then
         echo "Applying VSCode profile: default"
@@ -131,5 +167,5 @@ _profile_apply_vscode() {
         fi
     fi
 
-    echo "Done. Restart VSCode to apply changes."
+    echo "  Done. Restart VSCode to apply changes."
 }

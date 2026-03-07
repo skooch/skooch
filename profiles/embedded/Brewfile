@@ -1,0 +1,6 @@
+brew "cairo"
+brew "ccache"
+brew "cmake"
+brew "ninja"
+brew "pixman"
+cask "android-platform-tools"

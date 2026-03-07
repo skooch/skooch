@@ -1,0 +1,3 @@
+brew "helm"
+brew "skaffold"
+cask "gcloud-cli"
