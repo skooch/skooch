@@ -649,6 +649,7 @@ _profile_diff() {
     local profiles="$1"
     local has_diff=false
     local diff_cmd="diff"
+    local result=""
     diff --color /dev/null /dev/null 2>/dev/null && diff_cmd="diff --color"
 
     # Git
@@ -672,7 +673,6 @@ _profile_diff() {
             fi
         done
         printf '%s' "$content" > "$tmpfile"
-        local result
         result=$($diff_cmd "$target" "$tmpfile" 2>/dev/null)
         if [[ -n "$result" ]]; then
             echo "=== git (~/.gitconfig) ==="
@@ -716,7 +716,6 @@ _profile_diff() {
                 echo ""
             done
         } > "$tmpfile"
-        local result
         result=$($diff_cmd "$target" "$tmpfile" 2>/dev/null)
         if [[ -n "$result" ]]; then
             echo "=== mise (~/.config/mise/config.toml) ==="
@@ -747,7 +746,6 @@ _profile_diff() {
             else
                 jq -s 'reduce .[] as $item ({}; . * $item)' "${settings_files[@]}" > "$tmpfile"
             fi
-            local result
             result=$($diff_cmd "$vscode_user_dir/settings.json" "$tmpfile" 2>/dev/null)
             if [[ -n "$result" ]]; then
                 echo "=== vscode/settings ==="
@@ -765,7 +763,6 @@ _profile_diff() {
             [[ -f "$PROFILES_DIR/$p/vscode/keybindings.json" ]] && kb_source="$PROFILES_DIR/$p/vscode/keybindings.json"
         done
         if [[ -n "$kb_source" && -f "$vscode_user_dir/keybindings.json" ]]; then
-            local result
             result=$($diff_cmd "$vscode_user_dir/keybindings.json" "$kb_source" 2>/dev/null)
             if [[ -n "$result" ]]; then
                 echo "=== vscode/keybindings ==="
@@ -843,7 +840,6 @@ _profile_diff() {
                     "${iterm_files[@]}" > "$tmpfile"
             fi
             if [[ -f "$dynamic_dir/dotfiles.json" ]]; then
-                local result
                 result=$($diff_cmd "$dynamic_dir/dotfiles.json" "$tmpfile" 2>/dev/null)
                 if [[ -n "$result" ]]; then
                     echo "=== iterm ==="
@@ -871,28 +867,22 @@ _profile_diff() {
 _profile_pick_target() {
     local profiles="$1"
     local label="$2"
-    local -a candidates=()
+    local -a candidates=("default")
 
     for p in ${=profiles}; do
-        candidates+=("$p")
+        [[ "$p" != "default" ]] && candidates+=("$p")
     done
 
     if [[ ${#candidates[@]} -le 1 ]]; then
-        if [[ ${#candidates[@]} -eq 0 ]]; then
-            echo "default"
-        else
-            echo "${candidates[1]}"
-        fi
+        echo "${candidates[1]}"
         return 0
     fi
 
     echo "" >&2
-    echo "  Multiple profiles active. Add new ${label} entries to which profile?" >&2
+    echo "  Add new ${label} entries to which profile?" >&2
     local i
     for (( i=1; i <= ${#candidates[@]}; i++ )); do
-        local suffix=""
-        [[ $i -eq ${#candidates[@]} ]] && suffix=" (default)"
-        echo "    $i) ${candidates[$i]}${suffix}" >&2
+        echo "    $i) ${candidates[$i]}" >&2
     done
     printf "  Choice [%d]: " "${#candidates[@]}" >&2
     local choice
