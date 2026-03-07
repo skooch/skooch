@@ -1,6 +1,7 @@
+.DS_Store
 .env
 *.local
 *.private
 .claude
-.zcompdump
+.zcompdump*
 .zsh_plugins.zsh

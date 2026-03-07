@@ -1,68 +1,25 @@
-# skooch's configuration
+# skooch's dotfiles
 
-This is all the stuff I use, requires brew to be installed and shell reconfigured to homebrew's zsh.
+Personal dotfiles, symlinked from `~/projects/skooch` into `~/`. Requires macOS, Homebrew, and Homebrew's zsh.
 
-[If you want to understand the behaviour I use, read the path_helper doc.](path_helper.md)
+See [INSTALL.md](INSTALL.md) for setup instructions and [docs/path_helper.md](docs/path_helper.md) for macOS PATH behaviour.
 
-[A brief installation guide is here.](INSTALL.md)
+## shell config layout
 
-I prefer to have a clean `$PATH` and the minimum amount of environment variables where possible.
+| File | When sourced | What goes here |
+|------|-------------|----------------|
+| `.zshenv` | Every shell | Env vars only: `EDITOR`, mise flags, build flags, `PNPM_HOME` |
+| `.zprofile` | Login shells | Heavy init: brew, mise, direnv, cargo, OrbStack, PATH additions |
+| `.zshrc` | Interactive shells | Plugins (antidote), completions, functions, aliases, Sonos utils |
+| `.zsh_plugins.txt` | Via antidote | OMZ libs/theme/plugins + third-party zsh plugins |
 
-I also prefer to run an up to date version of ZSH, by installing it through Homebrew. I don't support older ZSH versions.
+## key tools
 
-## what's in it
+- **[mise](https://mise.jdx.dev/)** - runtime manager (replaces pyenv/rbenv/volta/nvm)
+- **[antidote](https://getantidote.github.io/)** - zsh plugin manager, loads OMZ components selectively
+- **[direnv](https://direnv.net/)** - per-directory environment variables
+- **robbyrussell** theme via OMZ + antidote
 
-### homebrew
+## secrets
 
-* hashicorp/tap
-* homebrew/autoupdate
-* homebrew/bundle
-* cmake
-* coreutils
-* direnv
-* docker
-* docker-buildx
-* docker-compose
-* gcc
-* git-lfs
-* llvm
-* minikube
-* mtr
-* pyenv
-* rbenv
-* rsync
-* watch
-* wget
-* zsh
-* hashicorp/tap/terraform
-* orbstack
-
-### zsh
-
-I like to have my shells to have relatively same environment regardless if they're interactive or not. Only interactive shells get inclusions that affect interactivity.
-
-Because of path_helper on macos, I only use `.zshrc` and `.zshenv`. `.zprofile` will warn you if you accidentally run a login shell.
-
-#### `.zshenv`
-
-* zprof
-* homebrew
-* jetbrains toolbox
-* rsync
-* orbstack
-* pyenv
-* pnpm
-* pnpm end
-* rbenv
-* sdkman
-* android
-* direnv
-* llvm
-* volta
-
-#### `.zshrc`
-
-* iterm2 integration
-* compinstall completion style
-* zsh completions
-* colour ls
+Machine-specific secrets live in a separate private repo at `~/projects/dotfiles-private/.zshrc.private`, sourced automatically by `.zshrc`.

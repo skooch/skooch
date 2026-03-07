@@ -32,7 +32,7 @@ fi
     export PATH="$PATH:$HOME/Library/Android/sdk/cmdline-tools/latest/bin"
 
 ### libpq (Postgres CLI without full server)
-export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
+[[ -d "/opt/homebrew/opt/libpq/bin" ]] && export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
 
 ### PATH additions
 export PATH="$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH"

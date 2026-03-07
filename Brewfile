@@ -1,59 +1,80 @@
+# Taps
 tap "homebrew/autoupdate"
 tap "homebrew/bundle"
-brew "act"
-brew "biome"
+
+# Build tools
 brew "cairo"
-brew "cargo-binstall"
 brew "ccache"
 brew "cmake"
+brew "ninja"
+brew "pixman"
+
+# Core CLI
 brew "coreutils"
-brew "croc"
-brew "devil"
+brew "grep"
+brew "jq"
+brew "rsync"
+brew "sevenzip"
+brew "watch"
+brew "wget"
+brew "zsh"
+
+# Dev tools
+brew "act"              # Run GitHub Actions locally
+brew "biome"            # JS/TS linter + formatter
 brew "direnv"
-brew "docker"
-brew "docker-buildx"
-brew "docker-compose"
-brew "fastly"
-brew "ffmpeg"
 brew "fzf"
-brew "gdu"
+brew "gdu"              # Disk usage analyzer
 brew "gh"
 brew "git"
 brew "git-lfs"
-brew "grep"
 brew "helm"
-brew "jj"
-brew "jq"
-brew "libpq"
-# req. for mise to build ruby@3
-brew "libyaml"
+brew "jj"               # Jujutsu VCS
 brew "mise"
-brew "mtr"
-brew "ninja"
-brew "nmap"
-brew "ollama", restart_service: :changed
-brew "opentofu"
-brew "pixman"
-brew "pulumi"
-brew "python@3.13"
-brew "rsync"
-brew "sevenzip"
 brew "shellcheck"
 brew "skaffold"
-brew "trufflehog"
-brew "watch"
-brew "wget"
+brew "trufflehog"       # Secret scanner
+
+# Languages & runtimes
+brew "cargo-binstall"
+brew "python@3.13"
+# req. for mise to build ruby@3
+brew "libyaml"
+
+# Database
+brew "libpq"
+
+# Containers & infrastructure
+brew "docker"
+brew "docker-buildx"
+brew "docker-compose"
+brew "opentofu"
+brew "pulumi"
+
+# Networking
+brew "croc"             # File transfer
+brew "fastly"
+brew "mtr"              # Network diagnostics
+brew "nmap"
+
+# AI
+brew "ollama", restart_service: :changed
+
+# Media
+brew "devil"            # Image library
+brew "ffmpeg"
 brew "yt-dlp"
-brew "zsh"
+
+# Casks
 cask "1password-cli"
 cask "android-platform-tools"
-cask "bruno"
+cask "bruno"            # API client
 cask "claude-code"
 cask "gcloud-cli"
 cask "iterm2"
-cask "lagrange"
-cask "orbstack"
-cask "qmk-toolbox"
+cask "lagrange"         # Gemini browser
+cask "orbstack"         # Docker/Linux VMs
+cask "qmk-toolbox"     # Keyboard firmware
 cask "visual-studio-code@insiders"
 cask "xcodes"
 cask "xcodes-app"

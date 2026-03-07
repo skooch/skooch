@@ -1,5 +1,10 @@
 # setting up
 
+**Prerequisites:** macOS with [Homebrew](https://brew.sh/) installed. Set Homebrew's zsh as your default shell:
+```sh
+chsh -s /opt/homebrew/bin/zsh
+```
+
 1. Clone both repos:
    ```sh
    git clone https://github.com/skooch/skooch.git ~/projects/skooch
@@ -17,6 +22,7 @@
    ln -sf ~/projects/skooch/.zshrc ~/.zshrc
    ln -sf ~/projects/skooch/.zprofile ~/.zprofile
    ln -sf ~/projects/skooch/.zsh_plugins.txt ~/.zsh_plugins.txt
+   ln -sf ~/projects/skooch/.zsh_sonos.sh ~/.zsh_sonos.sh
    ```
 
 4. Install the Brewfile:
@@ -24,6 +30,16 @@
    brew bundle --file=~/projects/skooch/Brewfile
    ```
 
-5. Add secrets to `~/projects/dotfiles-private/.zshrc.private` (sourced automatically by `.zshrc`)
+5. Install runtimes managed by mise:
+   ```sh
+   mise install
+   ```
 
-6. Restart your shell
+6. Add secrets to `~/projects/dotfiles-private/.zshrc.private` (sourced automatically by `.zshrc`)
+
+7. (Optional) Install iTerm2 shell integration:
+   ```sh
+   curl -L https://iterm2.com/shell_integration/zsh -o ~/.iterm2_shell_integration.zsh
+   ```
+
+8. Restart your shell
