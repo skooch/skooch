@@ -183,6 +183,7 @@ _profile_dedup_dotfiles() {
 
 _profile_check_drift() {
     _profile_dedup_dotfiles
+    _profile_check_remote
 
     local active=$(_profile_active)
     [[ -z "$active" ]] && return 0
@@ -1081,6 +1082,45 @@ _profile_hosts() {
     done
 }
 
+# --- Git sync helpers ---
+
+_profile_offer_commit_push() {
+    local changes
+    changes=$(git -C "$DOTFILES_DIR" status --porcelain 2>/dev/null)
+    [[ -z "$changes" ]] && return 0
+
+    echo ""
+    echo "Uncommitted dotfiles changes:"
+    git -C "$DOTFILES_DIR" status --short
+    printf "Commit and push? [y/N] "
+    local answer
+    read -r answer
+    if [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]]; then
+        git -C "$DOTFILES_DIR" add -A
+        git -C "$DOTFILES_DIR" commit -m "Update profiles from $(hostname)"
+        git -C "$DOTFILES_DIR" push
+    fi
+}
+
+_profile_check_remote() {
+    [[ ! -d "$DOTFILES_DIR/.git" ]] && return 0
+
+    # Use FETCH_HEAD age to avoid hitting the network every shell startup
+    local fetch_head="$DOTFILES_DIR/.git/FETCH_HEAD"
+    if [[ -f "$fetch_head" ]]; then
+        local fetch_age=$(( $(date +%s) - $(stat -f %m "$fetch_head" 2>/dev/null || echo 0) ))
+        # Only check if last fetch was within the last hour (already cached)
+        if [[ $fetch_age -gt 3600 ]]; then
+            return 0
+        fi
+        local behind
+        behind=$(git -C "$DOTFILES_DIR" rev-list --count HEAD..@{u} 2>/dev/null)
+        if [[ -n "$behind" && "$behind" -gt 0 ]]; then
+            echo "Dotfiles repo is $behind commit(s) behind remote. Run 'git -C $DOTFILES_DIR pull' to update."
+        fi
+    fi
+}
+
 # --- Dependency check ---
 
 _profile_check_deps() {
@@ -1174,6 +1214,7 @@ profile() {
             _profile_take_snapshot "$active_set"
             local display="${active_set// /, }"
             echo "Active profiles: $display"
+            _profile_offer_commit_push
             ;;
         diff|d)
             _profile_check_deps || return 1
@@ -1218,6 +1259,7 @@ profile() {
             _profile_take_snapshot "$active"
             local display="${active// /, }"
             echo "Profiles updated: $display"
+            _profile_offer_commit_push
             ;;
         status|st)
             _profile_status
@@ -1225,6 +1267,7 @@ profile() {
         register)
             _profile_check_deps || return 1
             _profile_register
+            _profile_offer_commit_push
             ;;
         hosts)
             _profile_hosts
