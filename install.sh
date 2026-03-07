@@ -174,10 +174,27 @@ echo ""
 if [ "$all_good" = 1 ]; then
     echo "=== All good! ==="
     echo ""
+
+    # Check hosts.json for recommended profiles
+    HOSTS_FILE="$DOTFILES_DIR/hosts.json"
+    recommended=""
+    if [ -f "$HOSTS_FILE" ] && command -v jq >/dev/null 2>&1; then
+        current_host=$(hostname)
+        recommended=$(jq -r --arg h "$current_host" '.[$h] // empty | join(" ")' "$HOSTS_FILE" 2>/dev/null)
+    fi
+
     echo "Next steps:"
     echo "  1. Restart your shell"
-    echo "  2. Run: profile switch <name>  (e.g. embedded, b, default)"
+    if [ -n "$recommended" ]; then
+        echo "  2. Run: profile switch $recommended  (from hosts.json for $(hostname))"
+    else
+        echo "  2. Run: profile switch <name> [name2 ...]  (e.g. embedded, b)"
+    fi
     echo "  3. Run: mise install"
+    echo ""
+    echo "Note: 'profile switch' will overwrite VSCode settings/keybindings,"
+    echo "iTerm dynamic profiles, ~/.gitconfig, and ~/.config/mise/config.toml."
+    echo "You will be prompted before any unmanaged files are replaced."
 else
     echo "=== Some issues found — see warnings above ==="
 fi

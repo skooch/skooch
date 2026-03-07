@@ -52,7 +52,6 @@ brew "ffmpeg"
 brew "yt-dlp"
 
 # Casks
-cask "1password-cli"
 cask "bruno"            # API client
 cask "claude-code"
 cask "iterm2"

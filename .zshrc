@@ -6,6 +6,14 @@ test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell
 ### Completions (must run before antidote so plugins can register completions)
 zstyle ':completion:*' completer _expand _complete _ignored _correct _approximate
 zstyle ':completion:*' matcher-list '' 'm:{[:lower:]}={[:upper:]}' 'm:{[:lower:][:upper:]}={[:upper:][:lower:]}'
+if (( $+commands[gh] )); then
+    local _gh_comp="${HOME}/.zcompcache/_gh"
+    [[ -d "${HOME}/.zcompcache" ]] || mkdir -p "${HOME}/.zcompcache"
+    if [[ ! -f "$_gh_comp" || "$_gh_comp" -ot "$(command -v gh)" ]]; then
+        gh completion -s zsh >| "$_gh_comp"
+    fi
+    fpath=("${HOME}/.zcompcache" $fpath)
+fi
 autoload -Uz compinit
 if [ "$(date +'%j')" != "$(stat -f '%Sm' -t '%j' ~/.zcompdump 2>/dev/null)" ]; then
     compinit

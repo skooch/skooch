@@ -1,0 +1,7 @@
+[user]
+	name = skooch
+	email = github@skooch.ws
+[push]
+	autoSetupRemote = true
+[pull]
+	ff = only
