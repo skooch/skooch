@@ -507,6 +507,31 @@ _profile_apply_vscode() {
         else
             echo "  All extensions already installed"
         fi
+
+        # Uninstall extensions not in any active profile
+        local to_uninstall=()
+        while IFS= read -r ext; do
+            [[ -z "$ext" ]] && continue
+            local found=0
+            for desired in "${desired_extensions[@]}"; do
+                if [[ "${ext:l}" == "${desired:l}" ]]; then
+                    found=1
+                    break
+                fi
+            done
+            if [[ $found -eq 0 ]]; then
+                to_uninstall+=("$ext")
+            fi
+        done <<< "$installed"
+
+        if [[ ${#to_uninstall} -gt 0 ]]; then
+            echo "  Uninstalling ${#to_uninstall} extensions not in profile..."
+            for ext in "${to_uninstall[@]}"; do
+                "$vscode_cli" --uninstall-extension "$ext" 2>/dev/null &
+            done
+            wait
+            echo "  Extensions uninstalled"
+        fi
     fi
 
     echo "  Done. Restart VSCode to apply changes."
