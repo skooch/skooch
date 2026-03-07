@@ -2,3 +2,5 @@
 *.local
 *.private
 .claude
+.zcompdump
+.zsh_plugins.zsh

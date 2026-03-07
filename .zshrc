@@ -1,30 +1,11 @@
+# .zshrc - interactive shell config
+
 ### iterm2 integration
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
 
-### Oh My Zsh
-export ZSH="$HOME/.oh-my-zsh"
-ZSH_THEME="robbyrussell"
-zstyle ':omz:update' mode auto
-
-# Performance
-ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE="20"
-ZSH_AUTOSUGGEST_USE_ASYNC=1
-COMPLETION_WAITING_DOTS="true"
-
-plugins=(
-  git
-  gh
-  history-substring-search
-  aliases
-)
-
-source $ZSH/oh-my-zsh.sh
-
-### compinstall completion style
+### Completions (must run before antidote so plugins can register completions)
 zstyle ':completion:*' completer _expand _complete _ignored _correct _approximate
 zstyle ':completion:*' matcher-list '' 'm:{[:lower:]}={[:upper:]}' 'm:{[:lower:][:upper:]}={[:upper:][:lower:]}'
-
-### zsh completions
 autoload -Uz compinit
 if [ "$(date +'%j')" != "$(stat -f '%Sm' -t '%j' ~/.zcompdump 2>/dev/null)" ]; then
     compinit
@@ -32,30 +13,27 @@ else
     compinit -C
 fi
 
-### colour ls
-typeset -xg CLICOLOR=1
+### Antidote plugin manager
+source "$HOME/.antidote/antidote.zsh"
+antidote load
 
-### PATH additions
-export PATH="$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
-export PATH="/opt/homebrew/opt/libpq/bin:$PATH"
+### Autosuggestions performance
+ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE="20"
+ZSH_AUTOSUGGEST_USE_ASYNC=1
 
-### EDITOR
-export EDITOR='code-insiders --wait'
+### Functions
 
-### refresh dns
 refreshdns() {
     sudo dscacheutil -flushcache
     sudo killall -HUP mDNSResponder
 }
 
-### trifecta
 trifecta() {
     git add -u
     git commit --amend --no-edit
     git push --force
 }
 
-### listening
 listening() {
     if [ $# -eq 0 ]; then
         sudo lsof -iTCP -sTCP:LISTEN -n -P
@@ -67,6 +45,7 @@ listening() {
 }
 
 ### Sonos utilities
+
 check_if_refresh_sonos() {
   local SPEAKERS_MODIFIED=$(date -r /Users/skooch/.soco-cli/speakers_v2.pickle +%s)
   local CURRENT_DATE=$(date +%s)
@@ -126,9 +105,10 @@ alias p="pnpm"
 alias code="code-insiders"
 alias turbo="pnpx turbo"
 alias vercel="pnpx vercel"
+alias esp="source ~/esp/esp-idf/export.sh"
 
 ### Source private dotfiles (secrets, machine-specific config)
 source ~/projects/dotfiles-private/.zshrc.private 2>/dev/null
 
-# zprof - comment back in in .zshenv first to use
+# zprof - uncomment matching line in .zshenv to use
 # zprof

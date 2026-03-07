@@ -6,18 +6,24 @@
    git clone https://github.com/skooch/dotfiles-private.git ~/projects/dotfiles-private
    ```
 
-2. Symlink dotfiles into your home directory:
+2. Install [antidote](https://getantidote.github.io/):
+   ```sh
+   git clone --depth=1 https://github.com/mattmc3/antidote.git ~/.antidote
+   ```
+
+3. Symlink dotfiles into your home directory:
    ```sh
    ln -sf ~/projects/skooch/.zshenv ~/.zshenv
    ln -sf ~/projects/skooch/.zshrc ~/.zshrc
    ln -sf ~/projects/skooch/.zprofile ~/.zprofile
+   ln -sf ~/projects/skooch/.zsh_plugins.txt ~/.zsh_plugins.txt
    ```
 
-3. Install the Brewfile:
+4. Install the Brewfile:
    ```sh
    brew bundle --file=~/projects/skooch/Brewfile
    ```
 
-4. Add secrets to `~/projects/dotfiles-private/.zshrc.private` (sourced automatically by `.zshrc`)
+5. Add secrets to `~/projects/dotfiles-private/.zshrc.private` (sourced automatically by `.zshrc`)
 
-5. Restart your shell
+6. Restart your shell
