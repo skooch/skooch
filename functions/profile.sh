@@ -504,9 +504,8 @@ _profile_apply_vscode() {
             if [[ ${#to_install} -gt 0 ]]; then
                 echo "  Installing ${#to_install} extensions..."
                 for ext in "${to_install[@]}"; do
-                    "$vscode_cli" --install-extension "$ext" --force 2>/dev/null &
+                    "$vscode_cli" --install-extension "$ext" --force 2>/dev/null
                 done
-                wait
                 echo "  Extensions installed"
             else
                 echo "  All extensions already installed"
@@ -531,9 +530,8 @@ _profile_apply_vscode() {
             if [[ ${#to_uninstall} -gt 0 ]]; then
                 echo "  Uninstalling ${#to_uninstall} extensions not in profile..."
                 for ext in "${to_uninstall[@]}"; do
-                    "$vscode_cli" --uninstall-extension "$ext" 2>/dev/null &
+                    "$vscode_cli" --uninstall-extension "$ext" 2>/dev/null
                 done
-                wait
                 echo "  Extensions uninstalled"
             fi
         fi
