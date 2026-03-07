@@ -1,14 +1,9 @@
 anthropic.claude-code
-biomejs.biome
-docker.docker
 github.vscode-github-actions
-github.vscode-pull-request-github
-jjk.jjk
-ms-vscode.vscode-typescript-next
-opentofu.vscode-opentofu
-prisma.prisma
-redhat.vscode-xml
 redhat.vscode-yaml
 tamasfe.even-better-toml
 typescriptteam.native-preview
 ziglang.vscode-zig
+redhat.vscode-xml
+docker.docker
+jjk.jjk

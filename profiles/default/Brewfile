@@ -34,8 +34,6 @@ brew "libpq"
 brew "docker"
 brew "docker-buildx"
 brew "docker-compose"
-brew "opentofu"
-brew "pulumi"
 
 # Networking
 brew "croc"             # File transfer

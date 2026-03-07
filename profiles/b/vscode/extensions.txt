@@ -1,0 +1,3 @@
+opentofu.vscode-opentofu
+prisma.prisma
+biomejs.biome

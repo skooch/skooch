@@ -9,3 +9,8 @@ ms-vscode.makefile-tools
 platformio.platformio-ide
 rust-lang.rust-analyzer
 ziglang.vscode-zig
+kevinrose.vsc-python-indent
+ms-python.debugpy
+ms-python.python
+ms-python.vscode-pylance
+ms-python.vscode-python-envs

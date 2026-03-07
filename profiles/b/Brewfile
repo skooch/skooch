@@ -1,6 +1,10 @@
 brew "helm"
 brew "skaffold"
 brew "biome"            # JS/TS linter + formatter
+brew "opentofu"
+brew "pulumi"
+brew "biome"
+brew "python@3.13"
 cask "1password-cli"
 cask "gcloud-cli"
 cask "google-cloud-sdk"
