@@ -1,0 +1,6 @@
+[tools]
+java = "zulu-21"
+maven = "latest"
+
+[settings]
+trusted_config_paths = ['~/blinq']

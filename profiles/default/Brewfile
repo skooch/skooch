@@ -24,7 +24,6 @@ brew "shellcheck"
 brew "trufflehog"       # Secret scanner
 
 # Languages & runtimes
-brew "cargo-binstall"
 # req. for mise to build ruby@3
 brew "libyaml"
 

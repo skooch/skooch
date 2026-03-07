@@ -1,8 +1,14 @@
 [tools]
 node = "lts"
-ruby = "latest"
+ruby = "3"
 go = "latest"
 python = "3"
 bun = "latest"
 zig = "latest"
 rust = "stable"
+
+[settings]
+idiomatic_version_file_enable_tools = ["node"]
+not_found_auto_install = true
+plugin_autoupdate_last_check_duration = '1 day'
+trusted_config_paths = ['~/projects']

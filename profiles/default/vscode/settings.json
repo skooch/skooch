@@ -1,4 +1,8 @@
 {
+  "terminal.integrated.automationProfile.osx": {
+    "path": "/opt/homebrew/bin/zsh",
+    "args": ["-i"]
+  },
   "terminal.integrated.profiles.osx": {
     "zsh-brew": {
       "path": "/opt/homebrew/Cellar/zsh/5.9/bin/zsh",
@@ -10,6 +14,7 @@
   "terminal.integrated.scrollback": 10000,
   "terminal.integrated.persistentSessionScrollback": 1000,
   "terminal.integrated.initialHint": false,
+  "terminal.integrated.enableMultiLinePasteWarning": "never",
   "editor.formatOnSave": true,
   "eslint.format.enable": true,
   "eslint.lintTask.enable": true,
@@ -57,24 +62,100 @@
   "go.toolsManagement.autoUpdate": true,
   "window.autoDetectColorScheme": true,
   "explorer.confirmDelete": false,
+  "explorer.confirmDragAndDrop": false,
   "workbench.startupEditor": "none",
   "workbench.enableExperiments": false,
   "workbench.secondarySideBar.defaultVisibility": "hidden",
+  "workbench.secondarySideBar.showLabels": false,
   "workbench.commandPalette.showAskInChat": false,
   "security.workspace.trust.untrustedFiles": "open",
   "git.openRepositoryInParentFolders": "never",
+  "git.autofetch": true,
+  "git.blame.editorDecoration.enabled": true,
+  "git.blame.statusBarItem.enabled": true,
   "extensions.ignoreRecommendations": true,
   "telemetry.feedback.enabled": false,
+  "search.useParentIgnoreFiles": true,
   "emmet.includeLanguages": {
     "ejs": "html",
     "eta": "html"
   },
+  "githubPullRequests.terminalLinksHandler": "github",
+  "githubPullRequests.pullBranch": "never",
+  "githubPullRequests.codingAgent.enabled": false,
+  "githubPullRequests.experimental.chat": false,
+  "github.copilot.nextEditSuggestions.fixes": false,
+  "github.copilot.chat.agent.currentEditorContext.enabled": false,
+  "github.copilot.chat.agent.autoFix": false,
+  "github.copilot.chat.copilotDebugCommand.enabled": false,
   "chat.commandCenter.enabled": false,
   "chat.checkpoints.enabled": false,
   "chat.detectParticipant.enabled": false,
   "chat.disableAIFeatures": true,
   "chat.notifyWindowOnConfirmation": "off",
   "chat.agent.enabled": false,
+  "chat.agent.codeBlockProgress": false,
+  "chat.tools.terminal.outputLocation": "chat",
+  "biome.requireConfiguration": true,
+  "typescript.updateImportsOnFileMove.enabled": "always",
+  "javascript.preferGoToSourceDefinition": true,
+  "typescript.preferGoToSourceDefinition": true,
+  "typescript.preferences.preferTypeOnlyAutoImports": true,
+  "typescript.suggest.completeFunctionCalls": true,
+  "typescript.referencesCodeLens.enabled": true,
+  "typescript.referencesCodeLens.showOnAllFunctions": true,
+  "typescript.implementationsCodeLens.enabled": true,
+  "typescript.implementationsCodeLens.showOnAllClassMethods": true,
+  "typescript.implementationsCodeLens.showOnInterfaceMethods": true,
+  "typescript.inlayHints.functionLikeReturnTypes.enabled": true,
+  "typescript.inlayHints.enumMemberValues.enabled": true,
+  "typescript.inlayHints.parameterTypes.enabled": true,
+  "typescript.inlayHints.propertyDeclarationTypes.enabled": true,
+  "typescript.inlayHints.variableTypes.enabled": true,
+  "typescript.tsserver.nodePath": "/Users/skooch/.local/share/mise/installs/node/25.3.0/bin/node",
+  "typescript.tsserver.maxTsServerMemory": 5120,
+  "typescript.tsserver.experimental.enableProjectDiagnostics": true,
+  "typescript.npm": "/Users/skooch/.local/share/mise/installs/node/25.3.0/bin/npm",
   "typescript.native-preview.goMemLimit": "4GiB",
-  "typescript.experimental.useTsgo": true
+  "typescript.experimental.useTsgo": true,
+  "editor.experimental.preferTreeSitter.typescript": true,
+  "debug.javascript.terminalOptions": {
+    "skipFiles": [
+      "<node_internals>/**",
+      "**/@vitest/runner/dist/chunk-hooks.js"
+    ]
+  },
+  "debug.javascript.autoAttachFilter": "onlyWithFlag",
+  "yaml.format.singleQuote": true,
+  "yaml.schemas": {
+    "https://raw.githubusercontent.com/docker/vscode-extension/6a88caada42b57090df7ce91ec2a6561b422afe1/misc/empty.json": [
+      "*compose*y*ml",
+      "*docker-compose*y*ml"
+    ]
+  },
+  "redhat.telemetry.enabled": false,
+  "docker.lsp.experimental.scout.criticalHighVulnerabilities": false,
+  "docker.lsp.experimental.scout.vulnerabilities": false,
+  "docker.lsp.experimental.vulnerabilityScanning": false,
+  "docker.lsp.telemetry": "off",
+  "docker.extension.enableComposeLanguageServer": false,
+  "opentofu.codelens.referenceCount": true,
+  "opentofu.experimentalFeatures.prefillRequiredFields": true,
+  "opentofu.experimentalFeatures.validateOnSave": true,
+  "json.schemaDownload.trustedDomains": {
+    "https://schemastore.azurewebsites.net/": true,
+    "https://raw.githubusercontent.com/microsoft/vscode/": true,
+    "https://raw.githubusercontent.com/devcontainers/spec/": true,
+    "https://www.schemastore.org/": true,
+    "https://json.schemastore.org/": true,
+    "https://json-schema.org/": true,
+    "https://developer.microsoft.com/json-schemas/": true,
+    "https://raw.githubusercontent.com/": true,
+    "https://turbo.build": true,
+    "https://biomejs.dev": true,
+    "https://docs.renovatebot.com/renovate-schema.json": true
+  },
+  "claudeCode.useCtrlEnterToSend": true,
+  "claudeCode.preferredLocation": "panel",
+  "claudeCode.selectedModel": "opus"
 }
