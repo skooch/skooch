@@ -6,3 +6,4 @@
 # BEFORE .zshrc, which can cause duplicate PATH entries and ordering
 # issues. Configure your terminal to launch non-login interactive
 # shells (zsh -i, not zsh -l).
+echo "Looks like this is a login shell, you may not want this!"
