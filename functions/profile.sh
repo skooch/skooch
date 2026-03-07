@@ -636,6 +636,11 @@ _profile_apply_mise() {
     } > "$target"
 
     echo "Applying mise config: $label"
+
+    if command -v mise &>/dev/null; then
+        echo "Running mise install..."
+        mise install
+    fi
 }
 
 # --- Diff (preview what switch would do) ---

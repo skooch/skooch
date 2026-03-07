@@ -237,10 +237,10 @@ if [ "$all_good" = 1 ]; then
     else
         echo "  2. Run: profile switch <name> [name2 ...]  (e.g. embedded, b)"
     fi
-    echo "  3. Run: mise install"
     echo ""
     echo "Note: 'profile switch' will overwrite VSCode settings/keybindings,"
-    echo "iTerm dynamic profiles, ~/.gitconfig, and ~/.config/mise/config.toml."
+    echo "iTerm dynamic profiles, ~/.gitconfig, and ~/.config/mise/config.toml,"
+    echo "and will automatically run 'mise install'."
     echo "You will be prompted before any unmanaged files are replaced."
 else
     echo "=== Some issues found — see warnings above ==="
