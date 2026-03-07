@@ -26,31 +26,12 @@ setopt nullglob
 ### mise
 eval "$(/opt/homebrew/bin/mise activate zsh)"
 
-### pyenv
-# export PYENV_ROOT="$HOME/.pyenv"
-# command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
-# command -v pyenv >/dev/null && eval "$(pyenv init -)"
-
 ### pnpm
 export PNPM_HOME="$HOME/Library/pnpm"
 # case ":$PATH:" in
 #   *":$PNPM_HOME:"*) ;;
 #   *) export PATH="$PNPM_HOME:$PATH" ;;
 # esac
-
-### rbenv
-# command -v rbenv >/dev/null && \
-#     eval "$(rbenv init - zsh --no-rehash)"
-
-### sdkman
-# ensure to edit  ~/.sdkman/etc/config to turn off autocomplete
-# [[ -s "$HOME/.sdkman/bin/sdkman-init.sh" ]] && \
-#     export SDKMAN_DIR="$HOME/.sdkman" && \
-#     source "$HOME/.sdkman/bin/sdkman-init.sh"
-
-### gvm
-# [[ -s "/Users/skooch/.gvm/scripts/gvm" ]] && \
-#     source "/Users/skooch/.gvm/scripts/gvm"
 
 ### android
 [[ -s "$HOME/Library/Android/sdk" ]] && \
@@ -60,9 +41,6 @@ export PNPM_HOME="$HOME/Library/pnpm"
 ### direnv
 command -v direnv >/dev/null && \
     eval "$(direnv hook zsh)"
-
-### llvm
-# export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
 
 ### cargo/rust
 [[ -f "$HOME/.cargo/env" ]] && . "$HOME/.cargo/env"
