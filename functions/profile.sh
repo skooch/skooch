@@ -1141,7 +1141,11 @@ _profile_check_remote() {
     # Use FETCH_HEAD age to avoid hitting the network every shell startup
     local fetch_head="$DOTFILES_DIR/.git/FETCH_HEAD"
     if [[ -f "$fetch_head" ]]; then
-        local fetch_age=$(( $(date +%s) - $(stat -f %m "$fetch_head" 2>/dev/null || echo 0) ))
+        local mtime
+        mtime=$(stat -f %m "$fetch_head" 2>/dev/null)
+        # Guard against non-BSD stat (e.g. GNU coreutils) returning non-numeric output
+        [[ "$mtime" =~ ^[0-9]+$ ]] || return 0
+        local fetch_age=$(( $(date +%s) - mtime ))
         # Only check if last fetch was within the last hour (already cached)
         if [[ $fetch_age -gt 3600 ]]; then
             return 0
