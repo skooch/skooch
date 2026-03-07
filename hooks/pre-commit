@@ -1,0 +1,34 @@
+#!/bin/sh
+# Pre-commit hook: run shellcheck on shell files
+# These are zsh files checked with -s bash. We exclude:
+#   SC1036,SC1058,SC1071,SC1072,SC1073,SC1087 - zsh syntax (glob qualifiers, array syntax)
+#   SC1090,SC1091 - can't follow sourced files
+#   SC2034,SC2128,SC2154 - zsh variables and array expansion
+#   SC2155,SC2181 - style preferences
+#   SC2206,SC2296,SC3010,SC3030,SC3054 - zsh-specific features
+
+EXCLUDES="SC1036,SC1058,SC1071,SC1072,SC1073,SC1087,SC1090,SC1091,SC2034,SC2128,SC2154,SC2155,SC2181,SC2206,SC2296,SC3010,SC3030,SC3054"
+
+errors=0
+
+for f in functions/*.sh; do
+    if [ -f "$f" ]; then
+        if ! shellcheck -s bash -S warning -e "$EXCLUDES" "$f" 2>/dev/null; then
+            errors=1
+        fi
+    fi
+done
+
+for f in .zshenv .zprofile .zshrc; do
+    if [ -f "$f" ]; then
+        if ! shellcheck -s bash -S warning -e "$EXCLUDES" "$f" 2>/dev/null; then
+            errors=1
+        fi
+    fi
+done
+
+if [ "$errors" -ne 0 ]; then
+    echo ""
+    echo "shellcheck found issues. Fix them before committing."
+    exit 1
+fi
