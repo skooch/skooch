@@ -530,16 +530,31 @@ _profile_apply_mise() {
         [[ -f "$PROFILES_DIR/$p/mise/config.toml" ]] && label+=" + $p"
     done
 
-    {
-        if [[ -f "$PROFILES_DIR/default/mise/config.toml" ]]; then
-            cat "$PROFILES_DIR/default/mise/config.toml"
-        fi
-        for p in ${=profiles}; do
-            local pf="$PROFILES_DIR/$p/mise/config.toml"
-            if [[ -f "$pf" ]]; then
-                echo ""
-                cat "$pf"
+    local -a mise_files=()
+    [[ -f "$PROFILES_DIR/default/mise/config.toml" ]] && mise_files+=("$PROFILES_DIR/default/mise/config.toml")
+    for p in ${=profiles}; do
+        local pf="$PROFILES_DIR/$p/mise/config.toml"
+        [[ -f "$pf" ]] && mise_files+=("$pf")
+    done
+
+    # Merge TOML files by collecting lines per section
+    local -A sections
+    local current_section="_top"
+    for f in "${mise_files[@]}"; do
+        while IFS= read -r line; do
+            if [[ "$line" =~ '^\[' ]]; then
+                current_section="$line"
+            elif [[ -n "$line" ]]; then
+                sections[$current_section]+="$line"$'\n'
             fi
+        done < "$f"
+    done
+
+    {
+        for section in "${(@k)sections}"; do
+            [[ "$section" != "_top" ]] && echo "$section"
+            printf '%s' "${sections[$section]}"
+            echo ""
         done
     } > "$target"
 
@@ -595,16 +610,28 @@ _profile_diff() {
     if [[ "$has_mise" == "true" ]]; then
         local target="$HOME/.config/mise/config.toml"
         local tmpfile=$(mktemp)
-        {
-            if [[ -f "$PROFILES_DIR/default/mise/config.toml" ]]; then
-                cat "$PROFILES_DIR/default/mise/config.toml"
-            fi
-            for p in ${=profiles}; do
-                local pf="$PROFILES_DIR/$p/mise/config.toml"
-                if [[ -f "$pf" ]]; then
-                    echo ""
-                    cat "$pf"
+        local -a diff_mise_files=()
+        [[ -f "$PROFILES_DIR/default/mise/config.toml" ]] && diff_mise_files+=("$PROFILES_DIR/default/mise/config.toml")
+        for p in ${=profiles}; do
+            local pf="$PROFILES_DIR/$p/mise/config.toml"
+            [[ -f "$pf" ]] && diff_mise_files+=("$pf")
+        done
+        local -A diff_sections
+        local diff_current_section="_top"
+        for f in "${diff_mise_files[@]}"; do
+            while IFS= read -r line; do
+                if [[ "$line" =~ '^\[' ]]; then
+                    diff_current_section="$line"
+                elif [[ -n "$line" ]]; then
+                    diff_sections[$diff_current_section]+="$line"$'\n'
                 fi
+            done < "$f"
+        done
+        {
+            for section in "${(@k)diff_sections}"; do
+                [[ "$section" != "_top" ]] && echo "$section"
+                printf '%s' "${diff_sections[$section]}"
+                echo ""
             done
         } > "$tmpfile"
         local result
@@ -1060,7 +1087,9 @@ profile() {
                 fi
             fi
 
-            _profile_check_overwrite "$active_set" || return 1
+            if [[ "$force" == "false" ]]; then
+                _profile_check_overwrite "$active_set" || return 1
+            fi
 
             mkdir -p "$PROFILE_STATE_DIR"
             _profile_apply_brew "$active_set"
