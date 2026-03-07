@@ -249,8 +249,8 @@ _profile_detect_vscode_conflicts() {
 # --- Managed files tracking ---
 
 _profile_is_managed() {
-    local path="$1"
-    [[ -f "$PROFILE_MANAGED_FILE" ]] && grep -qFx "$path" "$PROFILE_MANAGED_FILE" 2>/dev/null
+    local managed_path="$1"
+    [[ -f "$PROFILE_MANAGED_FILE" ]] && grep -qFx "$managed_path" "$PROFILE_MANAGED_FILE" 2>/dev/null
 }
 
 _profile_write_managed() {

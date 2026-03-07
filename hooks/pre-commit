@@ -2,12 +2,14 @@
 # Pre-commit hook: run shellcheck on shell files
 # These are zsh files checked with -s bash. We exclude:
 #   SC1036,SC1058,SC1071,SC1072,SC1073,SC1087 - zsh syntax (glob qualifiers, array syntax)
+#   SC1083                                     - literal braces false-positive (e.g. git @{u} refspec)
 #   SC1090,SC1091 - can't follow sourced files
-#   SC2034,SC2128,SC2154 - zsh variables and array expansion
-#   SC2155,SC2181 - style preferences
+#   SC2034,SC2066,SC2128,SC2154 - zsh variables and array expansion (e.g. ${(@k)array})
+#   SC2076                      - quoted =~ regex (intentional in zsh)
+#   SC2155,SC2168,SC2181        - style / zsh-valid constructs (local at file scope)
 #   SC2206,SC2296,SC3010,SC3030,SC3054 - zsh-specific features
 
-EXCLUDES="SC1036,SC1058,SC1071,SC1072,SC1073,SC1087,SC1090,SC1091,SC2034,SC2128,SC2154,SC2155,SC2181,SC2206,SC2296,SC3010,SC3030,SC3054"
+EXCLUDES="SC1036,SC1058,SC1071,SC1072,SC1073,SC1083,SC1087,SC1090,SC1091,SC2034,SC2066,SC2076,SC2128,SC2154,SC2155,SC2168,SC2181,SC2206,SC2296,SC3010,SC3030,SC3054"
 
 errors=0
 
@@ -22,6 +24,21 @@ done
 for f in .zshenv .zprofile .zshrc; do
     if [ -f "$f" ]; then
         if ! shellcheck -s bash -S warning -e "$EXCLUDES" "$f" 2>/dev/null; then
+            errors=1
+        fi
+    fi
+done
+
+# Check for `local` declarations of zsh special tied variables.
+# In zsh, path/fpath/manpath/cdpath are arrays tied to their uppercase counterparts
+# (PATH, FPATH, etc.). Using `local path` shadows the tie and corrupts the exported
+# variable when the function exits.
+ZSH_TIED_VARS="path|fpath|manpath|cdpath|mailpath|infopath"
+for f in functions/*.sh .zshenv .zprofile .zshrc; do
+    if [ -f "$f" ]; then
+        if grep -Enq "local[[:space:]]+($ZSH_TIED_VARS)([[:space:]]|=|$)" "$f" 2>/dev/null; then
+            grep -En "local[[:space:]]+($ZSH_TIED_VARS)([[:space:]]|=|$)" "$f"
+            echo "$f: 'local' shadows a zsh tied array — use a different variable name."
             errors=1
         fi
     fi
