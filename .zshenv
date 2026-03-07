@@ -63,3 +63,6 @@ command -v direnv >/dev/null && \
 
 ### llvm
 # export PATH="/opt/homebrew/opt/llvm/bin:$PATH"
+
+### cargo/rust
+[[ -f "$HOME/.cargo/env" ]] && . "$HOME/.cargo/env"
