@@ -1,11 +1,11 @@
 {
   "terminal.integrated.automationProfile.osx": {
     "path": "/opt/homebrew/bin/zsh",
-    "args": ["-i"]
+    "args": ["-il"]
   },
   "terminal.integrated.profiles.osx": {
     "zsh-brew": {
-      "path": "/opt/homebrew/Cellar/zsh/5.9/bin/zsh",
+      "path": "/opt/homebrew/bin/zsh",
       "args": ["-l"],
       "icon": "game"
     }

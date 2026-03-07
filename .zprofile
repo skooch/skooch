@@ -44,15 +44,5 @@ command -v fzf >/dev/null && eval "$(fzf --zsh)"
 ### PATH additions
 export PATH="$HOME/bin:$HOME/.local/bin:/usr/local/bin:$PATH"
 
-### Functions
-for f in "$HOME/.zsh_functions"/*.sh(N); do source "$f"; done
-
-### Aliases
-alias p="pnpm"
-alias code="code-insiders"
-alias turbo="pnpx turbo"
-alias vercel="pnpx vercel"
-alias esp="source ~/esp/esp-idf/export.sh"
-
-### Source private dotfiles (secrets, machine-specific config)
-source ~/projects/dotfiles-private/.zshrc.private 2>/dev/null
+### Functions, aliases, and private dotfiles are sourced from .zshrc
+### so they're available in all interactive shells (not just login shells).
