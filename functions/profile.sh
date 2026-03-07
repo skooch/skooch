@@ -316,8 +316,8 @@ _profile_check_overwrite() {
     local -a warnings=()
 
     local -a targets=()
-    while IFS= read -r path; do
-        [[ -n "$path" ]] && targets+=("$path")
+    while IFS= read -r target_path; do
+        [[ -n "$target_path" ]] && targets+=("$target_path")
     done < <(_profile_target_paths "$profiles")
 
     for target in "${targets[@]}"; do
@@ -1238,8 +1238,8 @@ profile() {
 
             # Record managed files
             local -a managed=()
-            while IFS= read -r path; do
-                [[ -n "$path" ]] && managed+=("$path")
+            while IFS= read -r managed_path; do
+                [[ -n "$managed_path" ]] && managed+=("$managed_path")
             done < <(_profile_target_paths "$active_set")
             _profile_write_managed "${managed[@]}"
 
