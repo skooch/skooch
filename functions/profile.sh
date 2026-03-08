@@ -25,6 +25,45 @@ if [[ -f "$HOME/.profile_active" && ! -f "$PROFILE_ACTIVE_FILE" ]]; then
     mv "$HOME/.profile_snapshot" "$PROFILE_SNAPSHOT_FILE" 2>/dev/null
 fi
 
+# --- Core symlinks ---
+
+_profile_ensure_links() {
+    # Ensures core dotfile symlinks exist. Safe to run repeatedly.
+    local -A links=(
+        ["$DOTFILES_DIR/.zshenv"]="$HOME/.zshenv"
+        ["$DOTFILES_DIR/.zshrc"]="$HOME/.zshrc"
+        ["$DOTFILES_DIR/.zprofile"]="$HOME/.zprofile"
+        ["$DOTFILES_DIR/.zsh_plugins.txt"]="$HOME/.zsh_plugins.txt"
+    )
+    local -A dir_links=(
+        ["$DOTFILES_DIR/functions"]="$HOME/.zsh_functions"
+    )
+
+    for src dst in "${(@kv)links}"; do
+        if [[ -L "$dst" && "$(readlink "$dst")" == "$src" ]]; then
+            continue
+        fi
+        if [[ -e "$dst" && ! -L "$dst" ]]; then
+            mv "$dst" "$dst.bak"
+            echo "Backed up existing $dst to $dst.bak"
+        fi
+        ln -sf "$src" "$dst"
+        echo "Linked $dst -> $src"
+    done
+
+    for src dst in "${(@kv)dir_links}"; do
+        if [[ -L "$dst" && "$(readlink "$dst")" == "$src" ]]; then
+            continue
+        fi
+        if [[ -e "$dst" && ! -L "$dst" ]]; then
+            mv "$dst" "$dst.bak"
+            echo "Backed up existing $dst to $dst.bak"
+        fi
+        ln -sfn "$src" "$dst"
+        echo "Linked $dst -> $src"
+    done
+}
+
 # --- Detection helpers ---
 
 _profile_vscode_instances() {
@@ -118,7 +157,8 @@ _profile_snapshot_files() {
     for f in "$dir/Brewfile" "$dir/vscode/extensions.txt" \
              "$dir/vscode/settings.json" "$dir/vscode/keybindings.json" \
              "$dir/iterm/profile.json" \
-             "$dir/git/config" "$dir/mise/config.toml"; do
+             "$dir/git/config" "$dir/mise/config.toml" \
+             "$dir/claude/settings.json"; do
         echo "$f"
     done
 }
@@ -725,7 +765,7 @@ _profile_apply_claude() {
     done
 
     if [[ ${#settings_files[@]} -eq 1 ]]; then
-        cp "${settings_files[1]}" "$target"
+        ln -sf "${settings_files[1]}" "$target"
     else
         jq -s 'reduce .[] as $item ({}; . * $item)' "${settings_files[@]}" > "$target"
     fi
@@ -1374,6 +1414,7 @@ profile() {
             fi
 
             mkdir -p "$PROFILE_STATE_DIR"
+            _profile_ensure_links
             _profile_apply_brew "$active_set"
             _profile_apply_vscode "$active_set"
             _profile_apply_iterm "$active_set"

@@ -106,42 +106,10 @@ echo ""
 # --- Symlinks ---
 
 echo "Setting up symlinks..."
-
-link() {
-    src="$1"
-    dst="$2"
-    if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]; then
-        ok "$dst -> $src (already correct)"
-    else
-        if [ -e "$dst" ] && [ ! -L "$dst" ]; then
-            mv "$dst" "$dst.bak"
-            warn "Backed up existing $dst to $dst.bak"
-        fi
-        ln -sf "$src" "$dst"
-        ok "$dst -> $src"
-    fi
-}
-
-link_dir() {
-    src="$1"
-    dst="$2"
-    if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]; then
-        ok "$dst -> $src (already correct)"
-    else
-        if [ -e "$dst" ] && [ ! -L "$dst" ]; then
-            mv "$dst" "$dst.bak"
-            warn "Backed up existing $dst to $dst.bak"
-        fi
-        ln -sfn "$src" "$dst"
-        ok "$dst -> $src"
-    fi
-}
-
-link "$DOTFILES_DIR/.zshenv" "$HOME/.zshenv"
-link "$DOTFILES_DIR/.zshrc" "$HOME/.zshrc"
-link "$DOTFILES_DIR/.zprofile" "$HOME/.zprofile"
-link "$DOTFILES_DIR/.zsh_plugins.txt" "$HOME/.zsh_plugins.txt"
-link_dir "$DOTFILES_DIR/functions" "$HOME/.zsh_functions"
+# Reuse the profile system's link logic (defined in functions/profile.sh)
+BREW_ZSH="${BREW_ZSH:-/opt/homebrew/bin/zsh}"
+"$BREW_ZSH" -c "source '$DOTFILES_DIR/functions/profile.sh' && _profile_ensure_links"
+ok "Core symlinks verified"
 
 echo ""
 
