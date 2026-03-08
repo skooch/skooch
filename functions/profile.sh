@@ -5,6 +5,13 @@ DOTFILES_DIR="$HOME/projects/skooch"
 PROFILES_DIR="$DOTFILES_DIR/profiles"
 HOSTS_FILE="$DOTFILES_DIR/hosts.json"
 
+# Stable, privacy-preserving machine identifier (SHA-256 of hardware UUID, first 12 chars)
+_profile_machine_id() {
+    local uuid
+    uuid=$(ioreg -rd1 -c IOPlatformExpertDevice | awk -F'"' '/IOPlatformUUID/{print $4}')
+    echo -n "$uuid" | shasum -a 256 | cut -c1-12
+}
+
 # XDG-compliant state directory
 PROFILE_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles"
 PROFILE_ACTIVE_FILE="$PROFILE_STATE_DIR/active"
@@ -1124,7 +1131,8 @@ _profile_status() {
 # --- Host mapping ---
 
 _profile_register() {
-    local hostname=$(hostname)
+    local machine_id
+    machine_id=$(_profile_machine_id)
     local active=$(_profile_active)
 
     if [[ -z "$active" ]]; then
@@ -1138,16 +1146,16 @@ _profile_register() {
 
     if [[ -f "$HOSTS_FILE" ]]; then
         local updated
-        updated=$(jq --arg host "$hostname" --argjson profiles "$json_array" \
+        updated=$(jq --arg host "$machine_id" --argjson profiles "$json_array" \
             '.[$host] = $profiles' "$HOSTS_FILE")
         echo "$updated" > "$HOSTS_FILE"
     else
-        jq -n --arg host "$hostname" --argjson profiles "$json_array" \
+        jq -n --arg host "$machine_id" --argjson profiles "$json_array" \
             '{($host): $profiles}' > "$HOSTS_FILE"
     fi
 
     local display="${active// /, }"
-    echo "Registered $hostname -> [$display] in hosts.json"
+    echo "Registered $machine_id -> [$display] in hosts.json"
 }
 
 _profile_hosts() {
@@ -1156,13 +1164,14 @@ _profile_hosts() {
         return 0
     fi
 
-    local current_hostname=$(hostname)
+    local current_id
+    current_id=$(_profile_machine_id)
     echo "Host mappings:"
     echo ""
     jq -r 'to_entries[] | "  \(.key): \(.value | join(", "))"' "$HOSTS_FILE" | while IFS= read -r line; do
         local host="${line%%:*}"
         local trimmed_host="${host## }"
-        if [[ "$trimmed_host" == "$current_hostname" ]]; then
+        if [[ "$trimmed_host" == "$current_id" ]]; then
             echo "$line  (this machine)"
         else
             echo "$line"
@@ -1180,12 +1189,17 @@ _profile_offer_commit_push() {
     echo ""
     echo "Uncommitted dotfiles changes:"
     git -C "$DOTFILES_DIR" status --short
+    echo ""
+    echo "Diff:"
+    git -C "$DOTFILES_DIR" diff
+    git -C "$DOTFILES_DIR" diff --cached
+    echo ""
     printf "Commit and push? [y/N] "
     local answer
     read -r answer
     if [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]]; then
         git -C "$DOTFILES_DIR" add -A
-        git -C "$DOTFILES_DIR" commit -m "Update profiles from $(hostname)"
+        git -C "$DOTFILES_DIR" commit -m "Update profiles"
         git -C "$DOTFILES_DIR" push
     fi
 }
@@ -1371,7 +1385,7 @@ profile() {
             echo "  diff [name] [name2 ...]    (d)   Preview what use would change"
             echo "  update                     (u)   Sync local changes back to profile files"
             echo "  status                     (st)  Show active profiles and drift"
-            echo "  register                         Save hostname + active profiles to hosts.json"
+            echo "  register                         Save machine ID + active profiles to hosts.json"
             echo "  hosts                            Show all host mappings"
             echo ""
             echo "Flags:"
