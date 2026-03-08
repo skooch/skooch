@@ -239,8 +239,8 @@ if [ "$all_good" = 1 ]; then
     fi
     echo ""
     echo "Note: 'profile use' will overwrite VSCode settings/keybindings,"
-    echo "iTerm dynamic profiles, ~/.gitconfig, and ~/.config/mise/config.toml,"
-    echo "and will automatically run 'mise install'."
+    echo "iTerm dynamic profiles, ~/.gitconfig, ~/.config/mise/config.toml,"
+    echo "and ~/.claude/settings.json, and will automatically run 'mise install'."
     echo "You will be prompted before any unmanaged files are replaced."
 else
     echo "=== Some issues found — see warnings above ==="
