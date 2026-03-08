@@ -106,9 +106,9 @@ echo ""
 # --- Symlinks ---
 
 echo "Setting up symlinks..."
-# Reuse the profile system's link logic (defined in functions/profile.sh)
+# Reuse the profile system's link logic (defined in lib/profile/)
 BREW_ZSH="${BREW_ZSH:-/opt/homebrew/bin/zsh}"
-"$BREW_ZSH" -c "source '$DOTFILES_DIR/functions/profile.sh' && _profile_ensure_links"
+"$BREW_ZSH" -c "source '$DOTFILES_DIR/lib/profile/index.sh' && _profile_ensure_links"
 ok "Core symlinks verified"
 
 echo ""
@@ -206,10 +206,8 @@ if [ "$all_good" = 1 ]; then
         echo "  2. Run: profile use <name> [name2 ...]  (e.g. embedded, b)"
     fi
     echo ""
-    echo "Note: 'profile use' will overwrite VSCode settings/keybindings,"
-    echo "iTerm dynamic profiles, ~/.gitconfig, ~/.config/mise/config.toml,"
-    echo "and ~/.claude/settings.json, and will automatically run 'mise install'."
-    echo "You will be prompted before any unmanaged files are replaced."
+    echo "Note: 'profile use' applies all profile configs (brew, vscode, git, mise, claude, iterm)."
+    echo "After initial setup, use 'profile sync' to reconcile changes in either direction."
 else
     echo "=== Some issues found — see warnings above ==="
 fi

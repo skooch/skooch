@@ -3,6 +3,9 @@
 ### Functions
 for f in "$HOME/.zsh_functions"/*.sh(N); do source "$f"; done
 
+### Profile system
+source "$HOME/projects/skooch/lib/profile/index.sh"
+
 ### Aliases
 alias p="pnpm"
 alias code="code-insiders"

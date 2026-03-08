@@ -1,0 +1,137 @@
+#!/usr/bin/env zsh
+# Test three-way sync helper: direction detection, conflict handling
+
+source "${0:A:h}/harness.sh"
+
+# --- Setup: create test files for sync_config ---
+
+sync_setup() {
+    local local_file="$TEST_HOME/local_config.json"
+    local source_file="$TEST_DOTFILES/sync_source.json"
+    local expected_file=$(mktemp)
+
+    echo '{"version": 1}' > "$source_file"
+    echo '{"version": 1}' > "$local_file"
+    cp "$source_file" "$expected_file"
+
+    # Create snapshot so sync can detect direction
+    printf '%s\t%s\n' "$local_file" "$(md5 -q "$local_file")" > "$PROFILE_STATE_DIR/snapshot-local"
+
+    echo "$local_file" "$expected_file" "$source_file"
+}
+
+# --- Already in sync ---
+
+_TEST_NAME="sync_config returns 0 when files match"
+local files=($(sync_setup))
+local local_f="${files[1]}" expected_f="${files[2]}" source_f="${files[3]}"
+_profile_sync_config "test" "$local_f" "$expected_f" "$source_f"
+assert_eq "0" "$?"
+rm -f "$expected_f"
+
+# --- Profile changed, local unchanged (profile -> local) ---
+
+_TEST_NAME="sync_config detects profile -> local direction"
+local files=($(sync_setup))
+local local_f="${files[1]}" expected_f="${files[2]}" source_f="${files[3]}"
+echo '{"version": 2}' > "$source_f"
+cp "$source_f" "$expected_f"
+local output=$(echo "y" | _profile_sync_config "test" "$local_f" "$expected_f" "$source_f" 2>&1)
+assert_contains "$output" "profile -> local"
+
+_TEST_NAME="sync_config profile->local updates local file"
+local local_content=$(cat "$local_f")
+assert_contains "$local_content" '"version": 2'
+rm -f "$expected_f"
+
+# --- Local changed, profile unchanged (local -> profile) ---
+
+_TEST_NAME="sync_config detects local -> profile direction"
+local files=($(sync_setup))
+local local_f="${files[1]}" expected_f="${files[2]}" source_f="${files[3]}"
+echo '{"version": 3, "local_edit": true}' > "$local_f"
+local output=$(echo "y" | _profile_sync_config "test" "$local_f" "$expected_f" "$source_f" 2>&1)
+assert_contains "$output" "local -> profile"
+rm -f "$expected_f"
+
+# --- No local file (create) ---
+
+_TEST_NAME="sync_config creates missing local file"
+local source_f="$TEST_DOTFILES/sync_source.json"
+echo '{"fresh": true}' > "$source_f"
+local expected_f=$(mktemp)
+cp "$source_f" "$expected_f"
+local new_local="$TEST_HOME/new_config.json"
+rm -f "$new_local"
+local output=$(_profile_sync_config "test" "$new_local" "$expected_f" "$source_f" 2>&1)
+assert_contains "$output" "created"
+assert_file_exists "$new_local"
+rm -f "$expected_f" "$new_local"
+
+# --- No snapshot (defaults to profile -> local) ---
+
+_TEST_NAME="sync_config defaults to profile->local when no snapshot"
+rm -f "$PROFILE_STATE_DIR/snapshot-local"
+local source_f="$TEST_DOTFILES/sync_source.json"
+echo '{"source": true}' > "$source_f"
+local expected_f=$(mktemp)
+cp "$source_f" "$expected_f"
+local local_f="$TEST_HOME/no_snap.json"
+echo '{"old": true}' > "$local_f"
+local output=$(echo "y" | _profile_sync_config "test" "$local_f" "$expected_f" "$source_f" 2>&1)
+assert_contains "$output" "profile -> local"
+rm -f "$expected_f" "$local_f"
+
+# --- Both changed (conflict) — choose apply profile ---
+
+_TEST_NAME="sync_config detects conflict when both changed"
+local files=($(sync_setup))
+local local_f="${files[1]}" expected_f="${files[2]}" source_f="${files[3]}"
+# Change both sides
+echo '{"version": 10, "source_edit": true}' > "$source_f"
+cp "$source_f" "$expected_f"
+echo '{"version": 20, "local_edit": true}' > "$local_f"
+# Choose option 2 (apply profile)
+local output=$(echo "2" | _profile_sync_config "test" "$local_f" "$expected_f" "$source_f" 2>&1)
+assert_contains "$output" "CONFLICT"
+
+_TEST_NAME="sync_config conflict option 2 applies profile version"
+local local_content=$(cat "$local_f")
+assert_contains "$local_content" "source_edit"
+rm -f "$expected_f"
+
+# --- Conflict with option 1 (keep local) ---
+
+_TEST_NAME="sync_config conflict option 1 keeps local"
+local files=($(sync_setup))
+local local_f="${files[1]}" expected_f="${files[2]}" source_f="${files[3]}"
+echo '{"version": 10}' > "$source_f"
+cp "$source_f" "$expected_f"
+echo '{"version": 20, "my_local": true}' > "$local_f"
+local output=$(echo "1" | _profile_sync_config "test" "$local_f" "$expected_f" "$source_f" 2>&1)
+assert_contains "$output" "CONFLICT"
+
+_TEST_NAME="sync_config conflict option 1 updates profile source"
+local src_content=$(cat "$source_f")
+assert_contains "$src_content" "my_local"
+rm -f "$expected_f"
+
+# --- Return values ---
+
+_TEST_NAME="sync_config returns 0 when already in sync"
+local files=($(sync_setup))
+local local_f="${files[1]}" expected_f="${files[2]}" source_f="${files[3]}"
+_profile_sync_config "test" "$local_f" "$expected_f" "$source_f" > /dev/null 2>&1
+assert_eq "0" "$?"
+rm -f "$expected_f"
+
+_TEST_NAME="sync_config returns 1 when changes applied"
+local files=($(sync_setup))
+local local_f="${files[1]}" expected_f="${files[2]}" source_f="${files[3]}"
+echo '{"changed": true}' > "$source_f"
+cp "$source_f" "$expected_f"
+echo "y" | _profile_sync_config "test" "$local_f" "$expected_f" "$source_f" > /dev/null 2>&1
+assert_eq "1" "$?"
+rm -f "$expected_f"
+
+_test_summary
