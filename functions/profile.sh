@@ -310,6 +310,14 @@ _profile_target_paths() {
         done < <(_profile_vscode_instances 2>/dev/null)
     fi
 
+    # Claude Code
+    local has_claude=false
+    [[ -f "$PROFILES_DIR/default/claude/settings.json" ]] && has_claude=true
+    for p in ${=profiles}; do
+        [[ -f "$PROFILES_DIR/$p/claude/settings.json" ]] && has_claude=true
+    done
+    [[ "$has_claude" == "true" ]] && paths+=("$HOME/.claude/settings.json")
+
     # iTerm
     local dynamic_dir="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
     local has_iterm=false
@@ -694,6 +702,41 @@ _profile_apply_mise() {
     fi
 }
 
+# --- Claude Code ---
+
+_profile_apply_claude() {
+    local profiles="$1"
+    local target="$HOME/.claude/settings.json"
+
+    local has_config=false
+    [[ -f "$PROFILES_DIR/default/claude/settings.json" ]] && has_config=true
+    for p in ${=profiles}; do
+        [[ -f "$PROFILES_DIR/$p/claude/settings.json" ]] && has_config=true
+    done
+    [[ "$has_config" == "false" ]] && return 0
+
+    mkdir -p "$HOME/.claude"
+
+    local -a settings_files=()
+    [[ -f "$PROFILES_DIR/default/claude/settings.json" ]] && settings_files+=("$PROFILES_DIR/default/claude/settings.json")
+    for p in ${=profiles}; do
+        local pf="$PROFILES_DIR/$p/claude/settings.json"
+        [[ -f "$pf" ]] && settings_files+=("$pf")
+    done
+
+    if [[ ${#settings_files[@]} -eq 1 ]]; then
+        cp "${settings_files[1]}" "$target"
+    else
+        jq -s 'reduce .[] as $item ({}; . * $item)' "${settings_files[@]}" > "$target"
+    fi
+
+    local label="default"
+    for p in ${=profiles}; do
+        [[ -f "$PROFILES_DIR/$p/claude/settings.json" ]] && label+=" + $p"
+    done
+    echo "Applying Claude Code settings: $label"
+}
+
 # --- Diff (preview what switch would do) ---
 
 _profile_diff() {
@@ -784,6 +827,36 @@ _profile_diff() {
         result=$($diff_cmd "$target" "$tmpfile" 2>/dev/null)
         if [[ -n "$result" ]]; then
             echo "=== mise (~/.config/mise/config.toml) ==="
+            echo "$result"
+            echo ""
+            has_diff=true
+        fi
+        rm -f "$tmpfile"
+    fi
+
+    # Claude Code
+    local has_claude=false
+    [[ -f "$PROFILES_DIR/default/claude/settings.json" ]] && has_claude=true
+    for p in ${=profiles}; do
+        [[ -f "$PROFILES_DIR/$p/claude/settings.json" ]] && has_claude=true
+    done
+    if [[ "$has_claude" == "true" ]]; then
+        local target="$HOME/.claude/settings.json"
+        local tmpfile=$(mktemp)
+        local -a claude_files=()
+        [[ -f "$PROFILES_DIR/default/claude/settings.json" ]] && claude_files+=("$PROFILES_DIR/default/claude/settings.json")
+        for p in ${=profiles}; do
+            local pf="$PROFILES_DIR/$p/claude/settings.json"
+            [[ -f "$pf" ]] && claude_files+=("$pf")
+        done
+        if [[ ${#claude_files[@]} -eq 1 ]]; then
+            cp "${claude_files[1]}" "$tmpfile"
+        else
+            jq -s 'reduce .[] as $item ({}; . * $item)' "${claude_files[@]}" > "$tmpfile"
+        fi
+        result=$($diff_cmd "$target" "$tmpfile" 2>/dev/null)
+        if [[ -n "$result" ]]; then
+            echo "=== claude (~/.claude/settings.json) ==="
             echo "$result"
             echo ""
             has_diff=true
@@ -1306,6 +1379,7 @@ profile() {
             _profile_apply_iterm "$active_set"
             _profile_apply_git "$active_set"
             _profile_apply_mise "$active_set"
+            _profile_apply_claude "$active_set"
             echo "$active_set" > "$PROFILE_ACTIVE_FILE"
 
             # Record managed files
@@ -1381,7 +1455,7 @@ profile() {
             echo "Usage: profile <command> [args]"
             echo ""
             echo "Commands:"
-            echo "  use <name> [name2 ...]     (s)   Apply profiles (brew + vscode + iterm + git + mise); default is always applied"
+            echo "  use <name> [name2 ...]     (s)   Apply profiles (brew + vscode + iterm + git + mise + claude); default is always applied"
             echo "  diff [name] [name2 ...]    (d)   Preview what use would change"
             echo "  update                     (u)   Sync local changes back to profile files"
             echo "  status                     (st)  Show active profiles and drift"
