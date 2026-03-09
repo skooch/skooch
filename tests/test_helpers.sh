@@ -153,4 +153,21 @@ assert_contains "$targets" ".gitconfig"
 _TEST_NAME="target_paths includes claude settings when claude/settings.json exists"
 assert_contains "$targets" ".claude/settings.json"
 
+# --- _profile_read_all_brew_packages ---
+
+_TEST_NAME="read_all_brew_packages reads from all profile directories"
+mkdir -p "$PROFILES_DIR/otherprofile"
+echo 'brew "biome"' > "$PROFILES_DIR/otherprofile/Brewfile"
+echo 'cask "1password-cli"' >> "$PROFILES_DIR/otherprofile/Brewfile"
+local all_pkgs=$(_profile_read_all_brew_packages)
+assert_contains "$all_pkgs" "brew:git"
+assert_contains "$all_pkgs" "brew:biome"
+assert_contains "$all_pkgs" "cask:1password-cli"
+
+_TEST_NAME="read_all_brew_packages skips directories without Brewfile"
+mkdir -p "$PROFILES_DIR/noBrew"
+local all_pkgs2=$(_profile_read_all_brew_packages)
+assert_not_contains "$all_pkgs2" "noBrew"
+rm -rf "$PROFILES_DIR/noBrew" "$PROFILES_DIR/otherprofile"
+
 _test_summary

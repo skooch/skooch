@@ -71,6 +71,14 @@ _profile_read_brew_packages() {
     done | sort -u
 }
 
+_profile_read_all_brew_packages() {
+    local -a all_brewfiles=()
+    for dir in "$PROFILES_DIR"/*/; do
+        [[ -f "$dir/Brewfile" ]] && all_brewfiles+=("$dir/Brewfile")
+    done
+    _profile_read_brew_packages "${all_brewfiles[@]}"
+}
+
 _profile_read_extensions() {
     local -a files=("$@")
     for f in "${files[@]}"; do
