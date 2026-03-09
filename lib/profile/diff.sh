@@ -221,9 +221,13 @@ _profile_diff() {
         local current_casks=$(brew list --cask 2>/dev/null | sort)
         local current_set=$( (echo "$current_formulae" | sed 's/^/brew:/'; echo "$current_casks" | sed 's/^/cask:/') | sort -u)
         local brew_missing=$(comm -23 <(echo "$all_expected" | grep -v "^tap:") <(echo "$current_set"))
-        if [[ -n "$brew_missing" ]]; then
+        local all_known=$(_profile_read_all_brew_packages)
+        local all_known_no_tap=$(echo "$all_known" | grep -v "^tap:")
+        local brew_extra=$(comm -23 <(echo "$current_set") <(echo "$all_known_no_tap") | grep -v '^$')
+        if [[ -n "$brew_missing" || -n "$brew_extra" ]]; then
             echo "=== brew ==="
-            echo "$brew_missing" | sed 's/^/  + /'
+            [[ -n "$brew_missing" ]] && echo "$brew_missing" | sed 's/^/  + /'
+            [[ -n "$brew_extra" ]] && echo "$brew_extra" | sed 's/^/  - /'
             echo ""
             has_diff=true
         fi
