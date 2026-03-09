@@ -172,6 +172,10 @@ _profile_sync_brew() {
     local expected=$(_profile_read_brew_packages "${brewfiles[@]}")
     local expected_no_tap=$(echo "$expected" | grep -v "^tap:")
 
+    # Read packages from ALL profiles to avoid suggesting other profiles' packages
+    local all_profile_packages=$(_profile_read_all_brew_packages)
+    local all_profile_no_tap=$(echo "$all_profile_packages" | grep -v "^tap:")
+
     local current_formulae=$(brew leaves 2>/dev/null | sort)
     local current_casks=$(brew list --cask 2>/dev/null | sort)
     local installed=$( (echo "$current_formulae" | sed '/^$/d' | sed 's/^/brew:/'; echo "$current_casks" | sed '/^$/d' | sed 's/^/cask:/') | sort -u)
@@ -179,7 +183,7 @@ _profile_sync_brew() {
     # New in profile but not installed -> install
     local to_install=$(comm -23 <(echo "$expected_no_tap") <(echo "$installed") | grep -v '^$')
     # Installed but not in profile -> add to profile
-    local to_add=$(comm -23 <(echo "$installed") <(echo "$expected_no_tap") | grep -v '^$')
+    local to_add=$(comm -23 <(echo "$installed") <(echo "$all_profile_no_tap") | grep -v '^$')
 
     if [[ -z "$to_install" && -z "$to_add" ]]; then
         echo "  Brew: in sync"
