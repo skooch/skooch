@@ -162,16 +162,11 @@
     "ralph-loop@claude-plugins-official": true,
     "playwright@claude-plugins-official": false,
     "typescript-lsp@claude-plugins-official": true,
-    "commit-commands@claude-plugins-official": true,
-    "security-guidance@claude-plugins-official": false,
     "claude-md-management@claude-plugins-official": true,
     "hookify@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
     "claude-code-setup@claude-plugins-official": true,
-    "greptile@claude-plugins-official": true,
-    "qodo-skills@claude-plugins-official": true,
-    "swift-lsp@claude-plugins-official": true,
-    "kotlin-lsp@claude-plugins-official": true
+    "greptile@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "claude-code-plugins": {
