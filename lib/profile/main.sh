@@ -126,8 +126,7 @@ profile() {
             set -- "${args[@]}"
 
             if [[ $# -eq 0 ]]; then
-                echo "Usage: profile use [-f] <name> [name2 ...]  (default is always applied)"
-                return 1
+                set -- "default"
             fi
             for p in "$@"; do
                 if [[ ! -d "$PROFILES_DIR/$p" ]]; then
@@ -253,7 +252,7 @@ profile() {
             echo "Usage: profile <command> [args]"
             echo ""
             echo "Commands:"
-            echo "  use <name> [name2 ...]     (s)   Apply profiles (brew + vscode + iterm + git + mise + claude); default is always applied"
+            echo "  use [name] [name2 ...]     (s)   Apply profiles (brew + vscode + iterm + git + mise + claude); default alone if no args"
             echo "  diff [name] [name2 ...]    (d)   Preview what use would change"
             echo "  sync                       (sy)  Bidirectional sync — detects which direction changed and reconciles"
             echo "  status                     (st)  Show active profiles and drift"
