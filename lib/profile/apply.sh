@@ -24,7 +24,7 @@ _profile_apply_brew() {
     done
 
     echo "Applying Brewfile: $label"
-    brew bundle --file="$tmpfile"
+    HOMEBREW_NO_COLOR=1 HOMEBREW_NO_EMOJI=1 brew bundle --file="$tmpfile" --verbose
     rm -f "$tmpfile"
 
     _profile_post_brew

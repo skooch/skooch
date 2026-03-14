@@ -165,12 +165,12 @@ profile() {
 
             mkdir -p "$PROFILE_STATE_DIR"
             _profile_ensure_links
-            _profile_apply_brew "$active_set"
+            _profile_apply_git "$active_set"
+            _profile_apply_claude "$active_set"
             _profile_apply_vscode "$active_set"
             _profile_apply_iterm "$active_set"
-            _profile_apply_git "$active_set"
             _profile_apply_mise "$active_set"
-            _profile_apply_claude "$active_set"
+            _profile_apply_brew "$active_set"
             echo "$active_set" > "$PROFILE_ACTIVE_FILE"
 
             # Record managed files
