@@ -24,8 +24,15 @@ _TEST_NAME="machine_id is not the hostname"
 local hostname_val=$(hostname)
 assert_neq "$hostname_val" "$mid" "should not match hostname"
 
-_TEST_NAME="machine_id is not the raw hardware UUID"
-local raw_uuid=$(ioreg -rd1 -c IOPlatformExpertDevice | awk -F'"' '/IOPlatformUUID/{print $4}')
-assert_neq "$raw_uuid" "$mid" "should not be raw UUID"
+_TEST_NAME="machine_id is not the raw hardware UUID/machine-id"
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    local raw_uuid=$(ioreg -rd1 -c IOPlatformExpertDevice | awk -F'"' '/IOPlatformUUID/{print $4}')
+    assert_neq "$raw_uuid" "$mid" "should not be raw UUID"
+elif [[ -f /etc/machine-id ]]; then
+    local raw_uuid=$(cat /etc/machine-id)
+    assert_neq "$raw_uuid" "$mid" "should not be raw machine-id"
+else
+    pass
+fi
 
 _test_summary

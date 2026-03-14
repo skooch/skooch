@@ -42,7 +42,7 @@ _TEST_NAME="local_snap_hash does not consume stdin"
 # Write a known snapshot-local file
 local target_file=$(mktemp)
 echo "test content" > "$target_file"
-local target_hash=$(md5 -q "$target_file")
+local target_hash=$(_platform_md5 "$target_file")
 printf '%s\t%s\n' "$target_file" "$target_hash" > "$PROFILE_STATE_DIR/snapshot-local"
 
 # Call from a loop that reads stdin — this would break without fd 3

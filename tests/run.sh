@@ -6,6 +6,15 @@
 set -euo pipefail
 
 TESTS_DIR="${0:A:h}"
+
+# Determine zsh binary
+if [[ -z "${ZSH_BIN:-}" ]]; then
+    if command -v brew &>/dev/null; then
+        ZSH_BIN="$(brew --prefix)/bin/zsh"
+    else
+        ZSH_BIN="$(command -v zsh)"
+    fi
+fi
 PASS=0
 FAIL=0
 ERRORS=()
@@ -19,7 +28,7 @@ for test_file in "$TESTS_DIR"/test_*.sh; do
         continue
     fi
     echo "--- $name ---"
-    if /opt/homebrew/bin/zsh "$test_file"; then
+    if "${ZSH_BIN:-zsh}" "$test_file"; then
         (( PASS++ )) || true
     else
         (( FAIL++ )) || true

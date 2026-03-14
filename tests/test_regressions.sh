@@ -15,7 +15,7 @@ export FOO=bar
 export FOO=bar
 EOF
 # Run under set -e to verify it doesn't crash
-if /opt/homebrew/bin/zsh -c "
+if "${ZSH_BIN:-zsh}" -c "
     set -e
     DOTFILES_DIR='$TEST_DOTFILES'
     source '$_PROFILE_LIB_DIR/init.sh'
@@ -35,7 +35,7 @@ fi
 _TEST_NAME="sync_config diff pipeline safe under pipefail"
 local f1=$(mktemp) f2=$(mktemp)
 echo "aaa" > "$f1"; echo "bbb" > "$f2"
-printf '%s\t%s\n' "$f1" "$(md5 -q "$f1")" > "$PROFILE_STATE_DIR/snapshot-local"
+printf '%s\t%s\n' "$f1" "$(_platform_md5 "$f1")" > "$PROFILE_STATE_DIR/snapshot-local"
 echo "ccc" > "$f2"  # Change expected so diff runs
 if echo "y" | _profile_sync_config "test" "$f1" "$f2" "$f2" > /dev/null 2>&1; then
     # Returns 0 or 1 — either is fine, just shouldn't crash
@@ -52,7 +52,7 @@ rm -f "$f1" "$f2"
 _TEST_NAME="local_snap_hash preserves stdin (fd 3 fix)"
 local target=$(mktemp)
 echo "content" > "$target"
-printf '%s\t%s\n' "$target" "$(md5 -q "$target")" > "$PROFILE_STATE_DIR/snapshot-local"
+printf '%s\t%s\n' "$target" "$(_platform_md5 "$target")" > "$PROFILE_STATE_DIR/snapshot-local"
 # Feed 3 lines into a loop and call local_snap_hash inside
 local lines_read=0
 printf 'line1\nline2\nline3\n' | while IFS= read -r line; do

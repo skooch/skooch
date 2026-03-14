@@ -4,19 +4,27 @@
 
 _profile_vscode_instances() {
     # Outputs "label|user_dir|cli" for each found VS Code installation
-    local -a dirs=("$HOME/Library/Application Support/Code - Insiders/User"
-                   "$HOME/Library/Application Support/Code/User")
-    local -a labels=("Code Insiders" "Code")
-    local -a cli_cmds=(code-insiders code)
-    local -a cli_apps=("/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code"
-                       "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code")
+    local -a dirs labels cli_cmds cli_apps
+
+    if [[ "$IS_MACOS" == true ]]; then
+        dirs=("$HOME/Library/Application Support/Code - Insiders/User"
+              "$HOME/Library/Application Support/Code/User")
+        cli_apps=("/Applications/Visual Studio Code - Insiders.app/Contents/Resources/app/bin/code"
+                  "/Applications/Visual Studio Code.app/Contents/Resources/app/bin/code")
+    else
+        dirs=("$HOME/.config/Code - Insiders/User"
+              "$HOME/.config/Code/User")
+        cli_apps=("" "")
+    fi
+    labels=("Code Insiders" "Code")
+    cli_cmds=(code-insiders code)
 
     for i in 1 2; do
         if [[ -d "${dirs[$i]}" ]]; then
             local cli=""
             if command -v "${cli_cmds[$i]}" &>/dev/null; then
                 cli="${cli_cmds[$i]}"
-            elif [[ -x "${cli_apps[$i]}" ]]; then
+            elif [[ -n "${cli_apps[$i]}" && -x "${cli_apps[$i]}" ]]; then
                 cli="${cli_apps[$i]}"
             fi
             [[ -n "$cli" ]] && echo "${labels[$i]}|${dirs[$i]}|${cli}"
@@ -156,15 +164,17 @@ _profile_target_paths() {
     done
     [[ "$has_claude" == "true" ]] && paths+=("$HOME/.claude/settings.json")
 
-    # iTerm
-    local dynamic_dir="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
-    local has_iterm=false
-    [[ -f "$PROFILES_DIR/default/iterm/profile.json" ]] && has_iterm=true
-    for p in ${=profiles}; do
-        [[ -f "$PROFILES_DIR/$p/iterm/profile.json" ]] && has_iterm=true
-    done
-    [[ "$has_iterm" == "true" && -d "$HOME/Library/Application Support/iTerm2" ]] && \
-        paths+=("$dynamic_dir/dotfiles.json")
+    # iTerm (macOS only)
+    if [[ "$IS_MACOS" == true ]]; then
+        local dynamic_dir="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
+        local has_iterm=false
+        [[ -f "$PROFILES_DIR/default/iterm/profile.json" ]] && has_iterm=true
+        for p in ${=profiles}; do
+            [[ -f "$PROFILES_DIR/$p/iterm/profile.json" ]] && has_iterm=true
+        done
+        [[ "$has_iterm" == "true" && -d "$HOME/Library/Application Support/iTerm2" ]] && \
+            paths+=("$dynamic_dir/dotfiles.json")
+    fi
 
     printf '%s\n' "${paths[@]}"
 }

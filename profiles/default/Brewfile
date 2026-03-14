@@ -1,10 +1,12 @@
 tap "homebrew/autoupdate"
 
-# Core CLI
-brew "coreutils"
-brew "grep"
+# Core CLI (macOS needs GNU tools; Linux has them natively)
+if OS.mac?
+    brew "coreutils"
+    brew "grep"
+    brew "rsync"
+end
 brew "jq"
-brew "rsync"
 brew "sevenzip"
 brew "watch"
 brew "wget"
@@ -48,12 +50,14 @@ brew "ollama", restart_service: :changed
 brew "ffmpeg"
 brew "yt-dlp"
 
-# Casks
-cask "bruno"            # API client
-cask "claude-code"
-cask "iterm2"
-cask "lagrange"         # Gemini browser
-cask "orbstack"         # Docker/Linux VMs
-cask "qmk-toolbox"     # Keyboard firmware
-cask "visual-studio-code@insiders"
-cask "xcodes-app"
+# Casks (macOS only)
+if OS.mac?
+    cask "bruno"            # API client
+    cask "claude-code"
+    cask "iterm2"
+    cask "lagrange"         # Gemini browser
+    cask "orbstack"         # Docker/Linux VMs
+    cask "qmk-toolbox"     # Keyboard firmware
+    cask "visual-studio-code@insiders"
+    cask "xcodes-app"
+end

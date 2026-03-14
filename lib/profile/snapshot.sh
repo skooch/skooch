@@ -6,7 +6,7 @@ _profile_take_snapshot() {
     local hash=""
     for dir in $(_profile_collect_dirs "$profiles"); do
         for f in $(_profile_snapshot_files "$dir"); do
-            [[ -f "$f" ]] && hash+=$(md5 -q "$f" 2>/dev/null)
+            [[ -f "$f" ]] && hash+=$(_platform_md5 "$f" 2>/dev/null)
         done
     done
     echo "$hash" > "$PROFILE_SNAPSHOT_FILE"
@@ -18,7 +18,7 @@ _profile_take_snapshot() {
         if [[ -n "$target_path" && -f "$target_path" ]]; then
             local real_path="$target_path"
             [[ -L "$target_path" ]] && real_path=$(readlink "$target_path")
-            printf '%s\t%s\n' "$target_path" "$(md5 -q "$real_path" 2>/dev/null)" >> "$snap_local"
+            printf '%s\t%s\n' "$target_path" "$(_platform_md5 "$real_path")" >> "$snap_local"
         fi
     done < <(_profile_target_paths "$profiles")
 }
@@ -28,7 +28,7 @@ _profile_compute_hash() {
     local hash=""
     for dir in $(_profile_collect_dirs "$profiles"); do
         for f in $(_profile_snapshot_files "$dir"); do
-            [[ -f "$f" ]] && hash+=$(md5 -q "$f" 2>/dev/null)
+            [[ -f "$f" ]] && hash+=$(_platform_md5 "$f" 2>/dev/null)
         done
     done
     echo "$hash"

@@ -15,7 +15,7 @@ sync_setup() {
     cp "$source_file" "$expected_file"
 
     # Create snapshot so sync can detect direction
-    printf '%s\t%s\n' "$local_file" "$(md5 -q "$local_file")" > "$PROFILE_STATE_DIR/snapshot-local"
+    printf '%s\t%s\n' "$local_file" "$(_platform_md5 "$local_file")" > "$PROFILE_STATE_DIR/snapshot-local"
 
     echo "$local_file" "$expected_file" "$source_file"
 }

@@ -1,6 +1,6 @@
 # skooch's dotfiles
 
-Personal dotfiles, symlinked from `~/projects/skooch` into `~/`. Requires macOS, Homebrew, and Homebrew's zsh.
+Personal dotfiles, symlinked from `~/projects/skooch` into `~/`. Requires macOS or Linux, Homebrew (or Linuxbrew), and Homebrew's zsh.
 
 See [INSTALL.md](INSTALL.md) for setup instructions and [docs/path_helper.md](docs/path_helper.md) for macOS PATH behaviour.
 

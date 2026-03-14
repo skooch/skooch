@@ -13,12 +13,12 @@ _profile_sync_config() {
     local diff_cmd="diff"
     diff --color /dev/null /dev/null 2>/dev/null && diff_cmd="diff --color"
 
-    local expected_hash=$(md5 -q "$expected_file" 2>/dev/null)
+    local expected_hash=$(_platform_md5 "$expected_file")
     local local_hash=""
     if [[ -f "$local_file" ]]; then
         local real="$local_file"
         [[ -L "$local_file" ]] && real=$(readlink "$local_file")
-        local_hash=$(md5 -q "$real" 2>/dev/null)
+        local_hash=$(_platform_md5 "$real")
     fi
 
     # Already in sync
@@ -73,10 +73,19 @@ _profile_sync_config() {
         echo ""
 
         # Determine newer by mtime (handle both GNU and BSD stat)
-        local local_mtime=$(/usr/bin/stat -f %m "$local_file" 2>/dev/null || stat -c %Y "$local_file" 2>/dev/null || echo 0)
+        _sync_mtime() {
+            local mtime
+            if [[ "$IS_MACOS" == true ]]; then
+                mtime=$(/usr/bin/stat -f %m "$1" 2>/dev/null)
+            else
+                mtime=$(stat -c %Y "$1" 2>/dev/null)
+            fi
+            [[ "$mtime" =~ ^[0-9]+$ ]] && echo "$mtime" || echo 0
+        }
+        local local_mtime=$(_sync_mtime "$local_file")
         local src_mtime=0
         for src in "${profile_sources[@]}"; do
-            local t=$(/usr/bin/stat -f %m "$src" 2>/dev/null || stat -c %Y "$src" 2>/dev/null || echo 0)
+            local t=$(_sync_mtime "$src")
             [[ $t -gt $src_mtime ]] && src_mtime=$t
         done
 

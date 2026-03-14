@@ -18,11 +18,12 @@ echo ""
 
 echo "Checking prerequisites..."
 
-if [ "$(uname)" != "Darwin" ]; then
-    fail "macOS required"
+OS="$(uname -s)"
+if [ "$OS" != "Darwin" ] && [ "$OS" != "Linux" ]; then
+    fail "macOS or Linux required"
     exit 1
 fi
-ok "macOS"
+ok "$OS"
 
 if [ ! -d "$DOTFILES_DIR" ]; then
     fail "Dotfiles repo not found at $DOTFILES_DIR"
@@ -40,11 +41,22 @@ echo "Checking core tools..."
 if ! command -v brew >/dev/null 2>&1; then
     echo "  Installing Homebrew..."
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    eval "$(/opt/homebrew/bin/brew shellenv)"
+    # Activate brew for this session
+    if [ "$OS" = "Darwin" ]; then
+        if [ -s "/opt/homebrew/bin/brew" ]; then
+            eval "$(/opt/homebrew/bin/brew shellenv)"
+        else
+            eval "$(/usr/local/bin/brew shellenv)"
+        fi
+    else
+        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    fi
     ok "Homebrew installed"
 else
     ok "Homebrew"
 fi
+
+BREW_PREFIX="$(brew --prefix)"
 
 # Core formulae needed by the dotfiles themselves
 for tool in git jq mise; do
@@ -58,7 +70,7 @@ for tool in git jq mise; do
 done
 
 # Homebrew zsh
-BREW_ZSH="/opt/homebrew/bin/zsh"
+BREW_ZSH="$BREW_PREFIX/bin/zsh"
 if [ ! -x "$BREW_ZSH" ]; then
     echo "  Installing Homebrew zsh..."
     brew install zsh
@@ -73,7 +85,11 @@ if ! grep -qFx "$BREW_ZSH" /etc/shells 2>/dev/null; then
     ok "Added to /etc/shells"
 fi
 
-current_shell=$(dscl . -read /Users/"$(whoami)" UserShell 2>/dev/null | awk '{print $2}')
+if [ "$OS" = "Darwin" ]; then
+    current_shell=$(dscl . -read /Users/"$(whoami)" UserShell 2>/dev/null | awk '{print $2}')
+else
+    current_shell=$(getent passwd "$(whoami)" | cut -d: -f7)
+fi
 if [ "$current_shell" = "$BREW_ZSH" ]; then
     ok "Default shell is Homebrew zsh"
 else
@@ -107,7 +123,6 @@ echo ""
 
 echo "Setting up symlinks..."
 # Reuse the profile system's link logic (defined in lib/profile/)
-BREW_ZSH="${BREW_ZSH:-/opt/homebrew/bin/zsh}"
 "$BREW_ZSH" -c "source '$DOTFILES_DIR/lib/profile/index.sh' && _profile_ensure_links"
 ok "Core symlinks verified"
 

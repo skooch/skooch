@@ -4,4 +4,6 @@ brew "ccache"
 brew "cmake"
 brew "ninja"
 brew "pkgconf"
-cask "android-platform-tools"
+if OS.mac?
+    cask "android-platform-tools"
+end

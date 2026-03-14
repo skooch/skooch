@@ -53,6 +53,7 @@ PROFILE_MANAGED_FILE="$TEST_STATE/managed"
 
 # Source the profile system
 _PROFILE_LIB_DIR="${0:A:h}/../lib/profile"
+source "$_PROFILE_LIB_DIR/platform.sh"
 source "$_PROFILE_LIB_DIR/init.sh"
 
 # Re-override variables that init.sh set (since init.sh uses $HOME)

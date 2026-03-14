@@ -229,10 +229,10 @@ _profile_diff() {
         fi
     fi
 
-    # iTerm
+    # iTerm (macOS only)
     local default_iterm="$PROFILES_DIR/default/iterm/profile.json"
     local dynamic_dir="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
-    if [[ -d "$HOME/Library/Application Support/iTerm2" ]]; then
+    if [[ "$IS_MACOS" == true && -d "$HOME/Library/Application Support/iTerm2" ]]; then
         local -a iterm_files=()
         [[ -f "$default_iterm" ]] && iterm_files+=("$default_iterm")
         for p in ${=profiles}; do

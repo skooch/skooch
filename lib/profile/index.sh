@@ -4,6 +4,7 @@
 # Use DOTFILES_DIR if set, otherwise derive from this script's location
 _PROFILE_LIB_DIR="${DOTFILES_DIR:-$HOME/projects/skooch}/lib/profile"
 
+source "$_PROFILE_LIB_DIR/platform.sh"
 source "$_PROFILE_LIB_DIR/init.sh"
 source "$_PROFILE_LIB_DIR/helpers.sh"
 source "$_PROFILE_LIB_DIR/snapshot.sh"

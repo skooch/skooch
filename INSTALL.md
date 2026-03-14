@@ -1,6 +1,6 @@
 # setting up
 
-**Prerequisites:** macOS with [Homebrew](https://brew.sh/) installed.
+**Prerequisites:** macOS or Linux with [Homebrew](https://brew.sh/) installed (Linuxbrew on Linux).
 
 1. Clone both repos:
    ```sh

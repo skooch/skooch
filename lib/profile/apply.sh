@@ -31,7 +31,7 @@ _profile_apply_brew() {
 }
 
 _profile_post_brew() {
-    local BREW_ZSH="/opt/homebrew/bin/zsh"
+    local BREW_ZSH="${HOMEBREW_PREFIX:-}/bin/zsh"
 
     # zsh: add to /etc/shells and set as login shell
     if [[ -x "$BREW_ZSH" ]]; then
@@ -40,7 +40,11 @@ _profile_post_brew() {
             echo "$BREW_ZSH" | sudo tee -a /etc/shells >/dev/null
         fi
         local current_shell
-        current_shell=$(dscl . -read /Users/"$(whoami)" UserShell 2>/dev/null | awk '{print $2}')
+        if [[ "$IS_MACOS" == true ]]; then
+            current_shell=$(dscl . -read /Users/"$(whoami)" UserShell 2>/dev/null | awk '{print $2}')
+        else
+            current_shell=$(getent passwd "$(whoami)" | cut -d: -f7)
+        fi
         if [[ "$current_shell" != "$BREW_ZSH" ]]; then
             echo "Setting login shell to $BREW_ZSH..."
             chsh -s "$BREW_ZSH"
@@ -197,6 +201,7 @@ _profile_apply_vscode() {
 # --- iTerm ---
 
 _profile_apply_iterm() {
+    [[ "$IS_MACOS" != true ]] && return 0
     local profiles="$1"
     local default_iterm="$PROFILES_DIR/default/iterm/profile.json"
     local dynamic_dir="$HOME/Library/Application Support/iTerm2/DynamicProfiles"

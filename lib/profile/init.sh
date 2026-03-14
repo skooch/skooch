@@ -7,8 +7,14 @@ HOSTS_FILE="$DOTFILES_DIR/hosts.json"
 # Stable, privacy-preserving machine identifier (SHA-256 of hardware UUID, first 12 chars)
 _profile_machine_id() {
     local uuid
-    uuid=$(ioreg -rd1 -c IOPlatformExpertDevice | awk -F'"' '/IOPlatformUUID/{print $4}')
-    echo -n "$uuid" | shasum -a 256 | cut -c1-12
+    if [[ "$IS_MACOS" == true ]]; then
+        uuid=$(ioreg -rd1 -c IOPlatformExpertDevice | awk -F'"' '/IOPlatformUUID/{print $4}')
+    elif [[ -f /etc/machine-id ]]; then
+        uuid=$(cat /etc/machine-id)
+    else
+        uuid=$(hostname)
+    fi
+    echo -n "$uuid" | _platform_sha256 | cut -c1-12
 }
 
 # XDG-compliant state directory
