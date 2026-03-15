@@ -58,13 +58,26 @@ _profile_read_brew_packages() {
     local -a files=("$@")
     for f in "${files[@]}"; do
         [[ -f "$f" ]] || continue
+        local skip=false
         while IFS= read -r line || [[ -n "$line" ]]; do
             line="${line%%#*}"  # strip comments
-            if [[ "$line" =~ ^brew\ +\"([^\"]+)\" ]]; then
+            # Track OS-conditional blocks
+            if [[ "$line" =~ ^[[:space:]]*if\ +OS\.mac\? ]]; then
+                [[ "$IS_MACOS" != true ]] && skip=true
+                continue
+            elif [[ "$line" =~ ^[[:space:]]*if\ +OS\.linux\? ]]; then
+                [[ "$IS_LINUX" != true ]] && skip=true
+                continue
+            elif [[ "$line" =~ ^[[:space:]]*end[[:space:]]*$ ]]; then
+                skip=false
+                continue
+            fi
+            [[ "$skip" == true ]] && continue
+            if [[ "$line" =~ ^[[:space:]]*brew\ +\"([^\"]+)\" ]]; then
                 echo "brew:${match[1]}"
-            elif [[ "$line" =~ ^cask\ +\"([^\"]+)\" ]]; then
+            elif [[ "$line" =~ ^[[:space:]]*cask\ +\"([^\"]+)\" ]]; then
                 echo "cask:${match[1]}"
-            elif [[ "$line" =~ ^tap\ +\"([^\"]+)\" ]]; then
+            elif [[ "$line" =~ ^[[:space:]]*tap\ +\"([^\"]+)\" ]]; then
                 echo "tap:${match[1]}"
             fi
         done < "$f"

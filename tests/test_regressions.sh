@@ -139,6 +139,70 @@ done
 # In zsh, `path` is tied to PATH. Using `local path=...` inside a function
 # breaks the tie, corrupting PATH when the function exits.
 
+# --- BUG: Indented brew/cask lines inside if OS.mac? not parsed ---
+# Brewfile entries inside `if OS.mac?` blocks are indented. The parser
+# used ^brew/^cask regexes that required column 0, silently dropping
+# all macOS-conditional casks from the expected package list.
+
+_TEST_NAME="read_brew_packages parses indented lines inside if blocks"
+local brewfile="$PROFILES_DIR/default/Brewfile"
+cat > "$brewfile" << 'EOF'
+tap "homebrew/autoupdate"
+brew "git"
+if OS.mac?
+    brew "coreutils"
+    cask "orbstack"
+end
+EOF
+IS_MACOS=true
+local result=$(_profile_read_brew_packages "$brewfile")
+assert_contains "$result" "brew:git" "top-level brew"
+_TEST_NAME="read_brew_packages parses indented cask inside if OS.mac? on macOS"
+assert_contains "$result" "cask:orbstack" "indented cask"
+_TEST_NAME="read_brew_packages parses indented brew inside if OS.mac? on macOS"
+assert_contains "$result" "brew:coreutils" "indented brew"
+_TEST_NAME="read_brew_packages parses tap"
+assert_contains "$result" "tap:homebrew/autoupdate" "tap"
+
+# --- BUG: macOS-only packages should be skipped on Linux ---
+# After fixing indentation parsing, we must also skip OS.mac? blocks
+# when running on Linux, otherwise casks get flagged for install.
+
+_TEST_NAME="read_brew_packages skips OS.mac? block on Linux"
+IS_MACOS=false
+IS_LINUX=true
+local linux_result=$(_profile_read_brew_packages "$brewfile")
+assert_contains "$linux_result" "brew:git" "top-level brew on linux"
+_TEST_NAME="read_brew_packages excludes macOS cask on Linux"
+assert_not_contains "$linux_result" "cask:orbstack" "macOS cask skipped on linux"
+_TEST_NAME="read_brew_packages excludes macOS brew on Linux"
+assert_not_contains "$linux_result" "brew:coreutils" "macOS brew skipped on linux"
+
+# --- Verify if OS.linux? block works symmetrically ---
+
+_TEST_NAME="read_brew_packages parses OS.linux? block on Linux"
+cat > "$brewfile" << 'EOF'
+brew "git"
+if OS.linux?
+    brew "linux-only-pkg"
+end
+EOF
+IS_MACOS=false
+IS_LINUX=true
+local linux_block_result=$(_profile_read_brew_packages "$brewfile")
+assert_contains "$linux_block_result" "brew:linux-only-pkg" "linux block on linux"
+
+_TEST_NAME="read_brew_packages skips OS.linux? block on macOS"
+IS_MACOS=true
+IS_LINUX=false
+local mac_skip_result=$(_profile_read_brew_packages "$brewfile")
+assert_not_contains "$mac_skip_result" "brew:linux-only-pkg" "linux block skipped on macOS"
+
+# Restore platform flags
+source "$_PROFILE_LIB_DIR/platform.sh"
+# Restore default Brewfile
+echo 'brew "git"' > "$PROFILES_DIR/default/Brewfile"
+
 _TEST_NAME="no zsh tied variable shadowing in lib/profile"
 local tied_vars_pattern='(local[[:space:]]+|read[[:space:]]+-r[[:space:]]+)(path|fpath|manpath|cdpath|mailpath|infopath)([[:space:]]|=|$)'
 local found_shadows=false
