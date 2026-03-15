@@ -118,6 +118,20 @@ assert_contains "$rc_content" "fi"
 assert_contains "$rc_content" "done"
 assert_contains "$rc_content" "esac"
 
+_TEST_NAME="dedup preserves duplicate if-guards"
+cat > "$TEST_DOTFILES/.zshenv" << 'ENVEOF'
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    echo pnpm
+fi
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    echo jetbrains
+fi
+ENVEOF
+_profile_dedup_dotfiles > /dev/null 2>&1
+local env_content=$(cat "$TEST_DOTFILES/.zshenv")
+local if_count=$(echo "$env_content" | grep -c 'if \[\[')
+assert_eq "2" "$if_count"
+
 # --- _profile_active ---
 
 _TEST_NAME="active returns empty when no file"

@@ -237,7 +237,7 @@ _profile_dedup_dotfiles() {
             fi
 
             # Always keep indented lines and shell structure keywords
-            if [[ "$line" =~ '^[[:space:]]' || "$line" =~ '^(fi|done|esac|else|then|do|\{|\})$' ]]; then
+            if [[ "$line" =~ '^[[:space:]]' || "$line" =~ '^(if|elif|else|fi|for|while|until|do|done|case|esac|then|\{|\})([[:space:]]|$)' ]]; then
                 output+=("$line")
                 continue
             fi
