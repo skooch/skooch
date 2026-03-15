@@ -50,6 +50,10 @@ brew "ollama", restart_service: :changed
 brew "ffmpeg"
 brew "yt-dlp"
 
+# Dev tools (additional)
+brew "lefthook"
+brew "python@3.13"
+
 # Casks (macOS only)
 if OS.mac?
     cask "bruno"            # API client

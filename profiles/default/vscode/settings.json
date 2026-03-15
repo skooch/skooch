@@ -133,5 +133,6 @@
   "claudeCode.useCtrlEnterToSend": true,
   "claudeCode.preferredLocation": "panel",
   "claudeCode.selectedModel": "opus",
-  "zig.zls.enabled": "on"
+  "zig.zls.enabled": "on",
+  "svelte.enable-ts-plugin": true
 }

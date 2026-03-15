@@ -8,3 +8,4 @@ ziglang.vscode-zig
 redhat.vscode-xml
 docker.docker
 jjk.jjk
+svelte.svelte-vscode
