@@ -63,5 +63,4 @@ if OS.mac?
     cask "orbstack"         # Docker/Linux VMs
     cask "qmk-toolbox"     # Keyboard firmware
     cask "visual-studio-code@insiders"
-    cask "xcodes-app"
 end
