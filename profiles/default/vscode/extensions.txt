@@ -9,3 +9,5 @@ redhat.vscode-xml
 docker.docker
 jjk.jjk
 svelte.svelte-vscode
+rust-lang.rust-analyzer
+wokwi.wokwi-vscode
