@@ -64,3 +64,4 @@ if OS.mac?
     cask "qmk-toolbox"     # Keyboard firmware
     cask "visual-studio-code@insiders"
 end
+brew "poppler"
