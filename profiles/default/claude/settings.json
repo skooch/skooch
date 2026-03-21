@@ -40,6 +40,8 @@
       "Read(//private/etc/**)",
       "Bash(python3 -c:*)",
       "Bash(python3 -:*)",
+      "Bash(.venv/bin/python:*)",
+      "Bash(.venv/bin/python3:*)",
       "Bash(node -e:*)",
       "Bash(node --eval:*)",
       "Bash(bun -e:*)",
@@ -179,7 +181,20 @@
       "Bash(brew:*)"
     ]
   },
-  "model": "opus",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '.tool_input.command' | { read -r cmd; first=$(echo \"$cmd\" | sed 's/^[[:space:]]*//' | awk '{print $1}'); if echo \"$first\" | grep -qxE 'git|gh|ls|wc|touch|grep|shasum|xxd|ioreg|command|export|printf|mdfind|docker|defaults|shellcheck|code-insiders|mise|zig|desloppify|profile|python3|node|bun|npx|bunx|pnpm|rm|cp|ln|mv|cargo|espflash|cd|echo|cat|head|tail|mkdir|find|which|type|env|sort|uniq|cut|tr|sed|awk|jq|uv|test|true|false|\\.venv/bin/python|\\.venv/bin/python3'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"permissionDecisionReason\":\"Command prefix is in allow list\"}}'; else echo '{}'; fi; }",
+            "statusMessage": "Checking bash command..."
+          }
+        ]
+      }
+    ]
+  },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
     "context7@claude-plugins-official": false,
@@ -204,19 +219,5 @@
       }
     }
   },
-  "alwaysThinkingEnabled": true,
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "jq -r '.tool_input.command' | { read -r cmd; first=$(echo \"$cmd\" | sed 's/^[[:space:]]*//' | awk '{print $1}'); if echo \"$first\" | grep -qxE 'git|gh|ls|wc|touch|grep|shasum|xxd|ioreg|command|export|printf|mdfind|docker|defaults|shellcheck|code-insiders|mise|zig|desloppify|profile|python3|node|bun|npx|bunx|pnpm|rm|cp|ln|mv|cargo|espflash|cd|echo|cat|head|tail|mkdir|find|which|type|env|sort|uniq|cut|tr|sed|awk|jq|uv|test|true|false'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"permissionDecisionReason\":\"Command prefix is in allow list\"}}'; else echo '{}'; fi; }",
-            "statusMessage": "Checking bash command..."
-          }
-        ]
-      }
-    ]
-  }
+  "alwaysThinkingEnabled": true
 }
