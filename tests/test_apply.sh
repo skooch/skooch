@@ -59,4 +59,24 @@ echo '{"extra": true}' > "$PROFILES_DIR/testprofile/claude/settings.json"
 printf '[tools]\nnode = "lts"\n' > "$PROFILES_DIR/default/mise/config.toml"
 printf '[tools]\npython = "3.12"\n' > "$PROFILES_DIR/testprofile/mise/config.toml"
 
+# --- _profile_apply_tmux ---
+
+_TEST_NAME="apply_tmux copies winning profile tmux.conf to home"
+mkdir -p "$PROFILES_DIR/default/tmux"
+echo "set -g mouse on" > "$PROFILES_DIR/default/tmux/tmux.conf"
+_profile_apply_tmux "default" > /dev/null 2>&1
+assert_eq "set -g mouse on" "$(cat "$TEST_HOME/.tmux.conf")"
+
+_TEST_NAME="apply_tmux last profile wins"
+mkdir -p "$PROFILES_DIR/testprofile/tmux"
+echo "set -g mouse off" > "$PROFILES_DIR/testprofile/tmux/tmux.conf"
+_profile_apply_tmux "testprofile" > /dev/null 2>&1
+assert_eq "set -g mouse off" "$(cat "$TEST_HOME/.tmux.conf")"
+
+_TEST_NAME="apply_tmux skips when no tmux config exists"
+rm -rf "$PROFILES_DIR/default/tmux" "$PROFILES_DIR/testprofile/tmux"
+rm -f "$TEST_HOME/.tmux.conf"
+_profile_apply_tmux "default" > /dev/null 2>&1
+assert_eq "1" "$([[ ! -f "$TEST_HOME/.tmux.conf" ]] && echo 1 || echo 0)"
+
 _test_summary

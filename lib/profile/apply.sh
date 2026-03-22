@@ -392,3 +392,27 @@ _profile_apply_claude() {
     done
     echo "Applying Claude Code settings: $label"
 }
+
+# --- Tmux ---
+
+_profile_apply_tmux() {
+    local profiles="$1"
+    local target="$HOME/.tmux.conf"
+
+    # Last profile wins
+    local source=""
+    local source_profile=""
+    [[ -f "$PROFILES_DIR/default/tmux/tmux.conf" ]] && { source="$PROFILES_DIR/default/tmux/tmux.conf"; source_profile="default"; }
+    for p in ${=profiles}; do
+        [[ "$p" == "default" ]] && continue
+        if [[ -f "$PROFILES_DIR/$p/tmux/tmux.conf" ]]; then
+            source="$PROFILES_DIR/$p/tmux/tmux.conf"
+            source_profile="$p"
+        fi
+    done
+
+    [[ -z "$source" ]] && return 0
+
+    cp "$source" "$target"
+    echo "Applying tmux config: $source_profile"
+}

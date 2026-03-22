@@ -131,6 +131,31 @@ _profile_diff() {
         rm -f "$tmpfile"
     fi
 
+    # Tmux
+    local tmux_source=""
+    [[ -f "$PROFILES_DIR/default/tmux/tmux.conf" ]] && tmux_source="$PROFILES_DIR/default/tmux/tmux.conf"
+    for p in ${=profiles}; do
+        [[ "$p" == "default" ]] && continue
+        [[ -f "$PROFILES_DIR/$p/tmux/tmux.conf" ]] && tmux_source="$PROFILES_DIR/$p/tmux/tmux.conf"
+    done
+    if [[ -n "$tmux_source" ]]; then
+        local target="$HOME/.tmux.conf"
+        if [[ -f "$target" ]]; then
+            result=$($diff_cmd "$target" "$tmux_source" 2>/dev/null)
+            if [[ -n "$result" ]]; then
+                echo "=== tmux (~/.tmux.conf) ==="
+                echo "$result"
+                echo ""
+                has_diff=true
+            fi
+        else
+            echo "=== tmux (~/.tmux.conf) ==="
+            echo "  (new file would be created)"
+            echo ""
+            has_diff=true
+        fi
+    fi
+
     # VSCode settings
     local default_dir="$PROFILES_DIR/default/vscode"
 

@@ -46,6 +46,9 @@ assert_contains "$snap_files" "iterm/profile.json"
 _TEST_NAME="snapshot_files includes Brewfile"
 assert_contains "$snap_files" "Brewfile"
 
+_TEST_NAME="snapshot_files includes tmux/tmux.conf"
+assert_contains "$snap_files" "tmux/tmux.conf"
+
 # --- _profile_read_brew_packages ---
 
 _TEST_NAME="read_brew_packages parses brew lines"
@@ -152,6 +155,12 @@ assert_contains "$targets" ".gitconfig"
 
 _TEST_NAME="target_paths includes claude settings when claude/settings.json exists"
 assert_contains "$targets" ".claude/settings.json"
+
+_TEST_NAME="target_paths includes tmux.conf when tmux/tmux.conf exists"
+mkdir -p "$PROFILES_DIR/default/tmux"
+echo "set -g mouse on" > "$PROFILES_DIR/default/tmux/tmux.conf"
+local tmux_targets=$(_profile_target_paths "default")
+assert_contains "$tmux_targets" ".tmux.conf"
 
 # --- _profile_read_all_brew_packages ---
 

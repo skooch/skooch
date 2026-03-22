@@ -123,7 +123,8 @@ _profile_snapshot_files() {
              "$dir/vscode/settings.json" "$dir/vscode/keybindings.json" \
              "$dir/iterm/profile.json" \
              "$dir/git/config" "$dir/mise/config.toml" \
-             "$dir/claude/settings.json"; do
+             "$dir/claude/settings.json" \
+             "$dir/tmux/tmux.conf"; do
         echo "$f"
     done
 }
@@ -184,6 +185,14 @@ _profile_target_paths() {
         [[ -f "$PROFILES_DIR/$p/claude/settings.json" ]] && has_claude=true
     done
     [[ "$has_claude" == "true" ]] && paths+=("$HOME/.claude/settings.json")
+
+    # Tmux
+    local has_tmux=false
+    [[ -f "$PROFILES_DIR/default/tmux/tmux.conf" ]] && has_tmux=true
+    for p in ${=profiles}; do
+        [[ -f "$PROFILES_DIR/$p/tmux/tmux.conf" ]] && has_tmux=true
+    done
+    [[ "$has_tmux" == "true" ]] && paths+=("$HOME/.tmux.conf")
 
     # iTerm (macOS only)
     if [[ "$IS_MACOS" == true ]]; then

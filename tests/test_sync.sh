@@ -134,4 +134,15 @@ echo "y" | _profile_sync_config "test" "$local_f" "$expected_f" "$source_f" > /d
 assert_eq "1" "$?"
 rm -f "$expected_f"
 
+# --- _profile_sync_tmux ---
+
+HOME="$TEST_HOME"
+_TEST_NAME="sync_tmux delegates to sync_config with winning source"
+mkdir -p "$PROFILES_DIR/default/tmux"
+echo "set -g mouse on" > "$PROFILES_DIR/default/tmux/tmux.conf"
+echo "set -g mouse on" > "$TEST_HOME/.tmux.conf"
+printf '%s\t%s\n' "$TEST_HOME/.tmux.conf" "$(_platform_md5 "$TEST_HOME/.tmux.conf")" >> "$PROFILE_STATE_DIR/snapshot-local"
+_profile_sync_tmux "default" > /dev/null 2>&1
+assert_eq "0" "$?"
+
 _test_summary

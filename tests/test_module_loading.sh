@@ -51,4 +51,10 @@ assert_eq "function" "$(whence -w _profile_sync_claude | awk '{print $2}')"
 _TEST_NAME="_profile_sync_iterm exists"
 assert_eq "function" "$(whence -w _profile_sync_iterm | awk '{print $2}')"
 
+_TEST_NAME="_profile_apply_tmux exists"
+assert_eq "function" "$(whence -w _profile_apply_tmux | awk '{print $2}')"
+
+_TEST_NAME="_profile_sync_tmux exists"
+assert_eq "function" "$(whence -w _profile_sync_tmux | awk '{print $2}')"
+
 _test_summary

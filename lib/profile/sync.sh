@@ -415,6 +415,22 @@ _profile_sync_claude() {
     fi
 }
 
+_profile_sync_tmux() {
+    local profiles="$1"
+    local target="$HOME/.tmux.conf"
+
+    # Last profile wins
+    local source=""
+    [[ -f "$PROFILES_DIR/default/tmux/tmux.conf" ]] && source="$PROFILES_DIR/default/tmux/tmux.conf"
+    for p in ${=profiles}; do
+        [[ "$p" == "default" ]] && continue
+        [[ -f "$PROFILES_DIR/$p/tmux/tmux.conf" ]] && source="$PROFILES_DIR/$p/tmux/tmux.conf"
+    done
+    [[ -z "$source" ]] && return 0
+
+    _profile_sync_config "Tmux" "$target" "$source" "$source"
+}
+
 _profile_sync_iterm() {
     local profiles="$1"
     local dynamic_dir="$HOME/Library/Application Support/iTerm2/DynamicProfiles"
