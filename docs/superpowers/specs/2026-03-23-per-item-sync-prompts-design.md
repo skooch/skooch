@@ -1,7 +1,7 @@
 # Per-Item Sync Prompts for List-Based Syncs
 
 **Date:** 2026-03-23
-**Status:** Review
+**Status:** Implemented
 
 ## Problem
 
