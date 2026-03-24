@@ -15,6 +15,7 @@
     }
   },
   "terminal.integrated.defaultProfile.osx": "zsh-brew",
+  "terminal.integrated.tabs.title": "${sequence}",
   "terminal.integrated.scrollback": 10000,
   "terminal.integrated.persistentSessionScrollback": 1000,
   "terminal.integrated.initialHint": false,

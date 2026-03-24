@@ -182,6 +182,28 @@
     ]
   },
   "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -r '(.prompt // .message // .content // \"working\")[0:50]' | { read -r msg; printf '\\033]0;Claude: %s\\007' \"$msg\" >&2; echo '{\"suppressOutput\":true}'; }",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "printf '\\033]0;Claude (idle)\\007' >&2; echo '{\"suppressOutput\":true}'",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
     "SubagentStart": [
       {
         "hooks": [
