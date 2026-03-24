@@ -336,3 +336,37 @@ _profile_detect_vscode_conflicts() {
         done
     done
 }
+
+# --- Per-item sync prompt ---
+
+_profile_prompt_item() {
+    local label="$1" direction="$2"
+
+    if [[ "$direction" == "not_installed" ]]; then
+        echo "  $label — not installed" >&2
+        while true; do
+            printf "    [I]nstall / [R]emove from profile / [S]kip? [I] " >&2
+            local answer
+            read -r answer
+            case "${answer:-I}" in
+                [iI]) echo "install"; return ;;
+                [rR]) echo "remove"; return ;;
+                [sS]) echo "skip"; return ;;
+                *)    echo "    Invalid input, try again." >&2 ;;
+            esac
+        done
+    elif [[ "$direction" == "not_in_profile" ]]; then
+        echo "  $label — not in profile" >&2
+        while true; do
+            printf "    [A]dd to profile / [U]ninstall / [S]kip? [A] " >&2
+            local answer
+            read -r answer
+            case "${answer:-A}" in
+                [aA]) echo "add"; return ;;
+                [uU]) echo "uninstall"; return ;;
+                [sS]) echo "skip"; return ;;
+                *)    echo "    Invalid input, try again." >&2 ;;
+            esac
+        done
+    fi
+}
