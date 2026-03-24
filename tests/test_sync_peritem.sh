@@ -38,4 +38,22 @@ printf 'brew "git"\nbrew "jq"\nbrew "wget"\n' > "$brewfile"
 local output=$(printf 's\ns\n' | _profile_sync_brew "default" 2>&1)
 assert_contains "$output" "No changes"
 
+_TEST_NAME="sync_brew per-item: in sync prints message"
+local brewfile="$PROFILES_DIR/default/Brewfile"
+printf 'brew "git"\nbrew "jq"\ncask "iterm2"\n' > "$brewfile"
+local output=$(_profile_sync_brew "default" 2>&1)
+assert_contains "$output" "in sync"
+
+_TEST_NAME="sync_brew per-item: uninstall dispatches correct command"
+printf 'brew "git"\nbrew "jq"\n' > "$brewfile"
+# iterm2 (cask) is installed but not in profile — choose U
+local output=$(printf 'u\n' | _profile_sync_brew "default" 2>&1)
+assert_contains "$output" "Uninstalled cask:iterm2"
+
+_TEST_NAME="sync_brew per-item: install via brew bundle"
+printf 'brew "git"\nbrew "jq"\nbrew "wget"\ncask "iterm2"\n' > "$brewfile"
+# wget not installed — choose I (default)
+local output=$(printf 'i\n' | _profile_sync_brew "default" 2>&1)
+assert_contains "$output" "MOCK_BUNDLE"
+
 _test_summary
