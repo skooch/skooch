@@ -178,4 +178,34 @@ assert_contains "$output" "ruby	$tmptoml"
 assert_not_contains "$output" "not_found_auto_install"
 rm -f "$tmptoml"
 
+# --- _profile_mise_split_tools ---
+
+_TEST_NAME="mise_split_tools extracts tools section"
+local tmptoml=$(mktemp)
+printf '[tools]\nnode = "lts"\nruby = "3"\n\n[settings]\nnot_found_auto_install = true\n' > "$tmptoml"
+local tools_out=$(mktemp)
+local rest_out=$(mktemp)
+_profile_mise_split_tools "$tmptoml" "$tools_out" "$rest_out"
+local tools_content=$(cat "$tools_out")
+local rest_content=$(cat "$rest_out")
+assert_contains "$tools_content" 'node = "lts"'
+assert_contains "$tools_content" 'ruby = "3"'
+assert_not_contains "$tools_content" "not_found_auto_install"
+assert_contains "$rest_content" "[settings]"
+assert_contains "$rest_content" "not_found_auto_install"
+assert_not_contains "$rest_content" '[tools]'
+rm -f "$tmptoml" "$tools_out" "$rest_out"
+
+_TEST_NAME="mise_split_tools handles tools-only file"
+local tmptoml=$(mktemp)
+printf '[tools]\nnode = "lts"\n' > "$tmptoml"
+local tools_out=$(mktemp)
+local rest_out=$(mktemp)
+_profile_mise_split_tools "$tmptoml" "$tools_out" "$rest_out"
+local tools_content=$(cat "$tools_out")
+assert_contains "$tools_content" 'node = "lts"'
+local rest_size=$(wc -c < "$rest_out" | tr -d ' ')
+assert_eq "0" "$rest_size"
+rm -f "$tmptoml" "$tools_out" "$rest_out"
+
 _test_summary

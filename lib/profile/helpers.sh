@@ -503,6 +503,31 @@ _profile_read_extensions_sourced() {
     done
 }
 
+# --- Mise TOML splitting ---
+
+_profile_mise_split_tools() {
+    local input="$1" tools_out="$2" rest_out="$3"
+    local in_tools=false
+
+    : > "$tools_out"
+    : > "$rest_out"
+
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        if [[ "$line" == "[tools]" ]]; then
+            in_tools=true
+            continue
+        elif [[ "$line" == \[* ]]; then
+            in_tools=false
+        fi
+
+        if [[ "$in_tools" == true ]]; then
+            echo "$line" >> "$tools_out"
+        else
+            echo "$line" >> "$rest_out"
+        fi
+    done < "$input"
+}
+
 _profile_read_mise_tools_sourced() {
     local -a files=("$@")
     for f in "${files[@]}"; do

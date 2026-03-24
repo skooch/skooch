@@ -440,46 +440,204 @@ _profile_sync_mise() {
     done
     [[ ${#mise_files[@]} -eq 0 ]] && return 0
 
-    # Generate expected merged TOML
-    local expected=$(mktemp)
+    # --- Pass 1: Tools section (list-based per-item sync) ---
+    local sourced=$(_profile_read_mise_tools_sourced "${mise_files[@]}")
+    local expected_tools=$(echo "$sourced" | cut -f1 | sort -u)
+
+    local installed_tools=""
+    if command -v mise &>/dev/null; then
+        installed_tools=$(mise ls --installed --json 2>/dev/null | jq -r 'keys[]' 2>/dev/null | sort -u)
+    fi
+
+    local to_install=$(comm -23 <(echo "$expected_tools") <(echo "$installed_tools") | grep -v '^$')
+    local to_add=$(comm -23 <(echo "$installed_tools") <(echo "$expected_tools") | grep -v '^$')
+
+    local tools_changed=false
+
+    if [[ -n "$to_install" || -n "$to_add" ]]; then
+        echo "  Mise tool changes:"
+
+        local -a tools_to_install=()
+        local -a tools_to_remove=()
+        local -a tools_to_add=()
+        local -a tools_to_uninstall=()
+        local had_action=false
+
+        if [[ -n "$to_install" ]]; then
+            for tool in ${(f)to_install}; do
+                [[ -z "$tool" ]] && continue
+                local action=$(_profile_prompt_item "$tool" "not_installed")
+                case "$action" in
+                    install)   tools_to_install+=("$tool"); had_action=true ;;
+                    remove)    tools_to_remove+=("$tool"); had_action=true ;;
+                    skip)      ;;
+                esac
+            done
+        fi
+
+        if [[ -n "$to_add" ]]; then
+            for tool in ${(f)to_add}; do
+                [[ -z "$tool" ]] && continue
+                local action=$(_profile_prompt_item "$tool" "not_in_profile")
+                case "$action" in
+                    add)       tools_to_add+=("$tool"); had_action=true ;;
+                    uninstall) tools_to_uninstall+=("$tool"); had_action=true ;;
+                    skip)      ;;
+                esac
+            done
+        fi
+
+        if [[ "$had_action" == false ]]; then
+            echo "  No changes applied."
+        else
+            tools_changed=true
+
+            # Remove from profile
+            for tool in "${tools_to_remove[@]}"; do
+                local escaped=$(_profile_escape_regex "$tool")
+                echo "$sourced" | while IFS=$'\t' read -r entry file; do
+                    [[ "$entry" == "$tool" && -n "$file" ]] && \
+                        _profile_remove_line "$file" "^[[:space:]]*${escaped}[[:space:]]*="
+                done
+                echo "  Removed $tool from profile"
+            done
+
+            # Add to profile
+            if [[ ${#tools_to_add[@]} -gt 0 ]]; then
+                local target_profile=$(_profile_pick_target "$profiles" "mise tools")
+                local target_mise="$PROFILES_DIR/$target_profile/mise/config.toml"
+                [[ "$target_profile" == "default" ]] && target_mise="$PROFILES_DIR/default/mise/config.toml"
+                # Ensure [tools] section exists
+                if ! grep -q '^\[tools\]' "$target_mise" 2>/dev/null; then
+                    echo "" >> "$target_mise"
+                    echo "[tools]" >> "$target_mise"
+                fi
+                for tool in "${tools_to_add[@]}"; do
+                    echo "$tool = \"latest\"" >> "$target_mise"
+                done
+            fi
+
+            # Uninstall
+            for tool in "${tools_to_uninstall[@]}"; do
+                mise uninstall "$tool" 2>/dev/null || true
+                echo "  Uninstalled $tool"
+            done
+        fi
+    else
+        echo "  Mise tools: in sync"
+    fi
+
+    # --- Pass 2: Non-tools sections (three-way merge) ---
+    local expected_rest=$(mktemp)
     local -A sections
+    local -a section_order=()
     local current_section="_top"
     for f in "${mise_files[@]}"; do
         while IFS= read -r line || [[ -n "$line" ]]; do
-            if [[ "$line" =~ '^\[' ]]; then
+            if [[ "$line" == \[* ]]; then
                 current_section="$line"
-            elif [[ -n "$line" ]]; then
+                if [[ "$current_section" != "[tools]" ]]; then
+                    local found=false
+                    for s in "${section_order[@]}"; do
+                        [[ "$s" == "$current_section" ]] && found=true && break
+                    done
+                    [[ "$found" == false ]] && section_order+=("$current_section")
+                fi
+            elif [[ -n "$line" && "$current_section" != "[tools]" ]]; then
                 sections[$current_section]+="$line"$'\n'
             fi
         done < "$f"
     done
-    {
-        for section in "${(@k)sections}"; do
-            [[ "$section" != "_top" ]] && echo "$section"
-            local -A seen_keys=()
-            local -a ordered_lines=()
-            while IFS= read -r line; do
-                [[ -z "$line" ]] && continue
-                local key="${line%%=*}"
-                key="${key%% }"
-                if [[ -n "${seen_keys[$key]+x}" ]]; then
-                    ordered_lines[${seen_keys[$key]}]="$line"
-                else
-                    ordered_lines+=("$line")
-                    seen_keys[$key]="${#ordered_lines}"
-                fi
-            done <<< "${sections[$section]}"
-            printf '%s\n' "${ordered_lines[@]}"
-            echo ""
+
+    if [[ ${#section_order[@]} -gt 0 || -n "${sections[_top]:-}" ]]; then
+        {
+            [[ -n "${sections[_top]:-}" ]] && printf '%s' "${sections[_top]}"
+            for section in "${section_order[@]}"; do
+                echo "$section"
+                local -A seen_keys=()
+                local -a ordered_lines=()
+                while IFS= read -r line; do
+                    [[ -z "$line" ]] && continue
+                    local key="${line%%=*}"
+                    key="${key%% }"
+                    if [[ -n "${seen_keys[$key]+x}" ]]; then
+                        ordered_lines[${seen_keys[$key]}]="$line"
+                    else
+                        ordered_lines+=("$line")
+                        seen_keys[$key]="${#ordered_lines}"
+                    fi
+                done <<< "${sections[$section]}"
+                printf '%s\n' "${ordered_lines[@]}"
+                echo ""
+            done
+        } > "$expected_rest"
+
+        local target_rest=$(mktemp)
+        if [[ -f "$target" ]]; then
+            local dummy_tools=$(mktemp)
+            _profile_mise_split_tools "$target" "$dummy_tools" "$target_rest"
+            rm -f "$dummy_tools"
+        else
+            : > "$target_rest"
+        fi
+
+        local -a rest_sources=()
+        for f in "${mise_files[@]}"; do
+            local src_tools_tmp=$(mktemp)
+            local src_rest_tmp=$(mktemp)
+            _profile_mise_split_tools "$f" "$src_tools_tmp" "$src_rest_tmp"
+            rest_sources+=("$src_rest_tmp")
+            rm -f "$src_tools_tmp"
         done
-    } > "$expected"
 
-    mkdir -p "$(dirname "$target")"
-    _profile_sync_config "Mise" "$target" "$expected" "${mise_files[@]}"
-    local result=$?
-    rm -f "$expected"
+        mkdir -p "$(dirname "$target")"
+        _profile_sync_config "Mise settings" "$target_rest" "$expected_rest" "${rest_sources[@]}"
+        local result=$?
 
-    if [[ $result -ne 0 ]] && command -v mise &>/dev/null; then
+        if [[ $result -ne 0 ]]; then
+            for (( idx=1; idx <= ${#mise_files[@]}; idx++ )); do
+                local orig="${mise_files[$idx]}"
+                local rest_src="${rest_sources[$idx]}"
+                local orig_tools=$(mktemp)
+                local orig_rest=$(mktemp)
+                _profile_mise_split_tools "$orig" "$orig_tools" "$orig_rest"
+                { [[ -s "$rest_src" ]] && cat "$rest_src"; echo "[tools]"; cat "$orig_tools"; } > "$orig"
+                rm -f "$orig_tools" "$orig_rest" "$rest_src"
+            done
+        else
+            rm -f "${rest_sources[@]}"
+        fi
+
+        # Reassemble full target
+        {
+            cat "$target_rest"
+            echo "[tools]"
+            for f in "${mise_files[@]}"; do
+                local tools_tmp=$(mktemp)
+                local rest_tmp=$(mktemp)
+                _profile_mise_split_tools "$f" "$tools_tmp" "$rest_tmp"
+                cat "$tools_tmp"
+                rm -f "$tools_tmp" "$rest_tmp"
+            done
+        } > "$target"
+
+        rm -f "$expected_rest" "$target_rest"
+    else
+        mkdir -p "$(dirname "$target")"
+        {
+            echo "[tools]"
+            for f in "${mise_files[@]}"; do
+                local tools_tmp=$(mktemp)
+                local rest_tmp=$(mktemp)
+                _profile_mise_split_tools "$f" "$tools_tmp" "$rest_tmp"
+                cat "$tools_tmp"
+                rm -f "$tools_tmp" "$rest_tmp"
+            done
+        } > "$target"
+    fi
+
+    # Run mise install if tools changed
+    if [[ "$tools_changed" == true ]] && command -v mise &>/dev/null; then
         echo "  Running mise install..."
         mise install
     fi

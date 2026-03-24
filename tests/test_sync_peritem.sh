@@ -104,4 +104,26 @@ printf 'ext.one\next.extra\n' > "$MOCK_EXTENSIONS_FILE"
 local output=$(printf 'u\n' | _profile_sync_vscode "default" 2>&1)
 assert_contains "$output" "Uninstalled ext.extra"
 
+# --- Mise per-item sync tests ---
+
+mise() {
+    case "$1" in
+        ls)
+            echo '{"node":["22.0.0"],"ruby":["3.3.0"]}'
+            ;;
+        uninstall) echo "MOCK_MISE_UNINSTALL: $*" ;;
+        install) echo "MOCK_MISE_INSTALL" ;;
+    esac
+    return 0
+}
+
+_TEST_NAME="sync_mise per-item: remove deletes tool from config.toml"
+local misefile="$PROFILES_DIR/default/mise/config.toml"
+printf '[tools]\nnode = "lts"\nruby = "3"\ngo = "latest"\n\n[settings]\nnot_found_auto_install = true\n' > "$misefile"
+local output=$(printf 'r\n' | _profile_sync_mise "default" 2>&1)
+local content=$(cat "$misefile")
+assert_not_contains "$content" "go"
+assert_contains "$content" "node"
+assert_contains "$content" "[settings]"
+
 _test_summary
