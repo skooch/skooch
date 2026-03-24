@@ -169,10 +169,11 @@ _profile_sync_brew() {
         local pf="$PROFILES_DIR/$p/Brewfile"
         [[ -f "$pf" ]] && brewfiles+=("$pf")
     done
-    local expected=$(_profile_read_brew_packages "${brewfiles[@]}")
+
+    local sourced=$(_profile_read_brew_packages_sourced "${brewfiles[@]}")
+    local expected=$(echo "$sourced" | cut -f1 | grep -v "^$" | sort -u)
     local expected_no_tap=$(echo "$expected" | grep -v "^tap:")
 
-    # Read packages from ALL profiles to avoid suggesting other profiles' packages
     local all_profile_packages=$(_profile_read_all_brew_packages)
     local all_profile_no_tap=$(echo "$all_profile_packages" | grep -v "^tap:")
 
@@ -180,9 +181,7 @@ _profile_sync_brew() {
     local current_casks=$(brew list --cask 2>/dev/null | sort)
     local installed=$( (echo "$current_formulae" | sed '/^$/d' | sed 's/^/brew:/'; echo "$current_casks" | sed '/^$/d' | sed 's/^/cask:/') | sort -u)
 
-    # New in profile but not installed -> install
     local to_install=$(comm -23 <(echo "$expected_no_tap") <(echo "$installed") | grep -v '^$')
-    # Installed but not in profile -> add to profile
     local to_add=$(comm -23 <(echo "$installed") <(echo "$all_profile_no_tap") | grep -v '^$')
 
     if [[ -z "$to_install" && -z "$to_add" ]]; then
@@ -191,36 +190,88 @@ _profile_sync_brew() {
     fi
 
     echo "  Brew changes:"
-    [[ -n "$to_install" ]] && echo "$to_install" | sed 's/^/    install: /'
-    [[ -n "$to_add" ]] && echo "$to_add" | sed 's/^/    add to profile: /'
-    printf "  Apply? [Y/n] "
-    local answer; read -r answer
-    [[ "$answer" == [nN]* ]] && return 0
+
+    local -a items_to_install=()
+    local -a items_to_remove=()
+    local -a items_to_add=()
+    local -a items_to_uninstall=()
+    local had_action=false
 
     if [[ -n "$to_install" ]]; then
+        for pkg in ${(f)to_install}; do
+            [[ -z "$pkg" ]] && continue
+            local action=$(_profile_prompt_item "$pkg" "not_installed")
+            case "$action" in
+                install)   items_to_install+=("$pkg"); had_action=true ;;
+                remove)    items_to_remove+=("$pkg"); had_action=true ;;
+                skip)      ;;
+            esac
+        done
+    fi
+
+    if [[ -n "$to_add" ]]; then
+        for pkg in ${(f)to_add}; do
+            [[ -z "$pkg" ]] && continue
+            local action=$(_profile_prompt_item "$pkg" "not_in_profile")
+            case "$action" in
+                add)       items_to_add+=("$pkg"); had_action=true ;;
+                uninstall) items_to_uninstall+=("$pkg"); had_action=true ;;
+                skip)      ;;
+            esac
+        done
+    fi
+
+    if [[ "$had_action" == false ]]; then
+        echo "  No changes applied."
+        return 0
+    fi
+
+    if [[ ${#items_to_install[@]} -gt 0 ]]; then
         local tmpfile=$(mktemp)
-        cat "$default_brewfile" > "$tmpfile"
-        for p in ${=profiles}; do
-            [[ "$p" == "default" ]] && continue
-            local pf="$PROFILES_DIR/$p/Brewfile"
-            [[ -f "$pf" ]] && { echo ""; cat "$pf"; } >> "$tmpfile"
+        local taps=$(echo "$expected" | grep "^tap:" | sed 's/^tap://')
+        for t in ${(f)taps}; do
+            [[ -n "$t" ]] && echo "tap \"$t\"" >> "$tmpfile"
+        done
+        for pkg in "${items_to_install[@]}"; do
+            local type="${pkg%%:*}" name="${pkg#*:}"
+            echo "$type \"$name\"" >> "$tmpfile"
         done
         brew bundle --file="$tmpfile"
         rm -f "$tmpfile"
     fi
 
-    if [[ -n "$to_add" ]]; then
+    for pkg in "${items_to_remove[@]}"; do
+        local type="${pkg%%:*}" name="${pkg#*:}"
+        echo "$sourced" | while IFS=$'\t' read -r entry file; do
+            [[ "$entry" == "$pkg" && -n "$file" ]] && _profile_remove_brew_line "$file" "$type" "$name"
+        done
+        echo "  Removed $pkg from profile"
+    done
+
+    if [[ ${#items_to_add[@]} -gt 0 ]]; then
         local target_profile=$(_profile_pick_target "$profiles" "Brewfile")
         local target_brewfile="$PROFILES_DIR/$target_profile/Brewfile"
         [[ "$target_profile" == "default" ]] && target_brewfile="$default_brewfile"
-        for pkg in ${(f)to_add}; do
+        for pkg in "${items_to_add[@]}"; do
             local type="${pkg%%:*}" name="${pkg#*:}"
             echo "$type \"$name\"" >> "$target_brewfile"
         done
-        echo "  Added to $(basename "$(dirname "$target_brewfile")")/Brewfile"
+        echo "  Added ${#items_to_add[@]} package(s) to $(basename "$(dirname "$target_brewfile")")/Brewfile"
     fi
 
-    _profile_post_brew
+    for pkg in "${items_to_uninstall[@]}"; do
+        local type="${pkg%%:*}" name="${pkg#*:}"
+        if [[ "$type" == "cask" ]]; then
+            brew uninstall --cask "$name"
+        else
+            brew uninstall "$name"
+        fi
+        echo "  Uninstalled $pkg"
+    done
+
+    if [[ ${#items_to_install[@]} -gt 0 || ${#items_to_uninstall[@]} -gt 0 ]]; then
+        _profile_post_brew
+    fi
 }
 
 _profile_sync_vscode() {
