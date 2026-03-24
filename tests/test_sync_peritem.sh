@@ -56,4 +56,52 @@ printf 'brew "git"\nbrew "jq"\nbrew "wget"\ncask "iterm2"\n' > "$brewfile"
 local output=$(printf 'i\n' | _profile_sync_brew "default" 2>&1)
 assert_contains "$output" "MOCK_BUNDLE"
 
+# --- VSCode per-item sync tests ---
+
+_profile_vscode_instances() {
+    echo "MockCode|$TEST_HOME/.config/Code/User|$TEST_HOME/mock-code"
+}
+
+mkdir -p "$TEST_HOME/.config/Code/User"
+cat > "$TEST_HOME/mock-code" << 'MOCKEOF'
+#!/bin/zsh
+case "$1" in
+    --list-extensions) cat "$MOCK_EXTENSIONS_FILE" 2>/dev/null ;;
+    --install-extension) echo "MOCK_INSTALL: $2" ;;
+    --uninstall-extension) echo "MOCK_UNINSTALL: $2" ;;
+esac
+MOCKEOF
+chmod +x "$TEST_HOME/mock-code"
+
+export MOCK_EXTENSIONS_FILE="$TEST_HOME/mock_extensions.txt"
+
+_TEST_NAME="sync_vscode per-item: remove deletes from extensions.txt"
+local extfile="$PROFILES_DIR/default/vscode/extensions.txt"
+printf 'ext.one\next.two\next.three\n' > "$extfile"
+printf 'ext.one\next.three\n' > "$MOCK_EXTENSIONS_FILE"
+local output=$(printf 'r\n' | _profile_sync_vscode "default" 2>&1)
+local content=$(cat "$extfile")
+assert_not_contains "$content" "ext.two"
+assert_contains "$content" "ext.one"
+
+_TEST_NAME="sync_vscode per-item: skip leaves extensions.txt unchanged"
+printf 'ext.one\next.two\next.three\n' > "$extfile"
+printf 'ext.one\next.three\n' > "$MOCK_EXTENSIONS_FILE"
+local output=$(printf 's\n' | _profile_sync_vscode "default" 2>&1)
+local content=$(cat "$extfile")
+assert_contains "$content" "ext.two"
+assert_contains "$output" "No changes"
+
+_TEST_NAME="sync_vscode per-item: in sync prints message"
+printf 'ext.one\next.three\n' > "$extfile"
+printf 'ext.one\next.three\n' > "$MOCK_EXTENSIONS_FILE"
+local output=$(_profile_sync_vscode "default" 2>&1)
+assert_contains "$output" "in sync"
+
+_TEST_NAME="sync_vscode per-item: uninstall calls CLI"
+printf 'ext.one\n' > "$extfile"
+printf 'ext.one\next.extra\n' > "$MOCK_EXTENSIONS_FILE"
+local output=$(printf 'u\n' | _profile_sync_vscode "default" 2>&1)
+assert_contains "$output" "Uninstalled ext.extra"
+
 _test_summary

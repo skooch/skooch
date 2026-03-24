@@ -278,7 +278,7 @@ _profile_sync_vscode() {
     local profiles="$1"
     local default_dir="$PROFILES_DIR/default/vscode"
 
-    # --- Extensions (bidirectional merge) ---
+    # --- Extensions (per-item sync) ---
     local default_ext="$default_dir/extensions.txt"
     local instances=$(_profile_vscode_instances)
 
@@ -292,7 +292,8 @@ _profile_sync_vscode() {
         done
 
         if [[ ${#ext_files[@]} -gt 0 ]]; then
-            local expected=$(_profile_read_extensions "${ext_files[@]}")
+            local sourced=$(_profile_read_extensions_sourced "${ext_files[@]}")
+            local expected=$(echo "$sourced" | cut -f1 | sort -u)
 
             local -a all_installed=()
             while IFS='|' read -r _label _dir cli; do
@@ -308,27 +309,76 @@ _profile_sync_vscode() {
 
             if [[ -n "$to_install" || -n "$to_add" ]]; then
                 echo "  VSCode extension changes:"
-                [[ -n "$to_install" ]] && echo "$to_install" | sed 's/^/    install: /'
-                [[ -n "$to_add" ]] && echo "$to_add" | sed 's/^/    add to profile: /'
-                printf "  Apply? [Y/n] "
-                local answer; read -r answer
-                if [[ "$answer" != [nN]* ]]; then
-                    if [[ -n "$to_install" ]]; then
+
+                local -a exts_to_install=()
+                local -a exts_to_remove=()
+                local -a exts_to_add=()
+                local -a exts_to_uninstall=()
+                local had_action=false
+
+                if [[ -n "$to_install" ]]; then
+                    for ext in ${(f)to_install}; do
+                        [[ -z "$ext" ]] && continue
+                        local action=$(_profile_prompt_item "$ext" "not_installed")
+                        case "$action" in
+                            install)   exts_to_install+=("$ext"); had_action=true ;;
+                            remove)    exts_to_remove+=("$ext"); had_action=true ;;
+                            skip)      ;;
+                        esac
+                    done
+                fi
+
+                if [[ -n "$to_add" ]]; then
+                    for ext in ${(f)to_add}; do
+                        [[ -z "$ext" ]] && continue
+                        local action=$(_profile_prompt_item "$ext" "not_in_profile")
+                        case "$action" in
+                            add)       exts_to_add+=("$ext"); had_action=true ;;
+                            uninstall) exts_to_uninstall+=("$ext"); had_action=true ;;
+                            skip)      ;;
+                        esac
+                    done
+                fi
+
+                if [[ "$had_action" == false ]]; then
+                    echo "  No changes applied."
+                else
+                    # Install
+                    if [[ ${#exts_to_install[@]} -gt 0 ]]; then
                         while IFS='|' read -r _label _dir cli; do
                             [[ -z "$_label" ]] && continue
-                            for ext in ${(f)to_install}; do
+                            for ext in "${exts_to_install[@]}"; do
                                 "$cli" --install-extension "$ext" --force 2>/dev/null
                             done
                         done <<< "$instances"
                     fi
-                    if [[ -n "$to_add" ]]; then
+
+                    # Remove from profile
+                    for ext in "${exts_to_remove[@]}"; do
+                        echo "$sourced" | while IFS=$'\t' read -r entry file; do
+                            [[ "$entry" == "$ext" && -n "$file" ]] && _profile_remove_line "$file" "^${ext}$"
+                        done
+                        echo "  Removed $ext from profile"
+                    done
+
+                    # Add to profile
+                    if [[ ${#exts_to_add[@]} -gt 0 ]]; then
                         local target_profile=$(_profile_pick_target "$profiles" "extensions")
                         local target_ext="$PROFILES_DIR/$target_profile/vscode/extensions.txt"
                         [[ "$target_profile" == "default" || ! -d "$(dirname "$target_ext")" ]] && target_ext="$default_ext"
-                        for ext in ${(f)to_add}; do
+                        for ext in "${exts_to_add[@]}"; do
                             echo "$ext" >> "$target_ext"
                         done
                     fi
+
+                    # Uninstall
+                    for ext in "${exts_to_uninstall[@]}"; do
+                        while IFS='|' read -r _label _dir cli; do
+                            [[ -z "$_label" ]] && continue
+                            "$cli" --uninstall-extension "$ext" 2>/dev/null || true
+                        done <<< "$instances"
+                        echo "  Uninstalled $ext"
+                    done
                 fi
             else
                 echo "  VSCode extensions: in sync"
