@@ -182,6 +182,17 @@
     ]
   },
   "hooks": {
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/subagent-opus-enforcer.sh",
+            "statusMessage": "Logging subagent spawn..."
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",
