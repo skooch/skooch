@@ -370,3 +370,94 @@ _profile_prompt_item() {
         done
     fi
 }
+
+# --- Line removal helpers ---
+
+_profile_remove_line() {
+    local file="$1" pattern="$2"
+    local tmpfile=$(mktemp)
+    local removed=false
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        if [[ "$removed" == false ]] && [[ "$line" =~ $pattern ]]; then
+            removed=true
+            continue
+        fi
+        echo "$line"
+    done < "$file" > "$tmpfile"
+    mv "$tmpfile" "$file"
+}
+
+_profile_escape_regex() {
+    local str="$1"
+    # Escape POSIX ERE metacharacters for use in zsh =~ patterns
+    str="${str//\\/\\\\}"
+    str="${str//./\\.}"
+    str="${str//\*/\\*}"
+    str="${str//+/\\+}"
+    str="${str//\?/\\?}"
+    str="${str//\^/\\^}"
+    str="${str//\$/\\$}"
+    str="${str//\(/\\(}"
+    str="${str//\)/\\)}"
+    str="${str//\[/\\[}"
+    str="${str//\]/\\]}"
+    local lbrace='{' rbrace='}'
+    str="${str//$lbrace/\\$lbrace}"
+    str="${str//$rbrace/\\$rbrace}"
+    str="${str//|/\\|}"
+    echo "$str"
+}
+
+_profile_remove_brew_line() {
+    local file="$1" type="$2" name="$3"
+    local escaped_name=$(_profile_escape_regex "$name")
+    local pattern="^[[:space:]]*${type}[[:space:]]+\"${escaped_name}\""
+
+    # Remove the matching line
+    _profile_remove_line "$file" "$pattern"
+
+    # Clean up empty if/end blocks
+    _profile_clean_empty_blocks "$file"
+}
+
+_profile_clean_empty_blocks() {
+    local file="$1"
+    local -a lines=()
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        lines+=("$line")
+    done < "$file"
+
+    local -a output=()
+    local i=1
+    while [[ $i -le ${#lines[@]} ]]; do
+        local line="${lines[$i]}"
+        if [[ "$line" =~ ^[[:space:]]*'if '[Oo] ]]; then
+            # Found an if block — scan for end
+            local has_content=false
+            local j=$((i + 1))
+            while [[ $j -le ${#lines[@]} ]]; do
+                local inner="${lines[$j]}"
+                if [[ "$inner" =~ ^[[:space:]]*end[[:space:]]*$ ]]; then
+                    break
+                fi
+                # Check if line has non-blank, non-comment content
+                local stripped="${inner%%#*}"
+                stripped="${stripped// /}"
+                stripped="${stripped//	/}"
+                if [[ -n "$stripped" ]]; then
+                    has_content=true
+                fi
+                (( j++ ))
+            done
+            if [[ "$has_content" == false && $j -le ${#lines[@]} ]]; then
+                # Skip the entire empty block (if line through end line)
+                i=$((j + 1))
+                continue
+            fi
+        fi
+        output+=("$line")
+        (( i++ ))
+    done
+
+    printf '%s\n' "${output[@]}" > "$file"
+}
