@@ -130,4 +130,52 @@ assert_not_contains "$content" "python"
 assert_contains "$content" "git"
 rm -f "$tmpfile"
 
+# --- _profile_read_brew_packages_sourced ---
+
+_TEST_NAME="read_brew_packages_sourced emits type:name with source file"
+local tmpbrew=$(mktemp)
+printf 'brew "git"\ncask "iterm2"\n' > "$tmpbrew"
+local output=$(_profile_read_brew_packages_sourced "$tmpbrew")
+assert_contains "$output" "brew:git	$tmpbrew"
+assert_contains "$output" "cask:iterm2	$tmpbrew"
+rm -f "$tmpbrew"
+
+_TEST_NAME="read_brew_packages_sourced skips taps"
+local tmpbrew=$(mktemp)
+printf 'tap "homebrew/core"\nbrew "git"\n' > "$tmpbrew"
+local output=$(_profile_read_brew_packages_sourced "$tmpbrew")
+assert_not_contains "$output" "tap:"
+rm -f "$tmpbrew"
+
+_TEST_NAME="read_brew_packages_sourced tracks multiple files"
+local tmpbrew1=$(mktemp)
+local tmpbrew2=$(mktemp)
+printf 'brew "git"\n' > "$tmpbrew1"
+printf 'brew "wget"\n' > "$tmpbrew2"
+local output=$(_profile_read_brew_packages_sourced "$tmpbrew1" "$tmpbrew2")
+assert_contains "$output" "brew:git	$tmpbrew1"
+assert_contains "$output" "brew:wget	$tmpbrew2"
+rm -f "$tmpbrew1" "$tmpbrew2"
+
+# --- _profile_read_extensions_sourced ---
+
+_TEST_NAME="read_extensions_sourced emits ext with source file"
+local tmpext=$(mktemp)
+printf 'ms-python.python\ndbaeumer.vscode-eslint\n' > "$tmpext"
+local output=$(_profile_read_extensions_sourced "$tmpext")
+assert_contains "$output" "ms-python.python	$tmpext"
+assert_contains "$output" "dbaeumer.vscode-eslint	$tmpext"
+rm -f "$tmpext"
+
+# --- _profile_read_mise_tools_sourced ---
+
+_TEST_NAME="read_mise_tools_sourced emits tool names with source file"
+local tmptoml=$(mktemp)
+printf '[tools]\nnode = "lts"\nruby = "3"\n\n[settings]\nnot_found_auto_install = true\n' > "$tmptoml"
+local output=$(_profile_read_mise_tools_sourced "$tmptoml")
+assert_contains "$output" "node	$tmptoml"
+assert_contains "$output" "ruby	$tmptoml"
+assert_not_contains "$output" "not_found_auto_install"
+rm -f "$tmptoml"
+
 _test_summary

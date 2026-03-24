@@ -461,3 +461,68 @@ _profile_clean_empty_blocks() {
 
     printf '%s\n' "${output[@]}" > "$file"
 }
+
+# --- Source-tracking readers (emit "item\tfile" pairs) ---
+
+_profile_read_brew_packages_sourced() {
+    local -a files=("$@")
+    for f in "${files[@]}"; do
+        [[ -f "$f" ]] || continue
+        local skip=false
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            line="${line%%#*}"
+            if [[ "$line" =~ ^[[:space:]]*if\ +OS\.mac\? ]]; then
+                [[ "$IS_MACOS" != true ]] && skip=true
+                continue
+            elif [[ "$line" =~ ^[[:space:]]*if\ +OS\.linux\? ]]; then
+                [[ "$IS_LINUX" != true ]] && skip=true
+                continue
+            elif [[ "$line" =~ ^[[:space:]]*end[[:space:]]*$ ]]; then
+                skip=false
+                continue
+            fi
+            [[ "$skip" == true ]] && continue
+            if [[ "$line" =~ ^[[:space:]]*brew\ +\"([^\"]+)\" ]]; then
+                printf 'brew:%s\t%s\n' "${match[1]}" "$f"
+            elif [[ "$line" =~ ^[[:space:]]*cask\ +\"([^\"]+)\" ]]; then
+                printf 'cask:%s\t%s\n' "${match[1]}" "$f"
+            fi
+        done < "$f"
+    done
+}
+
+_profile_read_extensions_sourced() {
+    local -a files=("$@")
+    for f in "${files[@]}"; do
+        [[ -f "$f" ]] || continue
+        while IFS= read -r ext || [[ -n "$ext" ]]; do
+            ext="${ext%%#*}"
+            ext="${ext// /}"
+            [[ -n "$ext" ]] && printf '%s\t%s\n' "$ext" "$f"
+        done < "$f"
+    done
+}
+
+_profile_read_mise_tools_sourced() {
+    local -a files=("$@")
+    for f in "${files[@]}"; do
+        [[ -f "$f" ]] || continue
+        local in_tools=false
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            if [[ "$line" == "[tools]" ]]; then
+                in_tools=true
+                continue
+            elif [[ "$line" == \[* ]]; then
+                in_tools=false
+                continue
+            fi
+            [[ "$in_tools" == false ]] && continue
+            [[ -z "$line" ]] && continue
+            # Extract tool name (everything before = sign), trim whitespace
+            local tool_name="${line%%=*}"
+            tool_name="${tool_name## }"
+            tool_name="${tool_name%% }"
+            [[ -n "$tool_name" ]] && printf '%s\t%s\n' "$tool_name" "$f"
+        done < "$f"
+    done
+}
