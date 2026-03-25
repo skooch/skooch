@@ -9,6 +9,8 @@
   },
   "permissions": {
     "allow": [
+      "Edit",
+      "Write",
       "WebSearch",
       "WebFetch",
       "Bash(git:*)",
@@ -223,7 +225,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "jq -r '.tool_input.command' | { read -r cmd; first=$(echo \"$cmd\" | sed 's/^[[:space:]]*//' | awk '{print $1}'); if echo \"$first\" | grep -qxE 'git|gh|ls|wc|touch|grep|shasum|xxd|ioreg|command|export|printf|mdfind|docker|defaults|shellcheck|code-insiders|mise|zig|desloppify|profile|python3|node|bun|npx|bunx|pnpm|rm|cp|ln|mv|cargo|espflash|cd|echo|cat|head|tail|mkdir|find|which|type|env|sort|uniq|cut|tr|sed|awk|jq|uv|test|true|false|\\.venv/bin/python|\\.venv/bin/python3'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"permissionDecisionReason\":\"Command prefix is in allow list\"}}'; else echo '{}'; fi; }",
+            "command": "~/.claude/hooks/bash-command-checker.sh",
             "statusMessage": "Checking bash command..."
           }
         ]
