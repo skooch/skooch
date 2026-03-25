@@ -49,6 +49,22 @@ assert_contains "$snap_files" "Brewfile"
 _TEST_NAME="snapshot_files includes tmux/tmux.conf"
 assert_contains "$snap_files" "tmux/tmux.conf"
 
+_TEST_NAME="snapshot_files includes claude/CLAUDE.md"
+assert_contains "$snap_files" "claude/CLAUDE.md"
+
+_TEST_NAME="snapshot_files includes claude hook scripts"
+mkdir -p "$PROFILES_DIR/default/claude/hooks"
+echo '#!/bin/bash' > "$PROFILES_DIR/default/claude/hooks/test-hook.sh"
+local snap_with_hooks=$(_profile_snapshot_files "$PROFILES_DIR/default")
+assert_contains "$snap_with_hooks" "claude/hooks/test-hook.sh"
+
+_TEST_NAME="snapshot_files includes claude skill SKILL.md"
+mkdir -p "$PROFILES_DIR/default/claude/skills/my-skill"
+echo "# skill" > "$PROFILES_DIR/default/claude/skills/my-skill/SKILL.md"
+local snap_with_skills=$(_profile_snapshot_files "$PROFILES_DIR/default")
+assert_contains "$snap_with_skills" "claude/skills/my-skill/SKILL.md"
+rm -rf "$PROFILES_DIR/default/claude/hooks" "$PROFILES_DIR/default/claude/skills"
+
 # --- _profile_read_brew_packages ---
 
 _TEST_NAME="read_brew_packages parses brew lines"
@@ -155,6 +171,25 @@ assert_contains "$targets" ".gitconfig"
 
 _TEST_NAME="target_paths includes claude settings when claude/settings.json exists"
 assert_contains "$targets" ".claude/settings.json"
+
+_TEST_NAME="target_paths includes CLAUDE.md when claude/CLAUDE.md exists"
+echo "# test" > "$PROFILES_DIR/default/claude/CLAUDE.md"
+local claude_md_targets=$(_profile_target_paths "default")
+assert_contains "$claude_md_targets" ".claude/CLAUDE.md"
+
+_TEST_NAME="target_paths includes claude hooks when hook scripts exist"
+mkdir -p "$PROFILES_DIR/default/claude/hooks"
+echo '#!/bin/bash' > "$PROFILES_DIR/default/claude/hooks/my-hook.sh"
+local hook_targets=$(_profile_target_paths "default")
+assert_contains "$hook_targets" ".claude/hooks/my-hook.sh"
+
+_TEST_NAME="target_paths includes claude skills when skill dirs exist"
+mkdir -p "$PROFILES_DIR/default/claude/skills/my-skill"
+echo "# skill" > "$PROFILES_DIR/default/claude/skills/my-skill/SKILL.md"
+local skill_targets=$(_profile_target_paths "default")
+assert_contains "$skill_targets" ".claude/skills/my-skill"
+rm -rf "$PROFILES_DIR/default/claude/hooks" "$PROFILES_DIR/default/claude/skills"
+rm -f "$PROFILES_DIR/default/claude/CLAUDE.md"
 
 _TEST_NAME="target_paths includes tmux.conf when tmux/tmux.conf exists"
 mkdir -p "$PROFILES_DIR/default/tmux"

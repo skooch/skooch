@@ -391,6 +391,53 @@ _profile_apply_claude() {
         [[ -f "$PROFILES_DIR/$p/claude/settings.json" ]] && label+=" + $p"
     done
     echo "Applying Claude Code settings: $label"
+
+    # CLAUDE.md — last profile wins, symlink
+    local claude_md_source=""
+    [[ -f "$PROFILES_DIR/default/claude/CLAUDE.md" ]] && claude_md_source="$PROFILES_DIR/default/claude/CLAUDE.md"
+    for p in ${=profiles}; do
+        [[ "$p" == "default" ]] && continue
+        [[ -f "$PROFILES_DIR/$p/claude/CLAUDE.md" ]] && claude_md_source="$PROFILES_DIR/$p/claude/CLAUDE.md"
+    done
+    if [[ -n "$claude_md_source" ]]; then
+        ln -sf "$claude_md_source" "$HOME/.claude/CLAUDE.md"
+        echo "  CLAUDE.md: symlinked"
+    fi
+
+    # Hooks — symlink each *.sh script (union across profiles, last wins)
+    local -a hook_sources=("$PROFILES_DIR/default")
+    for p in ${=profiles}; do
+        [[ "$p" == "default" ]] && continue
+        hook_sources+=("$PROFILES_DIR/$p")
+    done
+    local -A hook_map=()
+    for dir in "${hook_sources[@]}"; do
+        for f in "$dir"/claude/hooks/*.sh(N); do
+            hook_map[${f:t}]="$f"
+        done
+    done
+    if [[ ${#hook_map} -gt 0 ]]; then
+        mkdir -p "$HOME/.claude/hooks"
+        for script source in ${(kv)hook_map}; do
+            ln -sf "$source" "$HOME/.claude/hooks/$script"
+        done
+        echo "  Hooks: ${(j:, :)${(k)hook_map}}"
+    fi
+
+    # Skills — symlink each skill directory (union across profiles, last wins)
+    local -A skill_map=()
+    for dir in "${hook_sources[@]}"; do
+        for d in "$dir"/claude/skills/*(N/); do
+            skill_map[${d:t}]="$d"
+        done
+    done
+    if [[ ${#skill_map} -gt 0 ]]; then
+        mkdir -p "$HOME/.claude/skills"
+        for skill source in ${(kv)skill_map}; do
+            ln -sfn "$source" "$HOME/.claude/skills/$skill"
+        done
+        echo "  Skills: ${(j:, :)${(k)skill_map}}"
+    fi
 }
 
 # --- Tmux ---

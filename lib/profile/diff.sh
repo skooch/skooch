@@ -131,6 +131,95 @@ _profile_diff() {
         rm -f "$tmpfile"
     fi
 
+    # Claude CLAUDE.md
+    local claude_md_source=""
+    [[ -f "$PROFILES_DIR/default/claude/CLAUDE.md" ]] && claude_md_source="$PROFILES_DIR/default/claude/CLAUDE.md"
+    for p in ${=profiles}; do
+        [[ "$p" == "default" ]] && continue
+        [[ -f "$PROFILES_DIR/$p/claude/CLAUDE.md" ]] && claude_md_source="$PROFILES_DIR/$p/claude/CLAUDE.md"
+    done
+    if [[ -n "$claude_md_source" ]]; then
+        local md_target="$HOME/.claude/CLAUDE.md"
+        if [[ -f "$md_target" ]]; then
+            local real_md="$md_target"
+            [[ -L "$md_target" ]] && real_md=$(readlink "$md_target")
+            if [[ "$real_md" != "$claude_md_source" ]]; then
+                result=$($diff_cmd "$md_target" "$claude_md_source" 2>/dev/null)
+                if [[ -n "$result" ]]; then
+                    echo "=== claude/CLAUDE.md (~/.claude/CLAUDE.md) ==="
+                    echo "$result"
+                    echo ""
+                    has_diff=true
+                fi
+            fi
+        else
+            echo "=== claude/CLAUDE.md (~/.claude/CLAUDE.md) ==="
+            echo "  (new file would be created)"
+            echo ""
+            has_diff=true
+        fi
+    fi
+
+    # Claude hooks
+    local -a diff_hook_sources=("$PROFILES_DIR/default")
+    for p in ${=profiles}; do
+        [[ "$p" == "default" ]] && continue
+        diff_hook_sources+=("$PROFILES_DIR/$p")
+    done
+    local -A diff_hook_map=()
+    for dir in "${diff_hook_sources[@]}"; do
+        for f in "$dir"/claude/hooks/*.sh(N); do
+            diff_hook_map[${f:t}]="$f"
+        done
+    done
+    for script source in ${(kv)diff_hook_map}; do
+        local htarget="$HOME/.claude/hooks/$script"
+        if [[ -f "$htarget" ]]; then
+            local real_hook="$htarget"
+            [[ -L "$htarget" ]] && real_hook=$(readlink "$htarget")
+            if [[ "$real_hook" != "$source" ]]; then
+                result=$($diff_cmd "$htarget" "$source" 2>/dev/null)
+                if [[ -n "$result" ]]; then
+                    echo "=== claude/hooks/$script ==="
+                    echo "$result"
+                    echo ""
+                    has_diff=true
+                fi
+            fi
+        else
+            echo "=== claude/hooks/$script ==="
+            echo "  (new file would be created)"
+            echo ""
+            has_diff=true
+        fi
+    done
+
+    # Claude skills
+    local -A diff_skill_map=()
+    for dir in "${diff_hook_sources[@]}"; do
+        for d in "$dir"/claude/skills/*(N/); do
+            diff_skill_map[${d:t}]="$d"
+        done
+    done
+    for skill source in ${(kv)diff_skill_map}; do
+        local starget="$HOME/.claude/skills/$skill"
+        if [[ -d "$starget" ]]; then
+            local real_skill="$starget"
+            [[ -L "$starget" ]] && real_skill=$(readlink "$starget")
+            if [[ "$real_skill" != "$source" ]]; then
+                echo "=== claude/skills/$skill ==="
+                echo "  symlink target differs: $real_skill -> $source"
+                echo ""
+                has_diff=true
+            fi
+        else
+            echo "=== claude/skills/$skill ==="
+            echo "  (new skill would be linked)"
+            echo ""
+            has_diff=true
+        fi
+    done
+
     # Tmux
     local tmux_source=""
     [[ -f "$PROFILES_DIR/default/tmux/tmux.conf" ]] && tmux_source="$PROFILES_DIR/default/tmux/tmux.conf"

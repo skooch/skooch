@@ -123,8 +123,16 @@ _profile_snapshot_files() {
              "$dir/vscode/settings.json" "$dir/vscode/keybindings.json" \
              "$dir/iterm/profile.json" \
              "$dir/git/config" "$dir/mise/config.toml" \
-             "$dir/claude/settings.json" \
+             "$dir/claude/settings.json" "$dir/claude/CLAUDE.md" \
              "$dir/tmux/tmux.conf"; do
+        echo "$f"
+    done
+    # Claude hooks (*.sh scripts only)
+    for f in "$dir"/claude/hooks/*.sh(N); do
+        echo "$f"
+    done
+    # Claude skills (each skill dir's SKILL.md)
+    for f in "$dir"/claude/skills/*/SKILL.md(N); do
         echo "$f"
     done
 }
@@ -185,6 +193,37 @@ _profile_target_paths() {
         [[ -f "$PROFILES_DIR/$p/claude/settings.json" ]] && has_claude=true
     done
     [[ "$has_claude" == "true" ]] && paths+=("$HOME/.claude/settings.json")
+
+    # Claude CLAUDE.md (last profile wins)
+    local claude_md_source=""
+    [[ -f "$PROFILES_DIR/default/claude/CLAUDE.md" ]] && claude_md_source="$PROFILES_DIR/default/claude/CLAUDE.md"
+    for p in ${=profiles}; do
+        [[ "$p" == "default" ]] && continue
+        [[ -f "$PROFILES_DIR/$p/claude/CLAUDE.md" ]] && claude_md_source="$PROFILES_DIR/$p/claude/CLAUDE.md"
+    done
+    [[ -n "$claude_md_source" ]] && paths+=("$HOME/.claude/CLAUDE.md")
+
+    # Claude hooks (union of *.sh scripts across profiles)
+    local -a claude_hook_scripts=()
+    for dir in "$PROFILES_DIR/default" ${${(s: :)profiles}/#/$PROFILES_DIR/}; do
+        for f in "$dir"/claude/hooks/*.sh(N); do
+            claude_hook_scripts+=("${f:t}")
+        done
+    done
+    for script in ${(u)claude_hook_scripts}; do
+        paths+=("$HOME/.claude/hooks/$script")
+    done
+
+    # Claude skills (union of skill dirs across profiles)
+    local -a claude_skill_names=()
+    for dir in "$PROFILES_DIR/default" ${${(s: :)profiles}/#/$PROFILES_DIR/}; do
+        for d in "$dir"/claude/skills/*(N/); do
+            claude_skill_names+=("${d:t}")
+        done
+    done
+    for skill in ${(u)claude_skill_names}; do
+        paths+=("$HOME/.claude/skills/$skill")
+    done
 
     # Tmux
     local has_tmux=false

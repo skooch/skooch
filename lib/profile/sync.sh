@@ -672,6 +672,78 @@ _profile_sync_claude() {
         _profile_sync_config "Claude" "$target" "$expected" "${settings_files[@]}"
         rm -f "$expected"
     fi
+
+    # CLAUDE.md — last profile wins, symlink
+    local claude_md_source=""
+    [[ -f "$PROFILES_DIR/default/claude/CLAUDE.md" ]] && claude_md_source="$PROFILES_DIR/default/claude/CLAUDE.md"
+    for p in ${=profiles}; do
+        [[ "$p" == "default" ]] && continue
+        [[ -f "$PROFILES_DIR/$p/claude/CLAUDE.md" ]] && claude_md_source="$PROFILES_DIR/$p/claude/CLAUDE.md"
+    done
+    if [[ -n "$claude_md_source" ]]; then
+        local md_target="$HOME/.claude/CLAUDE.md"
+        if [[ -L "$md_target" && "$(readlink "$md_target")" == "$claude_md_source" ]]; then
+            echo "  CLAUDE.md: in sync (symlinked)"
+        else
+            ln -sf "$claude_md_source" "$md_target"
+            echo "  CLAUDE.md: symlinked"
+        fi
+    fi
+
+    # Hooks — symlink each *.sh script (union across profiles, last wins)
+    local -a hook_sources=("$PROFILES_DIR/default")
+    for p in ${=profiles}; do
+        [[ "$p" == "default" ]] && continue
+        hook_sources+=("$PROFILES_DIR/$p")
+    done
+    local -A hook_map=()
+    for dir in "${hook_sources[@]}"; do
+        for f in "$dir"/claude/hooks/*.sh(N); do
+            hook_map[${f:t}]="$f"
+        done
+    done
+    if [[ ${#hook_map} -gt 0 ]]; then
+        mkdir -p "$HOME/.claude/hooks"
+        local hooks_changed=false
+        for script source in ${(kv)hook_map}; do
+            local htarget="$HOME/.claude/hooks/$script"
+            if [[ -L "$htarget" && "$(readlink "$htarget")" == "$source" ]]; then
+                continue
+            fi
+            ln -sf "$source" "$htarget"
+            hooks_changed=true
+        done
+        if [[ "$hooks_changed" == true ]]; then
+            echo "  Hooks: updated (${(j:, :)${(k)hook_map}})"
+        else
+            echo "  Hooks: in sync (${(j:, :)${(k)hook_map}})"
+        fi
+    fi
+
+    # Skills — symlink each skill directory (union across profiles, last wins)
+    local -A skill_map=()
+    for dir in "${hook_sources[@]}"; do
+        for d in "$dir"/claude/skills/*(N/); do
+            skill_map[${d:t}]="$d"
+        done
+    done
+    if [[ ${#skill_map} -gt 0 ]]; then
+        mkdir -p "$HOME/.claude/skills"
+        local skills_changed=false
+        for skill source in ${(kv)skill_map}; do
+            local starget="$HOME/.claude/skills/$skill"
+            if [[ -L "$starget" && "$(readlink "$starget")" == "$source" ]]; then
+                continue
+            fi
+            ln -sfn "$source" "$starget"
+            skills_changed=true
+        done
+        if [[ "$skills_changed" == true ]]; then
+            echo "  Skills: updated (${(j:, :)${(k)skill_map}})"
+        else
+            echo "  Skills: in sync (${(j:, :)${(k)skill_map}})"
+        fi
+    fi
 }
 
 _profile_sync_tmux() {

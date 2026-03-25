@@ -78,7 +78,9 @@
       "Bash(test:*)",
       "Bash([:*)",
       "Bash(true:*)",
-      "Bash(false:*)"
+      "Bash(false:*)",
+      "Bash(xtensa-esp32s3-elf*:*)",
+      "Bash(timeout:*)"
     ],
     "deny": [
       "Read(~/.ssh/**)",
