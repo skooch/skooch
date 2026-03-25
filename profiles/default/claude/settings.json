@@ -84,6 +84,7 @@
       "Bash(xtensa-esp32s3-elf*:*)",
       "Bash(timeout:*)"
     ],
+    "additionalDirectories": ["/tmp"],
     "deny": [
       "Read(~/.ssh/**)",
       "Read(~/.gnupg/**)",
