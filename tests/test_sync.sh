@@ -145,4 +145,59 @@ printf '%s\t%s\n' "$TEST_HOME/.tmux.conf" "$(_platform_md5 "$TEST_HOME/.tmux.con
 _profile_sync_tmux "default" > /dev/null 2>&1
 assert_eq "0" "$?"
 
+# --- Regression: prompts must work inside while-read loops (stdin redirected) ---
+
+_TEST_NAME="sync_config conflict prompt works inside while-read loop"
+local files=($(sync_setup))
+local local_f="${files[1]}" expected_f="${files[2]}" source_f="${files[3]}"
+echo '{"version": 99}' > "$source_f"
+cp "$source_f" "$expected_f"
+echo '{"version": 100, "local_conflict": true}' > "$local_f"
+# Simulate calling _profile_sync_config from inside a while-read loop (like VSCode settings sync does).
+# Before the fix, the read for conflict choice consumed from the here-string instead of user input.
+local instances="Label1|/tmp/dir1|/tmp/cli1"
+local loop_tmpout=$(mktemp)
+local loop_input=$(mktemp)
+echo "2" > "$loop_input"
+_PROFILE_INPUT="$loop_input"
+while IFS='|' read -r _label _dir _cli; do
+    [[ -z "$_label" ]] && continue
+    _profile_sync_config "test" "$local_f" "$expected_f" "$source_f" > "$loop_tmpout" 2>&1
+done <<< "$instances"
+rm -f "$loop_input"
+local loop_output=$(cat "$loop_tmpout")
+rm -f "$loop_tmpout"
+assert_contains "$loop_output" "CONFLICT"
+
+_TEST_NAME="sync_config conflict choice applied correctly inside while-read loop"
+local local_content=$(cat "$local_f")
+assert_contains "$local_content" '"version": 99'
+rm -f "$expected_f"
+
+_TEST_NAME="sync_config profile->local prompt works inside while-read loop"
+local files=($(sync_setup))
+local local_f="${files[1]}" expected_f="${files[2]}" source_f="${files[3]}"
+echo '{"version": 50}' > "$source_f"
+cp "$source_f" "$expected_f"
+local loop_tmpout=$(mktemp)
+local loop_input=$(mktemp)
+echo "y" > "$loop_input"
+_PROFILE_INPUT="$loop_input"
+while IFS='|' read -r _label _dir _cli; do
+    [[ -z "$_label" ]] && continue
+    _profile_sync_config "test" "$local_f" "$expected_f" "$source_f" > "$loop_tmpout" 2>&1
+done <<< "$instances"
+rm -f "$loop_input"
+local loop_output=$(cat "$loop_tmpout")
+rm -f "$loop_tmpout"
+assert_contains "$loop_output" "profile -> local"
+
+_TEST_NAME="sync_config profile->local applied correctly inside while-read loop"
+local local_content=$(cat "$local_f")
+assert_contains "$local_content" '"version": 50'
+rm -f "$expected_f"
+
+# Restore default
+_PROFILE_INPUT=/dev/stdin
+
 _test_summary

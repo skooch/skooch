@@ -51,6 +51,9 @@ PROFILE_ACTIVE_FILE="$TEST_STATE/active"
 PROFILE_SNAPSHOT_FILE="$TEST_STATE/snapshot"
 PROFILE_MANAGED_FILE="$TEST_STATE/managed"
 
+# Allow tests to pipe input to interactive prompts (bypasses /dev/tty)
+_PROFILE_INPUT=/dev/stdin
+
 # Source the profile system
 _PROFILE_LIB_DIR="${0:A:h}/../lib/profile"
 source "$_PROFILE_LIB_DIR/platform.sh"

@@ -47,7 +47,7 @@ _profile_sync_config() {
         echo "  $label: profile -> local"
         { $diff_cmd "$local_file" "$expected_file" 2>/dev/null || true; } | head -50
         printf "  Apply? [Y/n] "
-        local answer; read -r answer
+        local answer; read -r answer <"${_PROFILE_INPUT:-/dev/tty}"
         [[ "$answer" == [nN]* ]] && return 0
         cp "$expected_file" "$local_file"
         return 1
@@ -57,7 +57,7 @@ _profile_sync_config() {
         { $diff_cmd "$expected_file" "$local_file" 2>/dev/null || true; } | head -50
         if [[ ${#profile_sources[@]} -eq 1 ]]; then
             printf "  Update profile? [Y/n] "
-            local answer; read -r answer
+            local answer; read -r answer <"${_PROFILE_INPUT:-/dev/tty}"
             [[ "$answer" == [nN]* ]] && return 0
             cp "$local_file" "${profile_sources[1]}"
             echo "  Profile updated"
@@ -100,7 +100,7 @@ _profile_sync_config() {
         echo "    2) Apply profile$tag_profile"
         echo "    3) Open in \$EDITOR"
         printf "  Choice [%d]: " "$default_choice"
-        local choice; read -r choice
+        local choice; read -r choice <"${_PROFILE_INPUT:-/dev/tty}"
         choice="${choice:-$default_choice}"
 
         case "$choice" in
