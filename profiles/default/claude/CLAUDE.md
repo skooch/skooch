@@ -46,5 +46,6 @@ When a shell command, API call, or build step fails due to a pattern not yet doc
 
 ## Shell Command Safety
 
+- **Never use quotes inside `#` comments in shell commands.** Apostrophes and quoted terms in comments trigger Claude Code's quote-tracking safety prompt. Rephrase to avoid them (e.g., `# Check the ELF entry point` not `# Let's check the ELF entry point`).
 - **Guard `curl | json` pipelines.** `curl` may return empty bodies (redirects, 4xx/5xx, network errors). Either check the HTTP status first, use `-f` (fail on HTTP errors), or guard the downstream parser against empty input.
 - **Check API response shapes before processing.** When calling external APIs and piping to processing, first inspect the raw response structure before writing field access code.
