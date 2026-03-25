@@ -69,10 +69,16 @@ if [ -f "tests/run.sh" ]; then
     else
         _ZSH_BIN="$(command -v zsh)"
     fi
-    if ! "$_ZSH_BIN" tests/run.sh; then
+    _test_output=$("$_ZSH_BIN" tests/run.sh 2>&1)
+    _test_status=$?
+    if [ "$_test_status" -ne 0 ]; then
+        echo "$_test_output"
         echo ""
         echo "Tests failed."
         errors=1
+    else
+        # Show just the summary line
+        echo "$_test_output" | tail -1
     fi
 fi
 
