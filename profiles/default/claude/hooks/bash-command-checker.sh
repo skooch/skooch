@@ -35,6 +35,8 @@ esac
 sleep
 wait
 kill
+pkill
+pgrep
 read
 trap
 return
