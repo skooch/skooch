@@ -52,6 +52,9 @@ assert_contains "$snap_files" "tmux/tmux.conf"
 _TEST_NAME="snapshot_files includes claude/CLAUDE.md"
 assert_contains "$snap_files" "claude/CLAUDE.md"
 
+_TEST_NAME="snapshot_files includes claude/system-prompt.md"
+assert_contains "$snap_files" "claude/system-prompt.md"
+
 _TEST_NAME="snapshot_files includes claude hook scripts"
 mkdir -p "$PROFILES_DIR/default/claude/hooks"
 echo '#!/bin/bash' > "$PROFILES_DIR/default/claude/hooks/test-hook.sh"
@@ -177,6 +180,11 @@ echo "# test" > "$PROFILES_DIR/default/claude/CLAUDE.md"
 local claude_md_targets=$(_profile_target_paths "default")
 assert_contains "$claude_md_targets" ".claude/CLAUDE.md"
 
+_TEST_NAME="target_paths includes system-prompt.md when claude/system-prompt.md exists"
+echo "# test" > "$PROFILES_DIR/default/claude/system-prompt.md"
+local sp_targets=$(_profile_target_paths "default")
+assert_contains "$sp_targets" ".claude/system-prompt.md"
+
 _TEST_NAME="target_paths includes claude hooks when hook scripts exist"
 mkdir -p "$PROFILES_DIR/default/claude/hooks"
 echo '#!/bin/bash' > "$PROFILES_DIR/default/claude/hooks/my-hook.sh"
@@ -189,7 +197,7 @@ echo "# skill" > "$PROFILES_DIR/default/claude/skills/my-skill/SKILL.md"
 local skill_targets=$(_profile_target_paths "default")
 assert_contains "$skill_targets" ".claude/skills/my-skill"
 rm -rf "$PROFILES_DIR/default/claude/hooks" "$PROFILES_DIR/default/claude/skills"
-rm -f "$PROFILES_DIR/default/claude/CLAUDE.md"
+rm -f "$PROFILES_DIR/default/claude/CLAUDE.md" "$PROFILES_DIR/default/claude/system-prompt.md"
 
 _TEST_NAME="target_paths includes tmux.conf when tmux/tmux.conf exists"
 mkdir -p "$PROFILES_DIR/default/tmux"

@@ -90,6 +90,23 @@ _profile_apply_claude "testprofile" > /dev/null 2>&1
 assert_symlink "$TEST_HOME/.claude/CLAUDE.md" "$PROFILES_DIR/testprofile/claude/CLAUDE.md"
 rm -f "$PROFILES_DIR/testprofile/claude/CLAUDE.md"
 
+# --- _profile_apply_claude: system-prompt.md symlink ---
+
+_TEST_NAME="apply_claude symlinks system-prompt.md"
+echo "# Test prompt" > "$PROFILES_DIR/default/claude/system-prompt.md"
+rm -f "$TEST_HOME/.claude/system-prompt.md"
+_profile_apply_claude "default" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.claude/system-prompt.md" "$PROFILES_DIR/default/claude/system-prompt.md"
+
+_TEST_NAME="apply_claude system-prompt.md last profile wins"
+mkdir -p "$PROFILES_DIR/testprofile/claude"
+echo '{"extra": true}' > "$PROFILES_DIR/testprofile/claude/settings.json"
+echo "# Override prompt" > "$PROFILES_DIR/testprofile/claude/system-prompt.md"
+rm -f "$TEST_HOME/.claude/system-prompt.md"
+_profile_apply_claude "testprofile" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.claude/system-prompt.md" "$PROFILES_DIR/testprofile/claude/system-prompt.md"
+rm -f "$PROFILES_DIR/testprofile/claude/system-prompt.md"
+
 # --- _profile_apply_claude: hooks ---
 
 _TEST_NAME="apply_claude symlinks hook scripts"
@@ -125,7 +142,7 @@ fi
 # Clean up test fixtures
 rm -rf "$PROFILES_DIR/default/claude/hooks" "$PROFILES_DIR/default/claude/skills"
 rm -rf "$PROFILES_DIR/testprofile/claude/hooks"
-rm -f "$PROFILES_DIR/default/claude/CLAUDE.md"
+rm -f "$PROFILES_DIR/default/claude/CLAUDE.md" "$PROFILES_DIR/default/claude/system-prompt.md"
 
 # --- _profile_apply_tmux ---
 

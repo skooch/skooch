@@ -673,39 +673,7 @@ _profile_sync_claude() {
         rm -f "$expected"
     fi
 
-    # CLAUDE.md — last profile wins, symlink
-    local claude_md_source=""
-    [[ -f "$PROFILES_DIR/default/claude/CLAUDE.md" ]] && claude_md_source="$PROFILES_DIR/default/claude/CLAUDE.md"
-    for p in ${=profiles}; do
-        [[ "$p" == "default" ]] && continue
-        [[ -f "$PROFILES_DIR/$p/claude/CLAUDE.md" ]] && claude_md_source="$PROFILES_DIR/$p/claude/CLAUDE.md"
-    done
-    if [[ -n "$claude_md_source" ]]; then
-        local md_target="$HOME/.claude/CLAUDE.md"
-        if [[ -L "$md_target" && "$(readlink "$md_target")" == "$claude_md_source" ]]; then
-            echo "  CLAUDE.md: in sync (symlinked)"
-        else
-            ln -sf "$claude_md_source" "$md_target"
-            echo "  CLAUDE.md: symlinked"
-        fi
-    fi
-
-    # system-prompt.md — last profile wins, symlink
-    local sys_prompt_source=""
-    [[ -f "$PROFILES_DIR/default/claude/system-prompt.md" ]] && sys_prompt_source="$PROFILES_DIR/default/claude/system-prompt.md"
-    for p in ${=profiles}; do
-        [[ "$p" == "default" ]] && continue
-        [[ -f "$PROFILES_DIR/$p/claude/system-prompt.md" ]] && sys_prompt_source="$PROFILES_DIR/$p/claude/system-prompt.md"
-    done
-    if [[ -n "$sys_prompt_source" ]]; then
-        local sp_target="$HOME/.claude/system-prompt.md"
-        if [[ -L "$sp_target" && "$(readlink "$sp_target")" == "$sys_prompt_source" ]]; then
-            echo "  system-prompt.md: in sync (symlinked)"
-        else
-            ln -sf "$sys_prompt_source" "$sp_target"
-            echo "  system-prompt.md: symlinked"
-        fi
-    fi
+    _profile_claude_link_files "$profiles" sync
 
     # Hooks — symlink each *.sh script (union across profiles, last wins)
     local -a hook_sources=("$PROFILES_DIR/default")

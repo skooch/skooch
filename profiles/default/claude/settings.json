@@ -84,7 +84,6 @@
       "Bash(xtensa-esp32s3-elf*:*)",
       "Bash(timeout:*)"
     ],
-    "additionalDirectories": ["/tmp"],
     "deny": [
       "Read(~/.ssh/**)",
       "Read(~/.gnupg/**)",
@@ -184,6 +183,9 @@
       "Bash(zsh:*)",
       "Bash(sh:*)",
       "Bash(brew:*)"
+    ],
+    "additionalDirectories": [
+      "/tmp"
     ]
   },
   "hooks": {
@@ -258,5 +260,6 @@
       }
     }
   },
-  "alwaysThinkingEnabled": true
+  "alwaysThinkingEnabled": true,
+  "effortLevel": "high"
 }

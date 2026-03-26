@@ -131,34 +131,30 @@ _profile_diff() {
         rm -f "$tmpfile"
     fi
 
-    # Claude CLAUDE.md
-    local claude_md_source=""
-    [[ -f "$PROFILES_DIR/default/claude/CLAUDE.md" ]] && claude_md_source="$PROFILES_DIR/default/claude/CLAUDE.md"
-    for p in ${=profiles}; do
-        [[ "$p" == "default" ]] && continue
-        [[ -f "$PROFILES_DIR/$p/claude/CLAUDE.md" ]] && claude_md_source="$PROFILES_DIR/$p/claude/CLAUDE.md"
-    done
-    if [[ -n "$claude_md_source" ]]; then
-        local md_target="$HOME/.claude/CLAUDE.md"
-        if [[ -f "$md_target" ]]; then
-            local real_md="$md_target"
-            [[ -L "$md_target" ]] && real_md=$(readlink "$md_target")
-            if [[ "$real_md" != "$claude_md_source" ]]; then
-                result=$($diff_cmd "$md_target" "$claude_md_source" 2>/dev/null)
+    # Claude "last profile wins" files (CLAUDE.md, system-prompt.md, etc.)
+    for filename in "${_CLAUDE_LAST_WINS_FILES[@]}"; do
+        local source=$(_profile_claude_resolve_source "$profiles" "$filename")
+        [[ -z "$source" ]] && continue
+        local ftarget="$HOME/.claude/$filename"
+        if [[ -f "$ftarget" ]]; then
+            local real_path="$ftarget"
+            [[ -L "$ftarget" ]] && real_path=$(readlink "$ftarget")
+            if [[ "$real_path" != "$source" ]]; then
+                result=$($diff_cmd "$ftarget" "$source" 2>/dev/null)
                 if [[ -n "$result" ]]; then
-                    echo "=== claude/CLAUDE.md (~/.claude/CLAUDE.md) ==="
+                    echo "=== claude/$filename (~/.claude/$filename) ==="
                     echo "$result"
                     echo ""
                     has_diff=true
                 fi
             fi
         else
-            echo "=== claude/CLAUDE.md (~/.claude/CLAUDE.md) ==="
+            echo "=== claude/$filename (~/.claude/$filename) ==="
             echo "  (new file would be created)"
             echo ""
             has_diff=true
         fi
-    fi
+    done
 
     # Claude hooks
     local -a diff_hook_sources=("$PROFILES_DIR/default")

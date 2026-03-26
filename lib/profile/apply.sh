@@ -392,17 +392,7 @@ _profile_apply_claude() {
     done
     echo "Applying Claude Code settings: $label"
 
-    # CLAUDE.md — last profile wins, symlink
-    local claude_md_source=""
-    [[ -f "$PROFILES_DIR/default/claude/CLAUDE.md" ]] && claude_md_source="$PROFILES_DIR/default/claude/CLAUDE.md"
-    for p in ${=profiles}; do
-        [[ "$p" == "default" ]] && continue
-        [[ -f "$PROFILES_DIR/$p/claude/CLAUDE.md" ]] && claude_md_source="$PROFILES_DIR/$p/claude/CLAUDE.md"
-    done
-    if [[ -n "$claude_md_source" ]]; then
-        ln -sf "$claude_md_source" "$HOME/.claude/CLAUDE.md"
-        echo "  CLAUDE.md: symlinked"
-    fi
+    _profile_claude_link_files "$profiles"
 
     # Hooks — symlink each *.sh script (union across profiles, last wins)
     local -a hook_sources=("$PROFILES_DIR/default")

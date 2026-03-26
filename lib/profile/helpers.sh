@@ -1,5 +1,41 @@
 # Profile system - detection helpers, readers, and utilities
 
+# --- Claude "last profile wins" file list ---
+# Single files under profiles/*/claude/ that use "last profile wins" symlink strategy.
+# To add a new file: add an entry here. Apply, sync, target_paths, and snapshots
+# all derive from this list automatically.
+_CLAUDE_LAST_WINS_FILES=(CLAUDE.md system-prompt.md)
+
+# Resolve "last profile wins" source for a claude file.
+# Prints the winning source path, or nothing if no profile has the file.
+_profile_claude_resolve_source() {
+    local profiles="$1" filename="$2"
+    local source=""
+    [[ -f "$PROFILES_DIR/default/claude/$filename" ]] && source="$PROFILES_DIR/default/claude/$filename"
+    for p in ${=profiles}; do
+        [[ "$p" == "default" ]] && continue
+        [[ -f "$PROFILES_DIR/$p/claude/$filename" ]] && source="$PROFILES_DIR/$p/claude/$filename"
+    done
+    [[ -n "$source" ]] && echo "$source"
+}
+
+# Symlink all "last profile wins" claude files.
+# In sync mode, skips files already correctly symlinked and reports status.
+_profile_claude_link_files() {
+    local profiles="$1" mode="${2:-apply}"
+    for filename in "${_CLAUDE_LAST_WINS_FILES[@]}"; do
+        local source=$(_profile_claude_resolve_source "$profiles" "$filename")
+        [[ -z "$source" ]] && continue
+        local target="$HOME/.claude/$filename"
+        if [[ "$mode" == "sync" && -L "$target" && "$(readlink "$target")" == "$source" ]]; then
+            echo "  $filename: in sync (symlinked)"
+        else
+            ln -sf "$source" "$target"
+            echo "  $filename: symlinked"
+        fi
+    done
+}
+
 # --- Detection helpers ---
 
 _profile_vscode_instances() {
@@ -123,9 +159,13 @@ _profile_snapshot_files() {
              "$dir/vscode/settings.json" "$dir/vscode/keybindings.json" \
              "$dir/iterm/profile.json" \
              "$dir/git/config" "$dir/mise/config.toml" \
-             "$dir/claude/settings.json" "$dir/claude/CLAUDE.md" \
+             "$dir/claude/settings.json" \
              "$dir/tmux/tmux.conf"; do
         echo "$f"
+    done
+    # Claude "last profile wins" files
+    for filename in "${_CLAUDE_LAST_WINS_FILES[@]}"; do
+        echo "$dir/claude/$filename"
     done
     # Claude hooks (*.sh scripts only)
     for f in "$dir"/claude/hooks/*.sh(N); do
@@ -194,14 +234,11 @@ _profile_target_paths() {
     done
     [[ "$has_claude" == "true" ]] && paths+=("$HOME/.claude/settings.json")
 
-    # Claude CLAUDE.md (last profile wins)
-    local claude_md_source=""
-    [[ -f "$PROFILES_DIR/default/claude/CLAUDE.md" ]] && claude_md_source="$PROFILES_DIR/default/claude/CLAUDE.md"
-    for p in ${=profiles}; do
-        [[ "$p" == "default" ]] && continue
-        [[ -f "$PROFILES_DIR/$p/claude/CLAUDE.md" ]] && claude_md_source="$PROFILES_DIR/$p/claude/CLAUDE.md"
+    # Claude "last profile wins" files (CLAUDE.md, system-prompt.md, etc.)
+    for filename in "${_CLAUDE_LAST_WINS_FILES[@]}"; do
+        local source=$(_profile_claude_resolve_source "$profiles" "$filename")
+        [[ -n "$source" ]] && paths+=("$HOME/.claude/$filename")
     done
-    [[ -n "$claude_md_source" ]] && paths+=("$HOME/.claude/CLAUDE.md")
 
     # Claude hooks (union of *.sh scripts across profiles)
     local -a claude_hook_scripts=()
