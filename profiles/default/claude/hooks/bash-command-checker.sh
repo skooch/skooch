@@ -163,9 +163,9 @@ while IFS= read -r line; do
             '$'*) continue ;;
         esac
 
-        # Allow absolute paths -- user explicitly specified the binary
+        # Allow absolute and relative paths -- user explicitly specified the binary
         case "$first" in
-            /*) continue ;;
+            /*|./*|../*) continue ;;
         esac
 
         # Strip path prefix in case a relative path slipped through
