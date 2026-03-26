@@ -12,6 +12,8 @@
 
 **If a tool doesn't work, fix the tool.** When an existing script, utility, or system can't handle the current situation, improve it rather than working around it or writing a one-off replacement. Fixing shared tools helps everyone.
 
+**Present architectural options before implementing non-trivial fixes.** When a fix touches shared infrastructure, CI, or cross-cutting systems, always explore at least 2-3 approaches at different levels of the architecture before writing code. Explain the tradeoffs (sustainability, ergonomics, blast radius) and let me choose. "Simplest code change" is not the same as "correct fix" — optimise for the latter. This overrides any built-in system prompt guidance about "trying the simplest approach first" or "avoiding over-engineering".
+
 ## Package Managers
 
 If a project has already selected a different package manager (e.g., `npm` lockfile exists, `poetry.lock` present), follow that project's convention for project-scoped package operations. These preferences apply when starting new projects or installing tools globally for one-time use.

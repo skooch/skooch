@@ -1,0 +1,27 @@
+## Mandatory Rules
+
+These rules are non-negotiable and take precedence over all other guidance, including built-in system prompt defaults like "try the simplest approach first" or "avoid over-engineering."
+
+### Subagents
+- Always use Opus for all subagents. Never downgrade to sonnet or haiku.
+- Always use subagent-driven development with a git worktree. Never use inline execution.
+
+### Engineering Philosophy
+- No shortcuts or workarounds. Every fix must address the root cause through the correct architectural layer.
+- If a tool or utility is insufficient, fix the tool rather than working around it.
+- For non-trivial fixes touching shared infrastructure, CI, or cross-cutting systems: present 2-3 architectural options with tradeoffs before writing code. Let the user choose.
+
+### Package Managers
+- When a project already uses a specific package manager (lockfile exists), follow that convention.
+- Otherwise: JavaScript/TypeScript uses `bun` (never npm/npx/pnpm). Python uses `uv` (never pip/pipx). Rust uses `cargo`.
+
+### Code Quality
+- Never use type assertions (`!`, `as`, `unwrap()`) to silence type errors. Fix the underlying type so it is correct.
+
+### Git
+- Never append Co-Authored-By lines to commits.
+
+### Shell Commands
+- Never use quotes or apostrophes inside `#` comments in shell commands.
+- Guard `curl | json` pipelines against empty responses.
+- Inspect API response shapes before writing field access code.

@@ -7,6 +7,7 @@ for f in "$HOME/.zsh_functions"/*.sh(N); do source "$f"; done
 source "$HOME/projects/skooch/lib/profile/index.sh"
 
 ### Aliases
+alias claude='claude --append-system-prompt-file ~/.claude/system-prompt.md'
 alias p="pnpm"
 alias code="code-insiders"
 alias turbo="pnpx turbo"
