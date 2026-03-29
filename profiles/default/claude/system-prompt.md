@@ -21,6 +21,9 @@ These rules are non-negotiable and take precedence over all other guidance, incl
 ### Git
 - Never append Co-Authored-By lines to commits.
 
+### GitHub Access
+- Always use `gh` CLI to explore GitHub repos. Never use `raw.githubusercontent.com` URLs or `WebFetch` for repo contents.
+
 ### Shell Commands
 - Never use quotes or apostrophes inside `#` comments in shell commands.
 - Guard `curl | json` pipelines against empty responses.

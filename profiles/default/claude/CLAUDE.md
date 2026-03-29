@@ -46,6 +46,10 @@ When adding configuration files for any tool, always:
 
 When a shell command, API call, or build step fails due to a pattern not yet documented in the project's CLAUDE.md, **add the fix to the relevant section before proceeding.** This prevents the same failure from recurring in future sessions.
 
+## GitHub Access
+
+**Always use `gh` CLI to explore GitHub repos.** Never use `raw.githubusercontent.com` URLs or `WebFetch` to read repo contents. Use `gh api`, `gh browse`, `gh repo view`, etc. instead.
+
 ## Shell Command Safety
 
 - **Never use quotes inside `#` comments in shell commands.** Apostrophes and quoted terms in comments trigger Claude Code's quote-tracking safety prompt. Rephrase to avoid them (e.g., `# Check the ELF entry point` not `# Let's check the ELF entry point`).
