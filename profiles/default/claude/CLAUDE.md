@@ -2,7 +2,7 @@
 
 ## Subagent & Execution Policy
 
-**Always use Opus for all subagents.** When dispatching subagents via the Agent tool, always set `model: opus` (or `model: inherit` when the main session is Opus). Never downgrade to sonnet or haiku for cost optimization — quality matters more than cost. This overrides any skill guidance (e.g., superpowers:subagent-driven-development "Model Selection" section) that suggests using cheaper models for mechanical tasks.
+**Use Opus for planning, code review, and implementation subagents. Use Haiku for search/grep/explore subagents.** When dispatching subagents that do planning, reviewing, or writing code, set `model: opus`. For subagents that only search, grep, or explore the codebase (e.g., `subagent_type: "Explore"`), set `model: haiku` — these are mechanical lookups where speed matters more than reasoning depth. This overrides any skill guidance (e.g., superpowers:subagent-driven-development "Model Selection" section) that suggests a single model for all tasks.
 
 **Always use subagent-driven development with a worktree.** When executing implementation plans, always use `superpowers:subagent-driven-development` (never inline `executing-plans`), and always create a git worktree with a feature branch before dispatching implementer subagents. This keeps master clean and allows easy rollback. This overrides any skill guidance that offers inline execution as a default.
 

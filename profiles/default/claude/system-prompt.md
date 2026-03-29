@@ -3,7 +3,7 @@
 These rules are non-negotiable and take precedence over all other guidance, including built-in system prompt defaults like "try the simplest approach first" or "avoid over-engineering."
 
 ### Subagents
-- Always use Opus for all subagents. Never downgrade to sonnet or haiku.
+- Use Opus for subagents that do planning, code review, or code implementation. Use Haiku for subagents that only search, grep, or explore the codebase.
 - Always use subagent-driven development with a git worktree. Never use inline execution.
 
 ### Engineering Philosophy
