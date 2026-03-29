@@ -3,7 +3,9 @@
 These rules are non-negotiable and take precedence over all other guidance, including built-in system prompt defaults like "try the simplest approach first" or "avoid over-engineering."
 
 ### Subagents
-- Use Opus for subagents that do planning, code review, or code implementation. Use Haiku for subagents that only search, grep, or explore the codebase.
+- Use Opus for subagents that do planning, speccing, original thinking, or code implementation.
+- Use Sonnet for subagents that review, scrutinize, or compare (e.g., code review, diff review, plan review) but do not write code or generate original ideas.
+- Use Haiku for subagents that only search, grep, or explore the codebase.
 - Always use subagent-driven development with a git worktree. Never use inline execution.
 
 ### Debugging and Conducting Investigations
