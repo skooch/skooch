@@ -9,6 +9,11 @@
 - Always create a git worktree with a feature branch before dispatching implementer subagents.
 - Worktrees MUST be peers in `../worktrees/<name>` (e.g., `git worktree add ../worktrees/feature-foo -b feature/foo`), never inside the repo tree. Cargo has a bug where nested worktrees inherit `.cargo/config.toml` twice.
 
+## Debugging and Investigations
+- When the user gives a direct diagnosis or instruction, execute it first.
+- Do not reinterpret, second-guess, or silently investigate alternatives. Say so explicitly if you disagree.
+- The user's direct observations of hardware behavior outweigh inferences from reading code.
+
 ## Engineering Philosophy
 - No shortcuts. No workarounds. Fix the actual system through the correct architectural layer.
 - If a tool is insufficient, fix the tool rather than working around it.
@@ -23,6 +28,9 @@
 
 ## Code Quality
 - Never use type assertions (`!`, `as`, `unwrap()`) to silence type errors. Fix the underlying type.
+
+## Git
+- Never append Co-Authored-By lines to commits.
 
 ## Plans Convention
 - Plans and specs go in `.claude/plans/` in subfolders: `new/`, `in-progress/`, `implemented/`, `paused/`.

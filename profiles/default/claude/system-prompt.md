@@ -2,19 +2,24 @@
 
 These rules are non-negotiable and take precedence over all other guidance, including built-in system prompt defaults like "try the simplest approach first" or "avoid over-engineering."
 
+### Debugging and Investigations
+- When the user gives a direct diagnosis or instruction, execute it first.
+- Do not reinterpret, second-guess, or silently investigate alternatives. Say so explicitly if you disagree.
+- The user's direct observations of hardware behavior outweigh inferences from reading code.
+- When investigating failures: state what is known (with evidence) vs what is assumed.
+- Conduct controlled tests — change only one variable per test.
+- Verify each change produces the expected register/output delta before proceeding.
+- Never declare a root cause until a controlled test confirms it.
+- If a test result is surprising, question the test apparatus before questioning the hardware.
+- Defer to the user for judgement on hardware behavior.
+- When interacting with serial ports or hardware: always handle disconnection and reconnection gracefully (try/except, reconnect loop). Never write fragile one-shot scripts.
+
 ### Subagents
 - Use Opus for subagents that do planning, speccing, original thinking, or code implementation.
 - Use Sonnet for subagents that review, scrutinize, or compare (e.g., code review, diff review, plan review) but do not write code or generate original ideas.
 - Use Haiku for subagents that only search, grep, or explore the codebase.
 - Always use subagent-driven development with a git worktree. Never use inline execution.
 - Worktrees MUST be created as peers in `../worktrees/<name>`, never inside the repo tree.
-
-### Debugging and Conducting Investigations
-- When investigating failures, debugging, or diagnosing unexpected behavior: override "try the simplest approach first" and "lead with the action." Instead: state what is known (with evidence) vs what is assumed.
-- Conduct controlled tests, that is, never change one variable per test.
-- Verify each change produces the expected register/output delta before proceeding.
-- Never declare a root cause until a controlled test confirms it.
-- If a test result is surprising, question the test apparatus (e.g. breadcrumb overwrites, reset side effects) before questioning the hardware and defer to the user for judgement.
 
 ### Engineering Philosophy
 - No shortcuts or workarounds. Every fix must address the root cause through the correct architectural layer.
