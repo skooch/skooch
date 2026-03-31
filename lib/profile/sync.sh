@@ -729,6 +729,31 @@ _profile_sync_claude() {
             echo "  Skills: in sync (${(j:, :)${(k)skill_map}})"
         fi
     fi
+
+    # Commands — symlink each *.md file (union across profiles, last wins)
+    local -A cmd_map=()
+    for dir in "${hook_sources[@]}"; do
+        for f in "$dir"/claude/commands/*.md(N); do
+            cmd_map[${f:t}]="$f"
+        done
+    done
+    if [[ ${#cmd_map} -gt 0 ]]; then
+        mkdir -p "$HOME/.claude/commands"
+        local cmds_changed=false
+        for cmd source in ${(kv)cmd_map}; do
+            local ctarget="$HOME/.claude/commands/$cmd"
+            if [[ -L "$ctarget" && "$(readlink "$ctarget")" == "$source" ]]; then
+                continue
+            fi
+            ln -sf "$source" "$ctarget"
+            cmds_changed=true
+        done
+        if [[ "$cmds_changed" == true ]]; then
+            echo "  Commands: updated (${(j:, :)${(k)cmd_map}})"
+        else
+            echo "  Commands: in sync (${(j:, :)${(k)cmd_map}})"
+        fi
+    fi
 }
 
 _profile_sync_tmux() {

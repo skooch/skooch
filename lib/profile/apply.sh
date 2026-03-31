@@ -428,6 +428,21 @@ _profile_apply_claude() {
         done
         echo "  Skills: ${(j:, :)${(k)skill_map}}"
     fi
+
+    # Commands — symlink each *.md file (union across profiles, last wins)
+    local -A cmd_map=()
+    for dir in "${hook_sources[@]}"; do
+        for f in "$dir"/claude/commands/*.md(N); do
+            cmd_map[${f:t}]="$f"
+        done
+    done
+    if [[ ${#cmd_map} -gt 0 ]]; then
+        mkdir -p "$HOME/.claude/commands"
+        for cmd source in ${(kv)cmd_map}; do
+            ln -sf "$source" "$HOME/.claude/commands/$cmd"
+        done
+        echo "  Commands: ${(j:, :)${(k)cmd_map}}"
+    fi
 }
 
 # --- Tmux ---

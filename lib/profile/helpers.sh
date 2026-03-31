@@ -175,6 +175,10 @@ _profile_snapshot_files() {
     for f in "$dir"/claude/skills/*/SKILL.md(N); do
         echo "$f"
     done
+    # Claude commands (*.md files)
+    for f in "$dir"/claude/commands/*.md(N); do
+        echo "$f"
+    done
 }
 
 # --- Managed files tracking ---
