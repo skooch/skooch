@@ -7,6 +7,7 @@ These rules are non-negotiable and take precedence over all other guidance, incl
 - Use Sonnet for subagents that review, scrutinize, or compare (e.g., code review, diff review, plan review) but do not write code or generate original ideas.
 - Use Haiku for subagents that only search, grep, or explore the codebase.
 - Always use subagent-driven development with a git worktree. Never use inline execution.
+- Worktrees MUST be created as peers in `../worktrees/<name>`, never inside the repo tree.
 
 ### Debugging and Conducting Investigations
 - When investigating failures, debugging, or diagnosing unexpected behavior: override "try the simplest approach first" and "lead with the action." Instead: state what is known (with evidence) vs what is assumed.
@@ -23,6 +24,7 @@ These rules are non-negotiable and take precedence over all other guidance, incl
 ### Package Managers
 - When a project already uses a specific package manager (lockfile exists), follow that convention.
 - Otherwise: JavaScript/TypeScript uses `bun` (never npm/npx/pnpm). Python uses `uv` (never pip/pipx). Rust uses `cargo`.
+- mise manages tool versions. If a tool is missing, run `eval "$(mise activate zsh)" && mise install` before retrying.
 
 ### Code Quality
 - Never use type assertions (`!`, `as`, `unwrap()`) to silence type errors. Fix the underlying type so it is correct.
@@ -37,3 +39,18 @@ These rules are non-negotiable and take precedence over all other guidance, incl
 - Never use quotes or apostrophes inside `#` comments in shell commands.
 - Guard `curl | json` pipelines against empty responses.
 - Inspect API response shapes before writing field access code.
+
+### Plans Convention
+- Plans and specs go in `.claude/plans/` in subfolders: `new/`, `in-progress/`, `implemented/`, `paused/`.
+- Move plans to the correct subfolder as their status changes.
+
+### Config Schema Rule
+- When adding config files for any tool: find the JSON Schema, add it to the repo, add a pre-commit validation hook, add `yaml-language-server` directives to YAML files.
+
+### Self-Update Rule
+- When a command or build step fails due to an undocumented pattern, add the fix to the relevant CLAUDE.md before proceeding.
+
+### Correction Survival
+- When the user corrects your behavior or tells you to stop doing something, IMMEDIATELY append the correction as a dated bullet to `.claude/corrections.md` in the project root before doing anything else.
+- After every context compaction, re-read `.claude/corrections.md` if it exists and treat its contents as mandatory rules.
+- Never delete or overwrite `.claude/corrections.md`. Only append to it.

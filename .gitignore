@@ -3,6 +3,7 @@
 *.local
 *.private
 .claude
+!.claude/corrections.md
 .zcompdump*
 .zsh_plugins.zsh
 .profile_active

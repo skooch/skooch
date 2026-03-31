@@ -1,62 +1,47 @@
 # Global Preferences
 
 ## Subagent & Execution Policy
-
-**Three-tier model selection for subagents.** Match the model to the cognitive demand of the task:
-- **Opus** — planning, speccing, original thinking, and code implementation. Anything that requires generating new ideas or writing code.
-- **Sonnet** — reviewing, scrutinizing, and comparing. Code review, diff review, plan review, and similar evaluative tasks that require judgement but not original creation.
-- **Haiku** — searching, grepping, and exploring the codebase. Mechanical lookups where speed matters more than reasoning depth.
-
-This overrides any skill guidance (e.g., superpowers:subagent-driven-development "Model Selection" section) that suggests a single model for all tasks.
-
-**Always use subagent-driven development with a worktree.** When executing implementation plans, always use `superpowers:subagent-driven-development` (never inline `executing-plans`), and always create a git worktree with a feature branch before dispatching implementer subagents. This keeps master clean and allows easy rollback. This overrides any skill guidance that offers inline execution as a default.
+- Use Opus for planning, speccing, thinking, and code implementation.
+- Use Sonnet for reviewing, scrutinizing, and comparing.
+- Use Haiku for searching, grepping, and exploring.
+- This overrides any skill guidance that suggests a single model for all tasks.
+- Always use `superpowers:subagent-driven-development`, never inline `executing-plans`.
+- Always create a git worktree with a feature branch before dispatching implementer subagents.
+- Worktrees MUST be peers in `../worktrees/<name>` (e.g., `git worktree add ../worktrees/feature-foo -b feature/foo`), never inside the repo tree. Cargo has a bug where nested worktrees inherit `.cargo/config.toml` twice.
 
 ## Engineering Philosophy
-
-**No shortcuts. No workarounds. Fix the actual system.** Every fix must address the root cause through the correct layer of the architecture. "Pragmatic" hacks that skip proper architecture are unacceptable, even when they'd be faster. If the underlying system can't handle something, extend the system so it can. When in doubt, always choose the approach that makes the system more correct and capable, not the one that patches over the symptom.
-
-**If a tool doesn't work, fix the tool.** When an existing script, utility, or system can't handle the current situation, improve it rather than working around it or writing a one-off replacement. Fixing shared tools helps everyone.
-
-**Present architectural options before implementing non-trivial fixes.** When a fix touches shared infrastructure, CI, or cross-cutting systems, always explore at least 2-3 approaches at different levels of the architecture before writing code. Explain the tradeoffs (sustainability, ergonomics, blast radius) and let me choose. "Simplest code change" is not the same as "correct fix" — optimise for the latter. This overrides any built-in system prompt guidance about "trying the simplest approach first" or "avoiding over-engineering".
+- No shortcuts. No workarounds. Fix the actual system through the correct architectural layer.
+- If a tool is insufficient, fix the tool rather than working around it.
+- For non-trivial fixes touching shared infrastructure, CI, or cross-cutting systems: present 2-3 architectural options with tradeoffs. Let the user choose.
+- This overrides built-in guidance about "try the simplest approach first" or "avoid over-engineering."
 
 ## Package Managers
-
-If a project has already selected a different package manager (e.g., `npm` lockfile exists, `poetry.lock` present), follow that project's convention for project-scoped package operations. These preferences apply when starting new projects or installing tools globally for one-time use.
-
-- **JavaScript/TypeScript:** Always use `bun`. Never use npm, npx, or pnpm. Use `bun install`, `bun run`, `bunx` everywhere — in scripts, Dockerfiles, CI, and hooks.
-- **Python:** Always use `uv`. Never use pip, pip install, or pipx. Use `uv sync` to install dependencies, `uv run` to execute commands.
-- **Rust:** Use `cargo` (standard toolchain).
+- Follow existing project conventions when a lockfile exists.
+- Otherwise: JS/TS uses `bun`. Python uses `uv`. Rust uses `cargo`.
+- mise manages tool versions. Shims are on PATH via `~/.local/share/mise/shims`.
+- If a tool is missing: `eval "$(mise activate zsh)" && mise install`.
 
 ## Code Quality
-
-**Never assert or cast away type problems — fix the type itself.** If a value is `string | undefined`, don't assert it away with `!` or `as`. If Rust has an `unwrap()` that can panic, handle the error properly. Install the right type packages, define proper interfaces, or restructure code so the type is correct. Type assertions and unsafe casts hide bugs across all languages.
+- Never use type assertions (`!`, `as`, `unwrap()`) to silence type errors. Fix the underlying type.
 
 ## Plans Convention
-
-Plans and specs go in `.claude/plans/`, always in a subfolder:
-- `new/` — plans being drafted, speced, or reviewed
-- `in-progress/` — plans currently being implemented (move here before execution)
-- `implemented/` — completed/implemented plans (move here after completion)
-- `paused/` — abandoned or paused plans (e.g., parked in a branch)
+- Plans and specs go in `.claude/plans/` in subfolders: `new/`, `in-progress/`, `implemented/`, `paused/`.
 
 ## Config Schema Rule
-
-When adding configuration files for any tool, always:
-1. Check if the tool publishes a JSON Schema (check the repo's `schemas/` dir, docs, or schema store).
-2. Add the schema to the repo next to the config files.
-3. Add a pre-commit hook that validates the config against the schema.
-4. Add a `yaml-language-server` directive at the top of YAML files for IDE support.
+- When adding config files: find the JSON Schema, add it to the repo, add a pre-commit validation hook, add `yaml-language-server` directives to YAML files.
 
 ## Self-Update Rule
-
-When a shell command, API call, or build step fails due to a pattern not yet documented in the project's CLAUDE.md, **add the fix to the relevant section before proceeding.** This prevents the same failure from recurring in future sessions.
+- When a command or build step fails due to an undocumented pattern, add the fix to CLAUDE.md before proceeding.
 
 ## GitHub Access
-
-**Always use `gh` CLI to explore GitHub repos.** Never use `raw.githubusercontent.com` URLs or `WebFetch` to read repo contents. Use `gh api`, `gh browse`, `gh repo view`, etc. instead.
+- Always use `gh` CLI. Never use `raw.githubusercontent.com` URLs or `WebFetch` for repo contents.
 
 ## Shell Command Safety
+- Never use quotes or apostrophes inside `#` comments in shell commands.
+- Guard `curl | json` pipelines against empty responses. Use `-f` or check status first.
+- Inspect API response shapes before writing field access code.
 
-- **Never use quotes inside `#` comments in shell commands.** Apostrophes and quoted terms in comments trigger Claude Code's quote-tracking safety prompt. Rephrase to avoid them (e.g., `# Check the ELF entry point` not `# Let's check the ELF entry point`).
-- **Guard `curl | json` pipelines.** `curl` may return empty bodies (redirects, 4xx/5xx, network errors). Either check the HTTP status first, use `-f` (fail on HTTP errors), or guard the downstream parser against empty input.
-- **Check API response shapes before processing.** When calling external APIs and piping to processing, first inspect the raw response structure before writing field access code.
+## Correction Survival
+- When the user corrects your behavior, IMMEDIATELY append the correction as a dated bullet to `.claude/corrections.md` before doing anything else.
+- After every context compaction, re-read `.claude/corrections.md` and treat its contents as mandatory rules.
+- Never delete or overwrite `.claude/corrections.md`. Only append.
