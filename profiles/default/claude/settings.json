@@ -7,7 +7,9 @@
     "BASH_DEFAULT_TIMEOUT_MS": "420000",
     "BASH_MAX_TIMEOUT_MS": "420000",
     "READ_ONCE_MODE": "deny",
-    "READ_ONCE_DIFF": "1"
+    "READ_ONCE_DIFF": "1",
+    "CLAUDE_CODE_ATTRIBUTION_HEADER": "false",
+    "ENABLE_TOOL_SEARCH": "false"
   },
   "permissions": {
     "allow": [
