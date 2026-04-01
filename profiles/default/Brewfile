@@ -57,7 +57,6 @@ brew "python@3.13"
 # Casks (macOS only)
 if OS.mac?
     cask "bruno"            # API client
-    cask "claude-code"
     cask "iterm2"
     cask "lagrange"         # Gemini browser
     cask "orbstack"         # Docker/Linux VMs
