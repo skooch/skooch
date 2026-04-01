@@ -96,6 +96,7 @@
       "Bash(lefthook:*)",
       "Bash(mypy:*)",
       "Bash(ruff:*)",
+      "Bash(eval \"$(mise activate zsh)\":*)",
       "mcp__ide__getDiagnostics"
     ],
     "deny": [
@@ -259,20 +260,29 @@
       }
     ]
   },
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline.sh"
+  },
   "enabledPlugins": {
-    "frontend-design@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": false,
     "context7@claude-plugins-official": false,
-    "superpowers@claude-plugins-official": true,
-    "feature-dev@claude-plugins-official": true,
-    "code-simplifier@claude-plugins-official": true,
-    "ralph-loop@claude-plugins-official": true,
+    "superpowers@claude-plugins-official": false,
+    "feature-dev@claude-plugins-official": false,
+    "code-simplifier@claude-plugins-official": false,
+    "ralph-loop@claude-plugins-official": false,
     "playwright@claude-plugins-official": false,
-    "typescript-lsp@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": false,
+    "commit-commands@claude-plugins-official": false,
+    "security-guidance@claude-plugins-official": false,
     "claude-md-management@claude-plugins-official": true,
+    "claude-code-setup@claude-plugins-official": true,
+    "greptile@claude-plugins-official": false,
     "hookify@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
-    "claude-code-setup@claude-plugins-official": true,
-    "greptile@claude-plugins-official": true,
+    "qodo-skills@claude-plugins-official": false,
+    "swift-lsp@claude-plugins-official": false,
+    "kotlin-lsp@claude-plugins-official": false,
     "rust-analyzer-lsp@claude-plugins-official": true,
     "clangd-lsp@claude-plugins-official": true
   },
@@ -283,10 +293,6 @@
         "repo": "anthropics/claude-code"
       }
     }
-  },
-  "statusLine": {
-    "type": "command",
-    "command": "~/.claude/statusline.sh"
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "low"

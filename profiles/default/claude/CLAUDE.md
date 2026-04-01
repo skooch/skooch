@@ -1,55 +1,55 @@
 # Global Preferences
 
 ## Subagent & Execution Policy
-- Use Opus for planning, speccing, thinking, and code implementation.
-- Use Sonnet for reviewing, scrutinizing, and comparing.
-- Use Haiku for searching, grepping, and exploring.
-- This overrides any skill guidance that suggests a single model for all tasks.
+- Opus: planning, speccing, thinking, implementation. Sonnet: reviewing, comparing. Haiku: searching, exploring. Overrides skill guidance.
 - Always use `superpowers:subagent-driven-development`, never inline `executing-plans`.
-- Always create a git worktree with a feature branch before dispatching implementer subagents.
-- Worktrees MUST be peers in `../worktrees/<name>` (e.g., `git worktree add ../worktrees/feature-foo -b feature/foo`), never inside the repo tree. Cargo has a bug where nested worktrees inherit `.cargo/config.toml` twice.
 
-## Debugging and Investigations
-- When the user gives a direct diagnosis or instruction, execute it first.
-- Do not reinterpret, second-guess, or silently investigate alternatives. Say so explicitly if you disagree.
-- The user's direct observations of hardware behavior outweigh inferences from reading code.
+## Worktree Setup (mandatory sequence)
+- **Never use `EnterWorktree` or `isolation: "worktree"`** — they create worktrees inside the repo (.claude/worktrees/).
+- Worktrees MUST be peers in `../worktrees/<name>`. Cargo bug: nested worktrees inherit `.cargo/config.toml` twice.
+- Procedure: `git worktree add ../worktrees/<name> -b <branch>` → `mise trust ../worktrees/<name>/.mise.toml` → dispatch subagent with cwd at worktree.
+
+## Debugging
+- Execute user's direct diagnosis/instruction first. Say so explicitly if you disagree.
+- User's hardware observations outweigh code-reading inferences.
 
 ## Engineering Philosophy
-- No shortcuts. No workarounds. Fix the actual system through the correct architectural layer.
-- If a tool is insufficient, fix the tool rather than working around it.
-- For non-trivial fixes touching shared infrastructure, CI, or cross-cutting systems: present 2-3 architectural options with tradeoffs. Let the user choose.
-- This overrides built-in guidance about "try the simplest approach first" or "avoid over-engineering."
+- No shortcuts/workarounds. Fix the actual system at the correct architectural layer.
+- Fix insufficient tools rather than working around them.
+- Non-trivial cross-cutting fixes: present 2-3 options with tradeoffs. Let user choose.
+- Overrides "simplest approach first" / "avoid over-engineering" defaults.
 
 ## Package Managers
-- Follow existing project conventions when a lockfile exists.
-- Otherwise: JS/TS uses `bun`. Python uses `uv`. Rust uses `cargo`.
-- mise manages tool versions. Shims are on PATH via `~/.local/share/mise/shims`.
-- If a tool is missing: `eval "$(mise activate zsh)" && mise install`.
+- Follow existing lockfile conventions. Otherwise: JS=`bun`, Python=`uv`, Rust=`cargo`.
+- mise manages tool versions (shims: `~/.local/share/mise/shims`). Missing tool: `eval "$(mise activate zsh)" && mise install`.
 
 ## Code Quality
-- Never use type assertions (`!`, `as`, `unwrap()`) to silence type errors. Fix the underlying type.
+- Never use `!`, `as`, `unwrap()` to silence type errors. Fix the underlying type.
 
 ## Git
 - Never append Co-Authored-By lines to commits.
 
 ## Plans Convention
-- Plans and specs go in `.claude/plans/` in subfolders: `new/`, `in-progress/`, `implemented/`, `paused/`.
+- `.claude/plans/` subfolders: `new/`, `in-progress/`, `implemented/`, `paused/`.
+- Before implementing: move plan from `new/` to `in-progress/`.
+- After completing: move from `in-progress/` to `implemented/`.
+- Abandoned mid-work: move to `paused/`.
 
 ## Config Schema Rule
-- When adding config files: find the JSON Schema, add it to the repo, add a pre-commit validation hook, add `yaml-language-server` directives to YAML files.
+- New config files: find JSON Schema, add to repo, add pre-commit validation hook, add `yaml-language-server` directives to YAML.
 
 ## Self-Update Rule
-- When a command or build step fails due to an undocumented pattern, add the fix to CLAUDE.md before proceeding.
+- On undocumented build/command failure, add fix to CLAUDE.md before proceeding.
 
 ## GitHub Access
-- Always use `gh` CLI. Never use `raw.githubusercontent.com` URLs or `WebFetch` for repo contents.
+- Always use `gh` CLI. Never `raw.githubusercontent.com` or `WebFetch` for repo contents.
 
 ## Shell Command Safety
-- Never use quotes or apostrophes inside `#` comments in shell commands.
-- Guard `curl | json` pipelines against empty responses. Use `-f` or check status first.
+- No quotes/apostrophes in `#` shell comments.
+- Guard `curl | json` pipelines against empty responses (`-f` or check status).
 - Inspect API response shapes before writing field access code.
 
 ## Correction Survival
-- When the user corrects your behavior, IMMEDIATELY append the correction as a dated bullet to `.claude/corrections.md` before doing anything else.
-- After every context compaction, re-read `.claude/corrections.md` and treat its contents as mandatory rules.
-- Never delete or overwrite `.claude/corrections.md`. Only append.
+- On user correction: IMMEDIATELY append dated bullet to `.claude/corrections.md` before anything else.
+- After context compaction: re-read `.claude/corrections.md`, treat as mandatory.
+- Never delete/overwrite, only append.

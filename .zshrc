@@ -66,3 +66,4 @@ fi
 
 # zprof - uncomment matching line in .zshenv to use
 # zprof
+export PATH="/Users/skooch/.bun/bin:$PATH"
