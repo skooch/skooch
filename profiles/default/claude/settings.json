@@ -5,7 +5,9 @@
     "DISABLE_TELEMETRY": "1",
     "DISABLE_ERROR_REPORTING": "1",
     "BASH_DEFAULT_TIMEOUT_MS": "420000",
-    "BASH_MAX_TIMEOUT_MS": "420000"
+    "BASH_MAX_TIMEOUT_MS": "420000",
+    "READ_ONCE_MODE": "deny",
+    "READ_ONCE_DIFF": "1"
   },
   "permissions": {
     "allow": [
@@ -240,6 +242,16 @@
             "type": "command",
             "command": "~/.claude/hooks/bash-command-checker.sh",
             "statusMessage": "Checking bash command..."
+          }
+        ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/read-once/hook.sh",
+            "statusMessage": "Checking read cache..."
           }
         ]
       }

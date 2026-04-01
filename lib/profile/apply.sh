@@ -414,6 +414,16 @@ _profile_apply_claude() {
         echo "  Hooks: ${(j:, :)${(k)hook_map}}"
     fi
 
+    # read-once — symlink hook.sh into ~/.claude/read-once/ (cache dir stays local)
+    for dir in "${hook_sources[@]}"; do
+        if [[ -f "$dir/claude/read-once/hook.sh" ]]; then
+            mkdir -p "$HOME/.claude/read-once"
+            ln -sf "$dir/claude/read-once/hook.sh" "$HOME/.claude/read-once/hook.sh"
+            echo "  read-once: linked"
+            break
+        fi
+    done
+
     # Skills — symlink each skill directory (union across profiles, last wins)
     local -A skill_map=()
     for dir in "${hook_sources[@]}"; do
