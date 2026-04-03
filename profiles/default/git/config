@@ -5,6 +5,17 @@
 	autoSetupRemote = true
 [pull]
 	rebase = true
+[fetch]
+	parallel = 0
+	writeCommitGraph = true
+[submodule]
+	alternateLocation = superproject
+	alternateErrorStrategy = info
+	fetchJobs = 0
+[gc]
+	writeCommitGraph = true
+[maintenance]
+	strategy = incremental
 [rerere]
 	enabled = true
 [filter "lfs"]

@@ -248,6 +248,7 @@ _profile_apply_iterm() {
 _profile_apply_git() {
     local profiles="$1"
     local target="$HOME/.gitconfig"
+    local local_git_include="$HOME/.config/git/cache.inc"
 
     local has_config=false
     [[ -f "$PROFILES_DIR/default/git/config" ]] && has_config=true
@@ -269,6 +270,10 @@ _profile_apply_git() {
             content+="	path = $PROFILES_DIR/$p/git/config"$'\n'
         fi
     done
+    if [[ -f "$local_git_include" ]]; then
+        content+="[include]"$'\n'
+        content+="	path = $local_git_include"$'\n'
+    fi
 
     printf '%s' "$content" > "$target"
 

@@ -24,9 +24,14 @@
    mise install
    ```
 
-5. Add secrets to `~/projects/dotfiles-private/.zshrc.private` (sourced automatically by `.zshrc`)
+5. Enable the local Git cache service:
+   ```sh
+   gitcache setup
+   ```
 
-6. (Optional) Install iTerm2 shell integration:
+6. Add secrets to `~/projects/dotfiles-private/.zshrc.private` (sourced automatically by `.zshrc`)
+
+7. (Optional) Install iTerm2 shell integration:
    ```sh
    curl -L https://iterm2.com/shell_integration/zsh -o ~/.iterm2_shell_integration.zsh
    ```

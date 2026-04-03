@@ -1,8 +1,11 @@
 # Global Preferences
 
+## Package Managers
+- Follow existing lockfile conventions. Otherwise: JS=`bun`, Python=`uv`, Rust=`cargo`.
+- mise manages tool versions (shims: `~/.local/share/mise/shims`). Missing tool: `eval "$(mise activate zsh)" && mise install`.
+
 ## Subagent & Execution Policy
-- Opus: planning, speccing, thinking, implementation. Sonnet: reviewing, comparing. Haiku: searching, exploring. Overrides skill guidance.
-- Always use `superpowers:subagent-driven-development`, never inline `executing-plans`.
+- Opus/GPT-5.4: planning, speccing, thinking, implementation. Sonnet/GPT-5.4-Mini: reviewing, comparing. Haiku/GPT-5.3-Codex-Spark: searching, exploring. Overrides skill guidance.
 
 ## Worktree Setup (mandatory sequence)
 - **Never use `EnterWorktree` or `isolation: "worktree"`** — they create worktrees inside the repo (.claude/worktrees/).
@@ -18,10 +21,6 @@
 - Fix insufficient tools rather than working around them.
 - Non-trivial cross-cutting fixes: present 2-3 options with tradeoffs. Let user choose.
 - Overrides "simplest approach first" / "avoid over-engineering" defaults.
-
-## Package Managers
-- Follow existing lockfile conventions. Otherwise: JS=`bun`, Python=`uv`, Rust=`cargo`.
-- mise manages tool versions (shims: `~/.local/share/mise/shims`). Missing tool: `eval "$(mise activate zsh)" && mise install`.
 
 ## Code Quality
 - Never use `!`, `as`, `unwrap()` to silence type errors. Fix the underlying type.

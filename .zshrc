@@ -7,7 +7,7 @@ for f in "$HOME/.zsh_functions"/*.sh(N); do source "$f"; done
 source "$HOME/projects/skooch/lib/profile/index.sh"
 
 ### Aliases
-alias claude='claude --model opus --append-system-prompt-file ~/.claude/system-prompt.md'
+alias claude='claude --append-system-prompt-file ~/.claude/system-prompt.md'
 alias p="pnpm"
 alias code="code-insiders"
 alias turbo="pnpx turbo"
@@ -18,7 +18,26 @@ alias esp="source ~/esp/esp-idf/export.sh"
 source ~/projects/dotfiles-private/.zshrc.private 2>/dev/null
 
 ### mise
-command -v mise >/dev/null && eval "$(mise activate zsh)"
+if command -v mise >/dev/null; then
+    eval "$(mise activate zsh)"
+    case ":$PATH:" in
+        *:/Applications/Codex.app/Contents/Resources:*|*:/Users/skooch/.codex/tmp/arg0/codex-arg0*:*)
+            eval "$(mise env activate zsh)"
+            local _codex_mise_uv_root
+            _codex_mise_uv_root="$(mise where uv 2>/dev/null)"
+            if [[ -n "$_codex_mise_uv_root" ]]; then
+                local _codex_mise_uv_dir
+                for _codex_mise_uv_dir in "$_codex_mise_uv_root"/uv-*; do
+                    if [[ -x "$_codex_mise_uv_dir/uv" ]]; then
+                        typeset -U path PATH
+                        path=("$_codex_mise_uv_dir" $path)
+                        break
+                    fi
+                done
+            fi
+            ;;
+    esac
+fi
 
 ### direnv
 command -v direnv >/dev/null && eval "$(direnv hook zsh)"
