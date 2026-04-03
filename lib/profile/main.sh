@@ -112,6 +112,9 @@ profile() {
     shift 2>/dev/null
 
     case "$subcmd" in
+        cache)
+            "$DOTFILES_DIR/lib/git-cache/control.sh" "${@:-status}"
+            ;;
         use|s)
             _profile_check_deps || return 1
             # Parse -f/--force flag
@@ -258,6 +261,7 @@ profile() {
             echo "  diff [name] [name2 ...]    (d)   Preview what use would change"
             echo "  sync                       (sy)  Bidirectional sync — detects which direction changed and reconciles"
             echo "  status                     (st)  Show active profiles and drift"
+            echo "  cache                            Manage the local Git cache (on, off, status, clear)"
             echo "  register                         Save machine ID + active profiles to hosts.json"
             echo "  hosts                            Show all host mappings"
             echo ""

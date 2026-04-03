@@ -6,10 +6,12 @@ dotfiles_dir="${DOTFILES_DIR:-$HOME/projects/skooch}"
 install_prefix="${GIT_CACHE_INSTALL_PREFIX:-$HOME/.local/opt/git-cache-http-server}"
 cache_dir="${GIT_CACHE_CACHE_DIR:-$HOME/.cache/git-cache-http-server}"
 port="${GIT_CACHE_PORT:-1234}"
+config_dir="${XDG_CONFIG_HOME:-$HOME/.config}/git-cache"
+disabled_file="${GIT_CACHE_DISABLED_FILE:-$config_dir/disabled}"
 label="com.skooch.git-cache-http-server"
-local_git_include="$HOME/.config/git/cache.inc"
 launch_agent_target="$HOME/Library/LaunchAgents/$label.plist"
 systemd_target="$HOME/.config/systemd/user/git-cache-http-server.service"
+stale_git_include="$HOME/.config/git/cache.inc"
 
 usage() {
     cat <<'EOF'
@@ -29,24 +31,6 @@ require_npm() {
     if ! command -v npm >/dev/null 2>&1; then
         echo "npm is required. Run mise install first." >&2
         exit 1
-    fi
-}
-
-write_local_git_include() {
-    mkdir -p "$(dirname "$local_git_include")"
-    cat > "$local_git_include" <<EOF
-[url "http://127.0.0.1:${port}/github.com/"]
-	insteadOf = https://github.com/
-EOF
-}
-
-refresh_profile_git_config() {
-    if [[ -f "$dotfiles_dir/lib/profile/index.sh" ]]; then
-        source "$dotfiles_dir/lib/profile/index.sh"
-        local active
-        active=$(_profile_active)
-        [[ -z "$active" ]] && active="default"
-        _profile_apply_git "$active" >/dev/null
     fi
 }
 
@@ -90,8 +74,7 @@ stop_systemd_unit() {
 setup_all() {
     install_package
     mkdir -p "$cache_dir"
-    write_local_git_include
-    refresh_profile_git_config
+    rm -f "$stale_git_include"
 
     if [[ "$OSTYPE" == darwin* ]]; then
         install_launch_agent
@@ -109,16 +92,17 @@ show_status() {
     echo "Install prefix: $install_prefix"
     echo "Cache dir: $cache_dir"
     echo "Port: $port"
+    if [[ -f "$disabled_file" ]]; then
+        echo "Cache mode: disabled"
+    else
+        echo "Cache mode: enabled"
+    fi
     if [[ -x "$install_prefix/node_modules/.bin/git-cache-http-server" ]]; then
         echo "Binary: installed"
     else
         echo "Binary: missing"
     fi
-    if [[ -f "$local_git_include" ]]; then
-        echo "Git cache include: $local_git_include"
-    else
-        echo "Git cache include: missing"
-    fi
+    echo "Git rewrite mode: wrapper-only"
 
     if [[ "$OSTYPE" == darwin* ]]; then
         launchctl print "gui/$(id -u)/$label" >/dev/null 2>&1 && echo "Service: loaded" || echo "Service: not loaded"
@@ -150,8 +134,9 @@ disable_all() {
         systemctl --user daemon-reload
     fi
 
-    rm -f "$local_git_include"
-    refresh_profile_git_config
+    rm -f "$stale_git_include"
+    mkdir -p "$config_dir"
+    : > "$disabled_file"
 }
 
 command_name="${1:-setup}"

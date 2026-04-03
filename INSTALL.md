@@ -24,10 +24,13 @@
    mise install
    ```
 
-5. Enable the local Git cache service:
+5. Enable the local Git cache:
    ```sh
-   gitcache setup
+   profile cache on
    ```
+
+   In interactive shells, read-only GitHub commands like `git clone`, `git fetch`, `git pull`, `git ls-remote`, `git submodule update`, and `git remote update` then use the cache automatically. `command git ...` bypasses the wrapper when needed.
+   Use `profile cache status`, `profile cache off`, and `profile cache clear [repo]` to manage it later.
 
 6. Add secrets to `~/projects/dotfiles-private/.zshrc.private` (sourced automatically by `.zshrc`)
 

@@ -54,13 +54,13 @@ local git_content=$(cat "$TEST_HOME/.gitconfig")
 local include_count=$(echo "$git_content" | grep -c '\[include\]')
 assert_eq "1" "$include_count" "default should only have one [include] block"
 
-_TEST_NAME="apply_git includes local cache config when present"
+_TEST_NAME="apply_git ignores local cache config files"
 mkdir -p "$TEST_HOME/.config/git"
 echo "[url \"http://127.0.0.1:1234/github.com/\"]" > "$TEST_HOME/.config/git/cache.inc"
 rm -f "$TEST_HOME/.gitconfig"
 _profile_apply_git "default" > /dev/null 2>&1
 git_content=$(cat "$TEST_HOME/.gitconfig")
-assert_contains "$git_content" ".config/git/cache.inc"
+assert_not_contains "$git_content" ".config/git/cache.inc"
 
 # Restore
 echo '{"extra": true}' > "$PROFILES_DIR/testprofile/claude/settings.json"
