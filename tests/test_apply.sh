@@ -248,23 +248,23 @@ assert_symlink "$TEST_HOME/.codex/agents/explorer.toml" "$PROFILES_DIR/default/c
 _TEST_NAME="apply_codex symlinks unioned codex agent overrides"
 assert_symlink "$TEST_HOME/.codex/agents/worker.toml" "$PROFILES_DIR/testprofile/codex/agents/worker.toml"
 
-_TEST_NAME="apply_codex symlinks shared claude skills into codex"
+_TEST_NAME="apply_codex symlinks codex skill root to claude skills"
 mkdir -p "$PROFILES_DIR/default/claude/skills/layout-check"
 echo "# Layout check" > "$PROFILES_DIR/default/claude/skills/layout-check/SKILL.md"
-rm -rf "$TEST_HOME/.codex/skills/layout-check"
+rm -rf "$TEST_HOME/.codex/skills"
+_profile_apply_claude "default" > /dev/null 2>&1
 _profile_apply_codex "default" > /dev/null 2>&1
-assert_symlink "$TEST_HOME/.codex/skills/layout-check" "$PROFILES_DIR/default/claude/skills/layout-check"
+assert_symlink "$TEST_HOME/.codex/skills" "$TEST_HOME/.claude/skills"
 
-_TEST_NAME="apply_codex skips conflicting real skill directories without nesting"
-mkdir -p "$PROFILES_DIR/default/claude/skills/check-agent-standards"
-echo "# Layout check" > "$PROFILES_DIR/default/claude/skills/check-agent-standards/SKILL.md"
-mkdir -p "$TEST_HOME/.codex/skills/check-agent-standards"
-echo "# Existing skill" > "$TEST_HOME/.codex/skills/check-agent-standards/SKILL.md"
+_TEST_NAME="apply_codex skips conflicting codex skill root directories without nesting"
+rm -f "$TEST_HOME/.codex/skills"
+mkdir -p "$TEST_HOME/.codex/skills"
+echo "# Existing skill" > "$TEST_HOME/.codex/skills/SKILL.md"
 _profile_apply_codex "default" > /dev/null 2>&1
-assert_not_symlink "$TEST_HOME/.codex/skills/check-agent-standards"
-_TEST_NAME="apply_codex does not create nested links inside conflicting skill directories"
-if [[ -e "$TEST_HOME/.codex/skills/check-agent-standards/check-agent-standards" ]]; then
-    fail "nested link should not be created inside conflicting directory"
+assert_not_symlink "$TEST_HOME/.codex/skills"
+_TEST_NAME="apply_codex does not create nested skills link inside conflicting root"
+if [[ -e "$TEST_HOME/.codex/skills/skills" ]]; then
+    fail "nested link should not be created inside conflicting root"
 else
     pass
 fi

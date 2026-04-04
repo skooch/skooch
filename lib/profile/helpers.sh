@@ -323,17 +323,25 @@ _profile_link_union_dir_collection() {
 }
 
 _profile_ensure_derived_symlink() {
-    local label="$1" source_file="$2" target_file="$3" mode="${4:-apply}"
+    local label="$1" source_path="$2" target_path="$3" mode="${4:-apply}"
 
-    [[ ! -e "$source_file" && ! -L "$source_file" ]] && return 0
+    [[ ! -e "$source_path" && ! -L "$source_path" ]] && return 0
 
-    mkdir -p "$(dirname "$target_file")"
-    if [[ "$mode" == "sync" && -L "$target_file" && "$(readlink "$target_file")" == "$source_file" ]]; then
+    mkdir -p "$(dirname "$target_path")"
+    if [[ "$mode" == "sync" && -L "$target_path" && "$(readlink "$target_path")" == "$source_path" ]]; then
         echo "  $label: in sync (symlinked)"
-    else
-        ln -sf "$source_file" "$target_file"
-        echo "  $label: symlinked"
+        return 0
     fi
+
+    if [[ -d "$target_path" && ! -L "$target_path" ]]; then
+        if ! rmdir "$target_path" 2>/dev/null; then
+            echo "  $label: skipped conflicting directory"
+            return 0
+        fi
+    fi
+
+    ln -sfn "$source_path" "$target_path"
+    echo "  $label: symlinked"
 }
 
 # Resolve "last profile wins" source for a claude path.
@@ -584,12 +592,14 @@ _profile_target_paths() {
 
     # Claude skills (union of skill dirs across profiles)
     local dirname="" source_dir=""
+    local has_claude_skills=false
     while IFS=$'\t' read -r dirname source_dir; do
         [[ -n "$dirname" ]] && paths+=("$HOME/.claude/skills/$dirname")
+        [[ -n "$dirname" ]] && has_claude_skills=true
     done < <(_profile_collect_union_dir_sources "$profiles" "claude" "skills")
-    while IFS=$'\t' read -r dirname source_dir; do
-        [[ -n "$dirname" ]] && paths+=("$HOME/.codex/skills/$dirname")
-    done < <(_profile_collect_union_dir_sources "$profiles" "claude" "skills")
+    if [[ "$has_claude_skills" == "true" || -d "$HOME/.claude/skills" || -L "$HOME/.claude/skills" ]]; then
+        paths+=("$HOME/.codex/skills")
+    fi
 
     # Claude commands (union of *.md files across profiles)
     while IFS=$'\t' read -r basename source_file; do

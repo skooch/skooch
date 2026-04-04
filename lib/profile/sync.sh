@@ -672,7 +672,7 @@ _profile_sync_codex() {
 
     _profile_link_union_file_collection "$profiles" "codex" "hooks" "*" "$HOME/.codex" "sync" "Hooks"
     _profile_link_union_file_collection "$profiles" "codex" "agents" "*.toml" "$HOME/.codex" "sync" "Agents"
-    _profile_link_union_dir_collection "$profiles" "claude" "skills" "$HOME/.codex" "sync" "Shared skills"
+    _profile_ensure_derived_symlink "skills" "$HOME/.claude/skills" "$HOME/.codex/skills" "sync"
     _profile_ensure_derived_symlink "AGENTS.md" "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md" "sync"
 }
 

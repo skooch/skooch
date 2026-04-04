@@ -151,6 +151,8 @@ _profile_diff_derived_symlink() {
     echo "=== $header ==="
     if [[ -L "$target_file" ]]; then
         echo "  symlink target differs: $(readlink "$target_file") -> $source_file"
+    elif [[ -e "$target_file" ]]; then
+        echo "  existing path must be replaced with a symlink to $source_file"
     else
         echo "  (new file would be linked)"
     fi
@@ -288,7 +290,7 @@ _profile_diff() {
     if _profile_diff_union_file_collection "$profiles" "codex" "agents" "*.toml" "$HOME/.codex" "codex/agents" "$diff_cmd"; then
         has_diff=true
     fi
-    if _profile_diff_union_dir_collection "$profiles" "claude" "skills" "$HOME/.codex" "codex/skills"; then
+    if _profile_diff_derived_symlink "codex/skills (~/.codex/skills)" "$HOME/.claude/skills" "$HOME/.codex/skills"; then
         has_diff=true
     fi
     if _profile_diff_derived_symlink "codex/AGENTS.md (~/.codex/AGENTS.md)" "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md"; then

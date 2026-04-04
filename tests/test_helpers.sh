@@ -319,7 +319,7 @@ local skill_targets=$(_profile_target_paths "default")
 assert_contains "$skill_targets" ".claude/skills/my-skill"
 
 _TEST_NAME="target_paths includes codex shared skills when skill dirs exist"
-assert_contains "$skill_targets" ".codex/skills/my-skill"
+assert_contains "$skill_targets" ".codex/skills"
 
 _TEST_NAME="target_paths includes claude commands when command files exist"
 mkdir -p "$PROFILES_DIR/default/claude/commands"

@@ -219,12 +219,13 @@ echo "old agent" > "$TEST_HOME/.codex/agents/worker.toml"
 _profile_sync_codex "testprofile" > /dev/null 2>&1
 assert_symlink "$TEST_HOME/.codex/agents/worker.toml" "$PROFILES_DIR/testprofile/codex/agents/worker.toml"
 
-_TEST_NAME="sync_codex links shared claude skills into codex"
-mkdir -p "$PROFILES_DIR/default/claude/skills/layout-check" "$TEST_HOME/.codex/skills"
+_TEST_NAME="sync_codex links codex skill root to claude skills"
+mkdir -p "$PROFILES_DIR/default/claude/skills/layout-check"
 echo "# Layout check" > "$PROFILES_DIR/default/claude/skills/layout-check/SKILL.md"
-rm -rf "$TEST_HOME/.codex/skills/layout-check"
+rm -rf "$TEST_HOME/.codex/skills"
+_profile_sync_claude "default" > /dev/null 2>&1
 _profile_sync_codex "default" > /dev/null 2>&1
-assert_symlink "$TEST_HOME/.codex/skills/layout-check" "$PROFILES_DIR/default/claude/skills/layout-check"
+assert_symlink "$TEST_HOME/.codex/skills" "$TEST_HOME/.claude/skills"
 
 _TEST_NAME="sync_codex restores AGENTS bridge"
 echo "# Instructions" > "$PROFILES_DIR/default/claude/CLAUDE.md"
