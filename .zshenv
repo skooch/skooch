@@ -64,6 +64,10 @@ else
         export PATH="$PATH:$HOME/.local/share/JetBrains/Toolbox/scripts"
 fi
 
+### Shared shell runtime
+[[ -f "$HOME/projects/skooch/lib/shell/runtime.sh" ]] && \
+    source "$HOME/projects/skooch/lib/shell/runtime.sh"
+
 ### rsync (use Homebrew version on macOS — Linux rsync is modern)
 if [[ "$(uname -s)" == "Darwin" ]]; then
     rsync_glob=(${HOMEBREW_PREFIX:-/opt/homebrew}/Cellar/rsync/*/bin/(N))

@@ -8,9 +8,9 @@ See [INSTALL.md](INSTALL.md) for setup instructions and [docs/path_helper.md](do
 
 | File | When sourced | What goes here |
 |------|-------------|----------------|
-| `.zshenv` | Every shell | Env vars only: `EDITOR`, mise flags, build flags, `PNPM_HOME` |
-| `.zprofile` | Login shells | Heavy init: brew, mise, direnv, cargo, OrbStack, PATH additions |
-| `.zshrc` | Interactive shells | Plugins (antidote), completions, functions, aliases, Sonos utils |
+| `.zshenv` | Every shell | Env vars, PATH setup, quiet runtime bootstrap for command wrappers and Codex-safe `mise` activation |
+| `.zprofile` | Login shells | Reserved for login-only hooks; must stay silent for automation |
+| `.zshrc` | Interactive shells | Plugins (antidote), completions, aliases, interactive-only functions, Sonos utils |
 | `.zsh_plugins.txt` | Via antidote | OMZ libs/theme/plugins + third-party zsh plugins |
 
 ## key tools

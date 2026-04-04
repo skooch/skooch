@@ -83,7 +83,7 @@ This is more personal to me, but I've never had an issue with avoiding `zlogin` 
 
 The majority of terminal emulators and IDEs let you configure your shell, so I always ensure to remove any login/profile flags to get the behaviour I want and skip the extra time of loading another file.
 
-To this end I also add a warning into `.zprofile` to let me know if it's being loaded.
+In practice, automation tools do sometimes force `zsh -lc`, so `.zprofile` should be treated as a quiet compatibility layer. Keep shared runtime logic in `.zshenv`, keep interactive UI in `.zshrc`, and avoid printing anything from `.zprofile`.
 
 ## References
 

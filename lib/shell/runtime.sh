@@ -1,0 +1,89 @@
+# Shared shell runtime for login and non-interactive shells.
+#
+# Keep this file quiet: it is sourced from `.zshenv`, so any output here will
+# leak into command results for tools like Codex that use `zsh -lc`.
+
+if [[ -n "${_SKOOCH_SHELL_RUNTIME_LOADED:-}" ]]; then
+    return 0
+fi
+typeset -g _SKOOCH_SHELL_RUNTIME_LOADED=1
+
+_skooch_source_command_wrappers() {
+    local wrapper
+    for wrapper in \
+        "$HOME/.zsh_functions"/git-cache.sh(N) \
+        "$HOME/.zsh_functions"/git.sh(N)
+    do
+        source "$wrapper"
+    done
+}
+
+_skooch_in_codex_shell() {
+    case ":$PATH:" in
+        *:/Applications/Codex.app/Contents/Resources:*|*:/Users/skooch/.codex/tmp/arg0/codex-arg0:*)
+            return 0
+            ;;
+    esac
+    return 1
+}
+
+_skooch_activate_mise() {
+    local path_changed=false
+
+    local mise_shims="$HOME/.local/share/mise/shims"
+    if [[ -d "$mise_shims" ]]; then
+        typeset -gU path PATH
+        path=("$mise_shims" $path)
+        path_changed=true
+    fi
+
+    if ! command -v mise >/dev/null 2>&1; then
+        [[ "$path_changed" == true ]] && rehash
+        return 0
+    fi
+    if ! _skooch_in_codex_shell; then
+        [[ "$path_changed" == true ]] && rehash
+        return 0
+    fi
+
+    local mise_env=""
+    mise_env="$(mise env activate zsh 2>/dev/null)" || return 0
+    [[ -n "$mise_env" ]] && eval "$mise_env"
+
+    local uv_root=""
+    uv_root="$(mise where uv 2>/dev/null)"
+    [[ -n "$uv_root" ]] || return 0
+
+    local uv_dir
+    for uv_dir in "$uv_root"/uv-*(N); do
+        if [[ -x "$uv_dir/uv" ]]; then
+            typeset -gU path PATH
+            path=("$uv_dir" $path)
+            path_changed=true
+            break
+        fi
+    done
+
+    [[ "$path_changed" == true ]] && rehash
+}
+
+_skooch_capture_python3() {
+    [[ -n "${SKOOCH_PYTHON3_BIN:-}" && -x "${SKOOCH_PYTHON3_BIN}" ]] && return 0
+
+    local python_cmd=""
+    python_cmd="$(command -v python3 2>/dev/null)" || return 0
+
+    local real_python=""
+    real_python="$("$python_cmd" -c 'import sys; print(sys.executable)' 2>/dev/null)" || return 0
+    [[ -x "$real_python" ]] || return 0
+
+    export SKOOCH_PYTHON3_BIN="$real_python"
+}
+
+_skooch_init_shell_runtime() {
+    _skooch_source_command_wrappers
+    _skooch_activate_mise
+    _skooch_capture_python3
+}
+
+_skooch_init_shell_runtime

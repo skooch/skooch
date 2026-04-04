@@ -12,6 +12,7 @@
 - Worktrees MUST be peers in `../worktrees/<name>`. Cargo bug: nested worktrees inherit `.cargo/config.toml` twice.
 - Procedure: `git worktree add ../worktrees/<name> -b <branch>` → dispatch subagent with cwd at worktree.
 - The dotfiles git wrapper auto-handles: submodule bootstrap (via `--reference`), cargo target isolation (`.cargo/.worktree-target`), and safe removal (submodule deinit before remove).
+- Codex agent shells use `zsh -lc`, so command wrappers and Codex-safe `mise` bootstrap must live in `.zshenv`, not only `.zshrc`.
 - mise trust is automatic for `~/projects` paths (global `trusted_config_paths`). No manual trust step needed.
 
 ## Debugging
@@ -42,6 +43,7 @@
 ## Self-Update Rule
 - On undocumented build/command failure, add fix to CLAUDE.md before proceeding.
 - If a `~/.codex/hooks/*.py` hook fails with `permission denied`, invoke it via `python3 <hook> ...` because the symlink target may be missing the executable bit.
+- If a workflow overrides `HOME`, do not rely on `mise` shims continuing to work. Capture a real interpreter path first, then use that absolute binary after `HOME` changes.
 
 ## GitHub Access
 - Always use `gh` CLI. Never `raw.githubusercontent.com` or `WebFetch` for repo contents.

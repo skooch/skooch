@@ -1,6 +1,8 @@
 # .zshrc - interactive shell config
 
-### Functions
+### Interactive functions
+# Git wrappers and `mise` bootstrap are loaded earlier from `.zshenv` so
+# login and non-interactive shells behave the same way as interactive ones.
 for f in "$HOME/.zsh_functions"/*.sh(N); do source "$f"; done
 
 ### Profile system
@@ -16,28 +18,6 @@ alias esp="source ~/esp/esp-idf/export.sh"
 
 ### Source private dotfiles (secrets, machine-specific config)
 source ~/projects/dotfiles-private/.zshrc.private 2>/dev/null
-
-### mise
-if command -v mise >/dev/null; then
-    eval "$(mise activate zsh)"
-    case ":$PATH:" in
-        *:/Applications/Codex.app/Contents/Resources:*|*:/Users/skooch/.codex/tmp/arg0/codex-arg0*:*)
-            eval "$(mise env activate zsh)"
-            local _codex_mise_uv_root
-            _codex_mise_uv_root="$(mise where uv 2>/dev/null)"
-            if [[ -n "$_codex_mise_uv_root" ]]; then
-                local _codex_mise_uv_dir
-                for _codex_mise_uv_dir in "$_codex_mise_uv_root"/uv-*; do
-                    if [[ -x "$_codex_mise_uv_dir/uv" ]]; then
-                        typeset -U path PATH
-                        path=("$_codex_mise_uv_dir" $path)
-                        break
-                    fi
-                done
-            fi
-            ;;
-    esac
-fi
 
 ### direnv
 command -v direnv >/dev/null && eval "$(direnv hook zsh)"

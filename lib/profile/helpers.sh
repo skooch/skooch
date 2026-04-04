@@ -90,12 +90,13 @@ _profile_merge_toml_files() {
     local output_file="$1"
     shift
     local -a source_files=("$@")
+    local python_bin="${SKOOCH_PYTHON3_BIN:-python3}"
 
     [[ ${#source_files[@]} -eq 0 ]] && return 1
     if [[ ${#source_files[@]} -eq 1 ]]; then
         cp "${source_files[1]}" "$output_file"
     else
-        python3 "$_PROFILE_LIB_DIR/toml_merge.py" "$output_file" "${source_files[@]}"
+        "$python_bin" "$_PROFILE_LIB_DIR/toml_merge.py" "$output_file" "${source_files[@]}"
     fi
 }
 
