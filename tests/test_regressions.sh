@@ -124,6 +124,9 @@ local -a expected_patterns=(
     "git/config"
     "mise/config.toml"
     "claude/settings.json"
+    "claude/statusline.sh"
+    "claude/sync-plugins.sh"
+    "claude/read-once/hook.sh"
 )
 local all_found=true
 for pattern in "${expected_patterns[@]}"; do

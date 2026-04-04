@@ -145,6 +145,23 @@ printf '%s\t%s\n' "$TEST_HOME/.tmux.conf" "$(_platform_md5 "$TEST_HOME/.tmux.con
 _profile_sync_tmux "default" > /dev/null 2>&1
 assert_eq "0" "$?"
 
+# --- _profile_sync_claude ---
+
+_TEST_NAME="sync_claude symlinks statusline.sh and read-once hook"
+echo '#!/bin/bash' > "$PROFILES_DIR/default/claude/statusline.sh"
+mkdir -p "$PROFILES_DIR/default/claude/read-once"
+echo '#!/bin/bash' > "$PROFILES_DIR/default/claude/read-once/hook.sh"
+echo "old statusline" > "$TEST_HOME/.claude/statusline.sh"
+mkdir -p "$TEST_HOME/.claude/read-once"
+echo "old hook" > "$TEST_HOME/.claude/read-once/hook.sh"
+_profile_sync_claude "default" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.claude/statusline.sh" "$PROFILES_DIR/default/claude/statusline.sh"
+
+_TEST_NAME="sync_claude symlinks nested read-once hook"
+assert_symlink "$TEST_HOME/.claude/read-once/hook.sh" "$PROFILES_DIR/default/claude/read-once/hook.sh"
+rm -f "$PROFILES_DIR/default/claude/statusline.sh"
+rm -rf "$PROFILES_DIR/default/claude/read-once"
+
 # --- Regression: prompts must work inside while-read loops (stdin redirected) ---
 
 _TEST_NAME="sync_config conflict prompt works inside while-read loop"

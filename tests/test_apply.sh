@@ -115,6 +115,40 @@ _profile_apply_claude "testprofile" > /dev/null 2>&1
 assert_symlink "$TEST_HOME/.claude/system-prompt.md" "$PROFILES_DIR/testprofile/claude/system-prompt.md"
 rm -f "$PROFILES_DIR/testprofile/claude/system-prompt.md"
 
+# --- _profile_apply_claude: statusline.sh symlink ---
+
+_TEST_NAME="apply_claude symlinks statusline.sh"
+echo '#!/bin/bash' > "$PROFILES_DIR/default/claude/statusline.sh"
+rm -f "$TEST_HOME/.claude/statusline.sh"
+_profile_apply_claude "default" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.claude/statusline.sh" "$PROFILES_DIR/default/claude/statusline.sh"
+
+_TEST_NAME="apply_claude statusline.sh last profile wins"
+mkdir -p "$PROFILES_DIR/testprofile/claude"
+echo '{"extra": true}' > "$PROFILES_DIR/testprofile/claude/settings.json"
+echo '#!/bin/bash' > "$PROFILES_DIR/testprofile/claude/statusline.sh"
+rm -f "$TEST_HOME/.claude/statusline.sh"
+_profile_apply_claude "testprofile" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.claude/statusline.sh" "$PROFILES_DIR/testprofile/claude/statusline.sh"
+rm -f "$PROFILES_DIR/testprofile/claude/statusline.sh"
+
+# --- _profile_apply_claude: sync-plugins.sh symlink ---
+
+_TEST_NAME="apply_claude symlinks sync-plugins.sh"
+echo '#!/bin/bash' > "$PROFILES_DIR/default/claude/sync-plugins.sh"
+rm -f "$TEST_HOME/.claude/sync-plugins.sh"
+_profile_apply_claude "default" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.claude/sync-plugins.sh" "$PROFILES_DIR/default/claude/sync-plugins.sh"
+
+# --- _profile_apply_claude: read-once/hook.sh symlink ---
+
+_TEST_NAME="apply_claude symlinks read-once hook"
+mkdir -p "$PROFILES_DIR/default/claude/read-once"
+echo '#!/bin/bash' > "$PROFILES_DIR/default/claude/read-once/hook.sh"
+rm -f "$TEST_HOME/.claude/read-once/hook.sh"
+_profile_apply_claude "default" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.claude/read-once/hook.sh" "$PROFILES_DIR/default/claude/read-once/hook.sh"
+
 # --- _profile_apply_claude: hooks ---
 
 _TEST_NAME="apply_claude symlinks hook scripts"
@@ -147,10 +181,21 @@ else
     fail "'$TEST_HOME/.claude/skills/my-skill' is not a symlink"
 fi
 
+# --- _profile_apply_claude: commands ---
+
+_TEST_NAME="apply_claude symlinks command markdown files"
+mkdir -p "$PROFILES_DIR/default/claude/commands"
+echo "# Command" > "$PROFILES_DIR/default/claude/commands/test-command.md"
+rm -f "$TEST_HOME/.claude/commands/test-command.md"
+_profile_apply_claude "default" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.claude/commands/test-command.md" "$PROFILES_DIR/default/claude/commands/test-command.md"
+
 # Clean up test fixtures
 rm -rf "$PROFILES_DIR/default/claude/hooks" "$PROFILES_DIR/default/claude/skills"
+rm -rf "$PROFILES_DIR/default/claude/read-once" "$PROFILES_DIR/default/claude/commands"
 rm -rf "$PROFILES_DIR/testprofile/claude/hooks"
 rm -f "$PROFILES_DIR/default/claude/CLAUDE.md" "$PROFILES_DIR/default/claude/system-prompt.md"
+rm -f "$PROFILES_DIR/default/claude/statusline.sh" "$PROFILES_DIR/default/claude/sync-plugins.sh"
 
 # --- _profile_apply_tmux ---
 

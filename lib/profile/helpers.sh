@@ -1,37 +1,44 @@
 # Profile system - detection helpers, readers, and utilities
 
 # --- Claude "last profile wins" file list ---
-# Single files under profiles/*/claude/ that use "last profile wins" symlink strategy.
-# To add a new file: add an entry here. Apply, sync, target_paths, and snapshots
+# Relative paths under profiles/*/claude/ that use "last profile wins" symlink strategy.
+# To add a new file: add an entry here. Apply, sync, diff, target_paths, and snapshots
 # all derive from this list automatically.
-_CLAUDE_LAST_WINS_FILES=(CLAUDE.md system-prompt.md)
+_CLAUDE_LAST_WINS_PATHS=(
+    CLAUDE.md
+    system-prompt.md
+    statusline.sh
+    sync-plugins.sh
+    read-once/hook.sh
+)
 
-# Resolve "last profile wins" source for a claude file.
+# Resolve "last profile wins" source for a claude path.
 # Prints the winning source path, or nothing if no profile has the file.
 _profile_claude_resolve_source() {
-    local profiles="$1" filename="$2"
+    local profiles="$1" relative_path="$2"
     local source=""
-    [[ -f "$PROFILES_DIR/default/claude/$filename" ]] && source="$PROFILES_DIR/default/claude/$filename"
+    [[ -f "$PROFILES_DIR/default/claude/$relative_path" ]] && source="$PROFILES_DIR/default/claude/$relative_path"
     for p in ${=profiles}; do
         [[ "$p" == "default" ]] && continue
-        [[ -f "$PROFILES_DIR/$p/claude/$filename" ]] && source="$PROFILES_DIR/$p/claude/$filename"
+        [[ -f "$PROFILES_DIR/$p/claude/$relative_path" ]] && source="$PROFILES_DIR/$p/claude/$relative_path"
     done
     [[ -n "$source" ]] && echo "$source"
 }
 
-# Symlink all "last profile wins" claude files.
+# Symlink all "last profile wins" claude paths.
 # In sync mode, skips files already correctly symlinked and reports status.
 _profile_claude_link_files() {
     local profiles="$1" mode="${2:-apply}"
-    for filename in "${_CLAUDE_LAST_WINS_FILES[@]}"; do
-        local source=$(_profile_claude_resolve_source "$profiles" "$filename")
+    for relative_path in "${_CLAUDE_LAST_WINS_PATHS[@]}"; do
+        local source=$(_profile_claude_resolve_source "$profiles" "$relative_path")
         [[ -z "$source" ]] && continue
-        local target="$HOME/.claude/$filename"
+        local target="$HOME/.claude/$relative_path"
+        mkdir -p "$(dirname "$target")"
         if [[ "$mode" == "sync" && -L "$target" && "$(readlink "$target")" == "$source" ]]; then
-            echo "  $filename: in sync (symlinked)"
+            echo "  $relative_path: in sync (symlinked)"
         else
             ln -sf "$source" "$target"
-            echo "  $filename: symlinked"
+            echo "  $relative_path: symlinked"
         fi
     done
 }
@@ -163,9 +170,9 @@ _profile_snapshot_files() {
              "$dir/tmux/tmux.conf"; do
         echo "$f"
     done
-    # Claude "last profile wins" files
-    for filename in "${_CLAUDE_LAST_WINS_FILES[@]}"; do
-        echo "$dir/claude/$filename"
+    # Claude "last profile wins" paths
+    for relative_path in "${_CLAUDE_LAST_WINS_PATHS[@]}"; do
+        echo "$dir/claude/$relative_path"
     done
     # Claude hooks (*.sh scripts only)
     for f in "$dir"/claude/hooks/*.sh(N); do
@@ -238,10 +245,10 @@ _profile_target_paths() {
     done
     [[ "$has_claude" == "true" ]] && paths+=("$HOME/.claude/settings.json")
 
-    # Claude "last profile wins" files (CLAUDE.md, system-prompt.md, etc.)
-    for filename in "${_CLAUDE_LAST_WINS_FILES[@]}"; do
-        local source=$(_profile_claude_resolve_source "$profiles" "$filename")
-        [[ -n "$source" ]] && paths+=("$HOME/.claude/$filename")
+    # Claude "last profile wins" paths (CLAUDE.md, system-prompt.md, statusline.sh, etc.)
+    for relative_path in "${_CLAUDE_LAST_WINS_PATHS[@]}"; do
+        local source=$(_profile_claude_resolve_source "$profiles" "$relative_path")
+        [[ -n "$source" ]] && paths+=("$HOME/.claude/$relative_path")
     done
 
     # Claude hooks (union of *.sh scripts across profiles)
@@ -264,6 +271,17 @@ _profile_target_paths() {
     done
     for skill in ${(u)claude_skill_names}; do
         paths+=("$HOME/.claude/skills/$skill")
+    done
+
+    # Claude commands (union of *.md files across profiles)
+    local -a claude_command_names=()
+    for dir in "$PROFILES_DIR/default" ${${(s: :)profiles}/#/$PROFILES_DIR/}; do
+        for f in "$dir"/claude/commands/*.md(N); do
+            claude_command_names+=("${f:t}")
+        done
+    done
+    for cmd in ${(u)claude_command_names}; do
+        paths+=("$HOME/.claude/commands/$cmd")
     done
 
     # Tmux

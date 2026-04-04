@@ -55,6 +55,15 @@ assert_contains "$snap_files" "claude/CLAUDE.md"
 _TEST_NAME="snapshot_files includes claude/system-prompt.md"
 assert_contains "$snap_files" "claude/system-prompt.md"
 
+_TEST_NAME="snapshot_files includes claude/statusline.sh"
+assert_contains "$snap_files" "claude/statusline.sh"
+
+_TEST_NAME="snapshot_files includes claude/sync-plugins.sh"
+assert_contains "$snap_files" "claude/sync-plugins.sh"
+
+_TEST_NAME="snapshot_files includes claude/read-once/hook.sh"
+assert_contains "$snap_files" "claude/read-once/hook.sh"
+
 _TEST_NAME="snapshot_files includes claude hook scripts"
 mkdir -p "$PROFILES_DIR/default/claude/hooks"
 echo '#!/bin/bash' > "$PROFILES_DIR/default/claude/hooks/test-hook.sh"
@@ -185,6 +194,22 @@ echo "# test" > "$PROFILES_DIR/default/claude/system-prompt.md"
 local sp_targets=$(_profile_target_paths "default")
 assert_contains "$sp_targets" ".claude/system-prompt.md"
 
+_TEST_NAME="target_paths includes statusline.sh when claude/statusline.sh exists"
+echo '#!/bin/bash' > "$PROFILES_DIR/default/claude/statusline.sh"
+local statusline_targets=$(_profile_target_paths "default")
+assert_contains "$statusline_targets" ".claude/statusline.sh"
+
+_TEST_NAME="target_paths includes sync-plugins.sh when claude/sync-plugins.sh exists"
+echo '#!/bin/bash' > "$PROFILES_DIR/default/claude/sync-plugins.sh"
+local sync_plugin_targets=$(_profile_target_paths "default")
+assert_contains "$sync_plugin_targets" ".claude/sync-plugins.sh"
+
+_TEST_NAME="target_paths includes read-once hook when claude/read-once/hook.sh exists"
+mkdir -p "$PROFILES_DIR/default/claude/read-once"
+echo '#!/bin/bash' > "$PROFILES_DIR/default/claude/read-once/hook.sh"
+local read_once_targets=$(_profile_target_paths "default")
+assert_contains "$read_once_targets" ".claude/read-once/hook.sh"
+
 _TEST_NAME="target_paths includes claude hooks when hook scripts exist"
 mkdir -p "$PROFILES_DIR/default/claude/hooks"
 echo '#!/bin/bash' > "$PROFILES_DIR/default/claude/hooks/my-hook.sh"
@@ -196,8 +221,17 @@ mkdir -p "$PROFILES_DIR/default/claude/skills/my-skill"
 echo "# skill" > "$PROFILES_DIR/default/claude/skills/my-skill/SKILL.md"
 local skill_targets=$(_profile_target_paths "default")
 assert_contains "$skill_targets" ".claude/skills/my-skill"
+
+_TEST_NAME="target_paths includes claude commands when command files exist"
+mkdir -p "$PROFILES_DIR/default/claude/commands"
+echo "# command" > "$PROFILES_DIR/default/claude/commands/test-command.md"
+local command_targets=$(_profile_target_paths "default")
+assert_contains "$command_targets" ".claude/commands/test-command.md"
+
 rm -rf "$PROFILES_DIR/default/claude/hooks" "$PROFILES_DIR/default/claude/skills"
+rm -rf "$PROFILES_DIR/default/claude/read-once" "$PROFILES_DIR/default/claude/commands"
 rm -f "$PROFILES_DIR/default/claude/CLAUDE.md" "$PROFILES_DIR/default/claude/system-prompt.md"
+rm -f "$PROFILES_DIR/default/claude/statusline.sh" "$PROFILES_DIR/default/claude/sync-plugins.sh"
 
 _TEST_NAME="target_paths includes tmux.conf when tmux/tmux.conf exists"
 mkdir -p "$PROFILES_DIR/default/tmux"

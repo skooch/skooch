@@ -131,25 +131,25 @@ _profile_diff() {
         rm -f "$tmpfile"
     fi
 
-    # Claude "last profile wins" files (CLAUDE.md, system-prompt.md, etc.)
-    for filename in "${_CLAUDE_LAST_WINS_FILES[@]}"; do
-        local source=$(_profile_claude_resolve_source "$profiles" "$filename")
+    # Claude "last profile wins" paths (CLAUDE.md, system-prompt.md, statusline.sh, etc.)
+    for relative_path in "${_CLAUDE_LAST_WINS_PATHS[@]}"; do
+        local source=$(_profile_claude_resolve_source "$profiles" "$relative_path")
         [[ -z "$source" ]] && continue
-        local ftarget="$HOME/.claude/$filename"
+        local ftarget="$HOME/.claude/$relative_path"
         if [[ -f "$ftarget" ]]; then
             local real_path="$ftarget"
             [[ -L "$ftarget" ]] && real_path=$(readlink "$ftarget")
             if [[ "$real_path" != "$source" ]]; then
                 result=$($diff_cmd "$ftarget" "$source" 2>/dev/null)
                 if [[ -n "$result" ]]; then
-                    echo "=== claude/$filename (~/.claude/$filename) ==="
+                    echo "=== claude/$relative_path (~/.claude/$relative_path) ==="
                     echo "$result"
                     echo ""
                     has_diff=true
                 fi
             fi
         else
-            echo "=== claude/$filename (~/.claude/$filename) ==="
+            echo "=== claude/$relative_path (~/.claude/$relative_path) ==="
             echo "  (new file would be created)"
             echo ""
             has_diff=true
@@ -211,6 +211,35 @@ _profile_diff() {
         else
             echo "=== claude/skills/$skill ==="
             echo "  (new skill would be linked)"
+            echo ""
+            has_diff=true
+        fi
+    done
+
+    # Claude commands
+    local -A diff_cmd_map=()
+    for dir in "${diff_hook_sources[@]}"; do
+        for f in "$dir"/claude/commands/*.md(N); do
+            diff_cmd_map[${f:t}]="$f"
+        done
+    done
+    for cmd source in ${(kv)diff_cmd_map}; do
+        local ctarget="$HOME/.claude/commands/$cmd"
+        if [[ -f "$ctarget" ]]; then
+            local real_cmd="$ctarget"
+            [[ -L "$ctarget" ]] && real_cmd=$(readlink "$ctarget")
+            if [[ "$real_cmd" != "$source" ]]; then
+                result=$($diff_cmd "$ctarget" "$source" 2>/dev/null)
+                if [[ -n "$result" ]]; then
+                    echo "=== claude/commands/$cmd ==="
+                    echo "$result"
+                    echo ""
+                    has_diff=true
+                fi
+            fi
+        else
+            echo "=== claude/commands/$cmd ==="
+            echo "  (new command would be linked)"
             echo ""
             has_diff=true
         fi
