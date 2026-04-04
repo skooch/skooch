@@ -22,6 +22,7 @@ PROFILE_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles"
 PROFILE_ACTIVE_FILE="$PROFILE_STATE_DIR/active"
 PROFILE_SNAPSHOT_FILE="$PROFILE_STATE_DIR/snapshot"
 PROFILE_MANAGED_FILE="$PROFILE_STATE_DIR/managed"
+PROFILE_SYNC_SKIPS_FILE="$PROFILE_STATE_DIR/sync_skips"
 
 # --- Migration from old paths ---
 if [[ -f "$HOME/.profile_active" && ! -f "$PROFILE_ACTIVE_FILE" ]]; then

@@ -211,7 +211,7 @@ _profile_sync_brew() {
     if [[ -n "$to_add" ]]; then
         for pkg in ${(f)to_add}; do
             [[ -z "$pkg" ]] && continue
-            local action=$(_profile_prompt_item "$pkg" "not_in_profile")
+            local action=$(_profile_prompt_item "brew" "$pkg" "not_in_profile")
             case "$action" in
                 add)       items_to_add+=("$pkg"); had_action=true ;;
                 uninstall) items_to_uninstall+=("$pkg"); had_action=true ;;
@@ -330,7 +330,7 @@ _profile_sync_vscode() {
                 if [[ -n "$to_add" ]]; then
                     for ext in ${(f)to_add}; do
                         [[ -z "$ext" ]] && continue
-                        local action=$(_profile_prompt_item "$ext" "not_in_profile")
+                        local action=$(_profile_prompt_item "vscode" "$ext" "not_in_profile")
                         case "$action" in
                             add)       exts_to_add+=("$ext"); had_action=true ;;
                             uninstall) exts_to_uninstall+=("$ext"); had_action=true ;;
@@ -477,7 +477,7 @@ _profile_sync_mise() {
         if [[ -n "$to_add" ]]; then
             for tool in ${(f)to_add}; do
                 [[ -z "$tool" ]] && continue
-                local action=$(_profile_prompt_item "$tool" "not_in_profile")
+                local action=$(_profile_prompt_item "mise" "$tool" "not_in_profile")
                 case "$action" in
                     add)       tools_to_add+=("$tool"); had_action=true ;;
                     uninstall) tools_to_uninstall+=("$tool"); had_action=true ;;

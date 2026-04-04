@@ -791,8 +791,58 @@ _profile_detect_vscode_conflicts() {
 
 # --- Per-item sync prompt ---
 
+_profile_sync_skip_key() {
+    local scope="$1" item="$2"
+    printf '%s\t%s\n' "$scope" "$item"
+}
+
+_profile_sync_skip_contains() {
+    local scope="$1" item="$2"
+    [[ -f "$PROFILE_SYNC_SKIPS_FILE" ]] || return 1
+
+    local key=$(_profile_sync_skip_key "$scope" "$item")
+    local line=""
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ "$line" == "$key" ]] && return 0
+    done < "$PROFILE_SYNC_SKIPS_FILE"
+    return 1
+}
+
+_profile_sync_skip_remember() {
+    local scope="$1" item="$2"
+    _profile_sync_skip_contains "$scope" "$item" && return 0
+
+    mkdir -p "$PROFILE_STATE_DIR"
+    _profile_sync_skip_key "$scope" "$item" >> "$PROFILE_SYNC_SKIPS_FILE"
+}
+
+_profile_sync_skip_forget() {
+    local scope="$1" item="$2"
+    [[ -f "$PROFILE_SYNC_SKIPS_FILE" ]] || return 0
+
+    local key=$(_profile_sync_skip_key "$scope" "$item")
+    local tmpfile
+    tmpfile=$(mktemp)
+
+    local line=""
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        [[ "$line" == "$key" ]] && continue
+        echo "$line"
+    done < "$PROFILE_SYNC_SKIPS_FILE" > "$tmpfile"
+
+    mv "$tmpfile" "$PROFILE_SYNC_SKIPS_FILE"
+}
+
 _profile_prompt_item() {
-    local label="$1" direction="$2"
+    local scope="" label="" direction=""
+    if [[ $# -ge 3 ]]; then
+        scope="$1"
+        label="$2"
+        direction="$3"
+    else
+        label="$1"
+        direction="$2"
+    fi
 
     if [[ "$direction" == "not_installed" ]]; then
         echo "  $label — not installed" >&2
@@ -808,15 +858,31 @@ _profile_prompt_item() {
             esac
         done
     elif [[ "$direction" == "not_in_profile" ]]; then
+        if [[ -n "$scope" ]] && _profile_sync_skip_contains "$scope" "$label"; then
+            echo "skip"
+            return
+        fi
         echo "  $label — not in profile" >&2
         while true; do
             printf "    [A]dd to profile / [U]ninstall / [S]kip? [A] " >&2
             local answer
             read -r answer
             case "${answer:-A}" in
-                [aA]) echo "add"; return ;;
-                [uU]) echo "uninstall"; return ;;
-                [sS]) echo "skip"; return ;;
+                [aA])
+                    [[ -n "$scope" ]] && _profile_sync_skip_forget "$scope" "$label"
+                    echo "add"
+                    return
+                    ;;
+                [uU])
+                    [[ -n "$scope" ]] && _profile_sync_skip_forget "$scope" "$label"
+                    echo "uninstall"
+                    return
+                    ;;
+                [sS])
+                    [[ -n "$scope" ]] && _profile_sync_skip_remember "$scope" "$label"
+                    echo "skip"
+                    return
+                    ;;
                 *)    echo "    Invalid input, try again." >&2 ;;
             esac
         done

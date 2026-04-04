@@ -38,6 +38,15 @@ printf 'brew "git"\nbrew "jq"\nbrew "wget"\n' > "$brewfile"
 local output=$(printf 's\ns\n' | _profile_sync_brew "default" 2>&1)
 assert_contains "$output" "No changes"
 
+_TEST_NAME="sync_brew per-item: remembered local skip suppresses later add prompt"
+printf 'brew "git"\nbrew "jq"\n' > "$brewfile"
+local output=$(printf 's\n' | _profile_sync_brew "default" 2>&1)
+local output=$(_profile_sync_brew "default" </dev/null 2>&1)
+local content=$(cat "$brewfile")
+assert_not_contains "$content" "iterm2"
+assert_contains "$output" "No changes"
+_profile_sync_skip_forget "brew" "cask:iterm2"
+
 _TEST_NAME="sync_brew per-item: in sync prints message"
 local brewfile="$PROFILES_DIR/default/Brewfile"
 printf 'brew "git"\nbrew "jq"\ncask "iterm2"\n' > "$brewfile"
@@ -92,6 +101,16 @@ local content=$(cat "$extfile")
 assert_contains "$content" "ext.two"
 assert_contains "$output" "No changes"
 
+_TEST_NAME="sync_vscode per-item: remembered local skip suppresses later add prompt"
+printf 'ext.one\n' > "$extfile"
+printf 'ext.one\next.extra\n' > "$MOCK_EXTENSIONS_FILE"
+local output=$(printf 's\n' | _profile_sync_vscode "default" 2>&1)
+local output=$(_profile_sync_vscode "default" </dev/null 2>&1)
+local content=$(cat "$extfile")
+assert_not_contains "$content" "ext.extra"
+assert_contains "$output" "No changes"
+_profile_sync_skip_forget "vscode" "ext.extra"
+
 _TEST_NAME="sync_vscode per-item: in sync prints message"
 printf 'ext.one\next.three\n' > "$extfile"
 printf 'ext.one\next.three\n' > "$MOCK_EXTENSIONS_FILE"
@@ -125,5 +144,14 @@ local content=$(cat "$misefile")
 assert_not_contains "$content" "go"
 assert_contains "$content" "node"
 assert_contains "$content" "[settings]"
+
+_TEST_NAME="sync_mise per-item: remembered local skip suppresses later add prompt"
+printf '[tools]\nnode = "lts"\n\n[settings]\nnot_found_auto_install = true\n' > "$misefile"
+local output=$(printf 's\n' | _profile_sync_mise "default" 2>&1)
+local output=$(_profile_sync_mise "default" </dev/null 2>&1)
+local content=$(cat "$misefile")
+assert_not_contains "$content" "ruby"
+assert_contains "$content" "node"
+_profile_sync_skip_forget "mise" "ruby"
 
 _test_summary
