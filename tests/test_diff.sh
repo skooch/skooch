@@ -26,6 +26,10 @@ mkdir -p "$PROFILES_DIR/default/claude/skills/my-skill"
 echo "# skill" > "$PROFILES_DIR/default/claude/skills/my-skill/SKILL.md"
 local skills_diff=$(_profile_diff_union_dir_collection "default" "claude" "skills" "$TEST_HOME/.claude" "claude/skills" 2>&1)
 assert_contains "$skills_diff" "claude/skills/my-skill"
+
+_TEST_NAME="diff_union_dir_collection reports missing codex shared skill link"
+local codex_skills_diff=$(_profile_diff_union_dir_collection "default" "claude" "skills" "$TEST_HOME/.codex" "codex/skills" 2>&1)
+assert_contains "$codex_skills_diff" "codex/skills/my-skill"
 rm -rf "$PROFILES_DIR/default/claude/skills"
 
 _TEST_NAME="diff_derived_symlink reports missing codex AGENTS bridge"

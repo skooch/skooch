@@ -385,6 +385,7 @@ _profile_apply_codex() {
     _profile_link_last_wins_paths "$profiles" "codex" "$HOME/.codex" "apply" "${_CODEX_LAST_WINS_PATHS[@]}"
     _profile_link_union_file_collection "$profiles" "codex" "hooks" "*" "$HOME/.codex" "apply" "Hooks"
     _profile_link_union_file_collection "$profiles" "codex" "agents" "*.toml" "$HOME/.codex" "apply" "Agents"
+    _profile_link_union_dir_collection "$profiles" "claude" "skills" "$HOME/.codex" "apply" "Shared skills"
     _profile_ensure_derived_symlink "AGENTS.md" "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md" "apply"
 }
 

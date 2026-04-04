@@ -285,6 +285,7 @@ _profile_link_union_file_collection() {
 _profile_link_union_dir_collection() {
     local profiles="$1" domain="$2" relative_dir="$3" target_root="$4" mode="${5:-apply}" label="$6"
     local -a linked_names=()
+    local -a skipped_names=()
     local collection_changed=false
     local dirname="" source_dir=""
 
@@ -293,6 +294,12 @@ _profile_link_union_dir_collection() {
         linked_names+=("$dirname")
         local target_dir="$target_root/$relative_dir/$dirname"
         mkdir -p "$(dirname "$target_dir")"
+        if [[ -d "$target_dir" && ! -L "$target_dir" ]]; then
+            if ! rmdir "$target_dir" 2>/dev/null; then
+                skipped_names+=("$dirname")
+                continue
+            fi
+        fi
         if [[ "$mode" == "sync" && -L "$target_dir" && "$(readlink "$target_dir")" == "$source_dir" ]]; then
             continue
         fi
@@ -300,7 +307,7 @@ _profile_link_union_dir_collection() {
         collection_changed=true
     done < <(_profile_collect_union_dir_sources "$profiles" "$domain" "$relative_dir")
 
-    [[ ${#linked_names[@]} -eq 0 ]] && return 0
+    [[ ${#linked_names[@]} -eq 0 && ${#skipped_names[@]} -eq 0 ]] && return 0
     if [[ "$mode" == "sync" ]]; then
         if [[ "$collection_changed" == true ]]; then
             echo "  $label: updated (${(j:, :)linked_names})"
@@ -309,6 +316,9 @@ _profile_link_union_dir_collection() {
         fi
     else
         echo "  $label: ${(j:, :)linked_names}"
+    fi
+    if [[ ${#skipped_names[@]} -gt 0 ]]; then
+        echo "  $label: skipped conflicting directories (${(j:, :)skipped_names})"
     fi
 }
 
@@ -576,6 +586,9 @@ _profile_target_paths() {
     local dirname="" source_dir=""
     while IFS=$'\t' read -r dirname source_dir; do
         [[ -n "$dirname" ]] && paths+=("$HOME/.claude/skills/$dirname")
+    done < <(_profile_collect_union_dir_sources "$profiles" "claude" "skills")
+    while IFS=$'\t' read -r dirname source_dir; do
+        [[ -n "$dirname" ]] && paths+=("$HOME/.codex/skills/$dirname")
     done < <(_profile_collect_union_dir_sources "$profiles" "claude" "skills")
 
     # Claude commands (union of *.md files across profiles)

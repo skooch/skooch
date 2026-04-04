@@ -288,6 +288,9 @@ _profile_diff() {
     if _profile_diff_union_file_collection "$profiles" "codex" "agents" "*.toml" "$HOME/.codex" "codex/agents" "$diff_cmd"; then
         has_diff=true
     fi
+    if _profile_diff_union_dir_collection "$profiles" "claude" "skills" "$HOME/.codex" "codex/skills"; then
+        has_diff=true
+    fi
     if _profile_diff_derived_symlink "codex/AGENTS.md (~/.codex/AGENTS.md)" "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md"; then
         has_diff=true
     fi

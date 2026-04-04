@@ -248,6 +248,27 @@ assert_symlink "$TEST_HOME/.codex/agents/explorer.toml" "$PROFILES_DIR/default/c
 _TEST_NAME="apply_codex symlinks unioned codex agent overrides"
 assert_symlink "$TEST_HOME/.codex/agents/worker.toml" "$PROFILES_DIR/testprofile/codex/agents/worker.toml"
 
+_TEST_NAME="apply_codex symlinks shared claude skills into codex"
+mkdir -p "$PROFILES_DIR/default/claude/skills/layout-check"
+echo "# Layout check" > "$PROFILES_DIR/default/claude/skills/layout-check/SKILL.md"
+rm -rf "$TEST_HOME/.codex/skills/layout-check"
+_profile_apply_codex "default" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.codex/skills/layout-check" "$PROFILES_DIR/default/claude/skills/layout-check"
+
+_TEST_NAME="apply_codex skips conflicting real skill directories without nesting"
+mkdir -p "$PROFILES_DIR/default/claude/skills/check-agent-standards"
+echo "# Layout check" > "$PROFILES_DIR/default/claude/skills/check-agent-standards/SKILL.md"
+mkdir -p "$TEST_HOME/.codex/skills/check-agent-standards"
+echo "# Existing skill" > "$TEST_HOME/.codex/skills/check-agent-standards/SKILL.md"
+_profile_apply_codex "default" > /dev/null 2>&1
+assert_not_symlink "$TEST_HOME/.codex/skills/check-agent-standards"
+_TEST_NAME="apply_codex does not create nested links inside conflicting skill directories"
+if [[ -e "$TEST_HOME/.codex/skills/check-agent-standards/check-agent-standards" ]]; then
+    fail "nested link should not be created inside conflicting directory"
+else
+    pass
+fi
+
 _TEST_NAME="apply_codex creates AGENTS bridge to claude instructions"
 echo "# Test instructions" > "$PROFILES_DIR/default/claude/CLAUDE.md"
 _profile_apply_claude "default" > /dev/null 2>&1
