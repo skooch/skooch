@@ -10,7 +10,9 @@
 ## Worktree Setup (mandatory sequence)
 - **Never use `EnterWorktree` or `isolation: "worktree"`** — they create worktrees inside the repo (.claude/worktrees/).
 - Worktrees MUST be peers in `../worktrees/<name>`. Cargo bug: nested worktrees inherit `.cargo/config.toml` twice.
-- Procedure: `git worktree add ../worktrees/<name> -b <branch>` → `mise trust ../worktrees/<name>/.mise.toml` → dispatch subagent with cwd at worktree.
+- Procedure: `git worktree add ../worktrees/<name> -b <branch>` → dispatch subagent with cwd at worktree.
+- The dotfiles git wrapper auto-handles: submodule bootstrap (via `--reference`), cargo target isolation (`.cargo/.worktree-target`), and safe removal (submodule deinit before remove).
+- mise trust is automatic for `~/projects` paths (global `trusted_config_paths`). No manual trust step needed.
 
 ## Debugging
 - Execute user's direct diagnosis/instruction first. Say so explicitly if you disagree.
