@@ -41,6 +41,7 @@
 
 ## Self-Update Rule
 - On undocumented build/command failure, add fix to CLAUDE.md before proceeding.
+- If a `~/.codex/hooks/*.py` hook fails with `permission denied`, invoke it via `python3 <hook> ...` because the symlink target may be missing the executable bit.
 
 ## GitHub Access
 - Always use `gh` CLI. Never `raw.githubusercontent.com` or `WebFetch` for repo contents.
