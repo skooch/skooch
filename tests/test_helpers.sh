@@ -31,6 +31,12 @@ _TEST_NAME="snapshot_files includes claude/settings.json"
 local snap_files=$(_profile_snapshot_files "$PROFILES_DIR/default")
 assert_contains "$snap_files" "claude/settings.json"
 
+_TEST_NAME="snapshot_files includes codex/config.toml"
+assert_contains "$snap_files" "codex/config.toml"
+
+_TEST_NAME="snapshot_files includes codex/hooks.json"
+assert_contains "$snap_files" "codex/hooks.json"
+
 _TEST_NAME="snapshot_files includes git/config"
 assert_contains "$snap_files" "git/config"
 
@@ -64,6 +70,15 @@ assert_contains "$snap_files" "claude/sync-plugins.sh"
 _TEST_NAME="snapshot_files includes claude/read-once/hook.sh"
 assert_contains "$snap_files" "claude/read-once/hook.sh"
 
+_TEST_NAME="snapshot_files includes codex/rules/default.rules"
+assert_contains "$snap_files" "codex/rules/default.rules"
+
+_TEST_NAME="snapshot_files includes codex hook files"
+assert_contains "$snap_files" "codex/hooks/permission_bridge.py"
+
+_TEST_NAME="snapshot_files includes codex agent files"
+assert_contains "$snap_files" "codex/agents/explorer.toml"
+
 _TEST_NAME="snapshot_files includes claude hook scripts"
 mkdir -p "$PROFILES_DIR/default/claude/hooks"
 echo '#!/bin/bash' > "$PROFILES_DIR/default/claude/hooks/test-hook.sh"
@@ -76,6 +91,78 @@ echo "# skill" > "$PROFILES_DIR/default/claude/skills/my-skill/SKILL.md"
 local snap_with_skills=$(_profile_snapshot_files "$PROFILES_DIR/default")
 assert_contains "$snap_with_skills" "claude/skills/my-skill/SKILL.md"
 rm -rf "$PROFILES_DIR/default/claude/hooks" "$PROFILES_DIR/default/claude/skills"
+
+# --- shared profile-tree helpers ---
+
+_TEST_NAME="resolve_last_wins_source handles nested paths"
+mkdir -p "$PROFILES_DIR/testprofile/codex/rules"
+echo 'prefix_rule(pattern = ["cat"], decision = "allow")' > "$PROFILES_DIR/testprofile/codex/rules/default.rules"
+local nested_source=$(_profile_resolve_last_wins_source "testprofile" "codex" "rules/default.rules")
+assert_eq "$PROFILES_DIR/testprofile/codex/rules/default.rules" "$nested_source"
+rm -f "$PROFILES_DIR/testprofile/codex/rules/default.rules"
+
+_TEST_NAME="collect_union_file_sources keys by basename with last profile wins"
+mkdir -p "$PROFILES_DIR/default/codex/hooks" "$PROFILES_DIR/testprofile/codex/hooks"
+echo "default" > "$PROFILES_DIR/default/codex/hooks/shared.py"
+echo "override" > "$PROFILES_DIR/testprofile/codex/hooks/shared.py"
+echo "extra" > "$PROFILES_DIR/testprofile/codex/hooks/extra.py"
+local union_files=$(_profile_collect_union_file_sources "testprofile" "codex" "hooks" "*")
+assert_contains "$union_files" $'shared.py\t'"$PROFILES_DIR/testprofile/codex/hooks/shared.py"
+_TEST_NAME="collect_union_file_sources includes additional basenames"
+assert_contains "$union_files" $'extra.py\t'"$PROFILES_DIR/testprofile/codex/hooks/extra.py"
+rm -f "$PROFILES_DIR/default/codex/hooks/shared.py" "$PROFILES_DIR/testprofile/codex/hooks/shared.py" "$PROFILES_DIR/testprofile/codex/hooks/extra.py"
+
+_TEST_NAME="collect_union_dir_sources keys by dirname with last profile wins"
+mkdir -p "$PROFILES_DIR/default/claude/skills/shared-skill" "$PROFILES_DIR/testprofile/claude/skills/shared-skill" "$PROFILES_DIR/testprofile/claude/skills/extra-skill"
+echo "# default" > "$PROFILES_DIR/default/claude/skills/shared-skill/SKILL.md"
+echo "# override" > "$PROFILES_DIR/testprofile/claude/skills/shared-skill/SKILL.md"
+echo "# extra" > "$PROFILES_DIR/testprofile/claude/skills/extra-skill/SKILL.md"
+local union_dirs=$(_profile_collect_union_dir_sources "testprofile" "claude" "skills")
+assert_contains "$union_dirs" $'shared-skill\t'"$PROFILES_DIR/testprofile/claude/skills/shared-skill"
+_TEST_NAME="collect_union_dir_sources includes additional dirnames"
+assert_contains "$union_dirs" $'extra-skill\t'"$PROFILES_DIR/testprofile/claude/skills/extra-skill"
+rm -rf "$PROFILES_DIR/default/claude/skills" "$PROFILES_DIR/testprofile/claude/skills"
+
+_TEST_NAME="merge_toml_files deep merges tables and replaces arrays"
+local toml_one=$(mktemp)
+local toml_two=$(mktemp)
+local toml_out=$(mktemp)
+cat > "$toml_one" << 'EOF'
+model = "gpt-5.4"
+notify = ["one", "two"]
+
+[features]
+codex_hooks = true
+shell_snapshot = false
+
+[nested.alpha]
+value = 1
+items = ["a"]
+EOF
+cat > "$toml_two" << 'EOF'
+notify = ["override"]
+
+[features]
+shell_snapshot = true
+
+[nested.alpha]
+items = ["b"]
+
+[nested.beta]
+flag = true
+EOF
+_profile_merge_toml_files "$toml_out" "$toml_one" "$toml_two"
+local merged_toml=$(cat "$toml_out")
+assert_contains "$merged_toml" 'model = "gpt-5.4"'
+_TEST_NAME="merge_toml_files replaces arrays with rightmost file"
+assert_contains "$merged_toml" 'notify = ["override"]'
+_TEST_NAME="merge_toml_files preserves nested scalar values"
+assert_contains "$merged_toml" 'value = 1'
+_TEST_NAME="merge_toml_files replaces nested arrays"
+assert_contains "$merged_toml" 'items = ["b"]'
+_TEST_NAME="merge_toml_files adds new nested tables"
+assert_contains "$merged_toml" 'flag = true'
+rm -f "$toml_one" "$toml_two" "$toml_out"
 
 # --- _profile_read_brew_packages ---
 
@@ -189,10 +276,19 @@ echo "# test" > "$PROFILES_DIR/default/claude/CLAUDE.md"
 local claude_md_targets=$(_profile_target_paths "default")
 assert_contains "$claude_md_targets" ".claude/CLAUDE.md"
 
+_TEST_NAME="target_paths includes codex AGENTS bridge when claude instructions exist"
+assert_contains "$claude_md_targets" ".codex/AGENTS.md"
+
 _TEST_NAME="target_paths includes system-prompt.md when claude/system-prompt.md exists"
 echo "# test" > "$PROFILES_DIR/default/claude/system-prompt.md"
 local sp_targets=$(_profile_target_paths "default")
 assert_contains "$sp_targets" ".claude/system-prompt.md"
+
+_TEST_NAME="target_paths includes codex config.toml when codex/config.toml exists"
+assert_contains "$sp_targets" ".codex/config.toml"
+
+_TEST_NAME="target_paths includes codex hooks.json when codex/hooks.json exists"
+assert_contains "$sp_targets" ".codex/hooks.json"
 
 _TEST_NAME="target_paths includes statusline.sh when claude/statusline.sh exists"
 echo '#!/bin/bash' > "$PROFILES_DIR/default/claude/statusline.sh"
@@ -227,6 +323,15 @@ mkdir -p "$PROFILES_DIR/default/claude/commands"
 echo "# command" > "$PROFILES_DIR/default/claude/commands/test-command.md"
 local command_targets=$(_profile_target_paths "default")
 assert_contains "$command_targets" ".claude/commands/test-command.md"
+
+_TEST_NAME="target_paths includes codex rules when codex/rules/default.rules exists"
+assert_contains "$command_targets" ".codex/rules/default.rules"
+
+_TEST_NAME="target_paths includes codex hooks when codex hook files exist"
+assert_contains "$command_targets" ".codex/hooks/permission_bridge.py"
+
+_TEST_NAME="target_paths includes codex agents when codex agent files exist"
+assert_contains "$command_targets" ".codex/agents/explorer.toml"
 
 rm -rf "$PROFILES_DIR/default/claude/hooks" "$PROFILES_DIR/default/claude/skills"
 rm -rf "$PROFILES_DIR/default/claude/read-once" "$PROFILES_DIR/default/claude/commands"

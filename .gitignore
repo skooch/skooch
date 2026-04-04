@@ -4,6 +4,9 @@
 *.private
 .claude
 !.claude/corrections.md
+.codex
+__pycache__/
+*.pyc
 .zcompdump*
 .zsh_plugins.zsh
 .profile_active

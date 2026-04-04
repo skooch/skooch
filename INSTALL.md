@@ -18,6 +18,7 @@
    ```sh
    profile use embedded   # or: profile s b  (default is always applied)
    ```
+   This also applies the profile-managed Claude and durable Codex config under `~/.claude` and `~/.codex`.
 
 4. Install runtimes managed by mise:
    ```sh

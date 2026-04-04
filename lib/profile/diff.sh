@@ -1,5 +1,163 @@
 # Profile system - diff/preview (what switch would change)
 
+_profile_diff_structured_profile_config() {
+    local profiles="$1" domain="$2" relative_path="$3" target_root="$4" format="$5" header="$6" diff_cmd="$7"
+    local -a source_files=()
+    local source_file=""
+
+    while IFS= read -r source_file; do
+        [[ -n "$source_file" ]] && source_files+=("$source_file")
+    done < <(_profile_collect_domain_file_sources "$profiles" "$domain" "$relative_path")
+    [[ ${#source_files[@]} -eq 0 ]] && return 1
+
+    local target_file="$target_root/$relative_path"
+    local expected_file=""
+    local cleanup_expected=false
+
+    if [[ ${#source_files[@]} -eq 1 ]]; then
+        expected_file="${source_files[1]}"
+    else
+        expected_file=$(mktemp)
+        cleanup_expected=true
+        _profile_merge_structured_files "$format" "$expected_file" "${source_files[@]}" || {
+            rm -f "$expected_file"
+            return 1
+        }
+    fi
+
+    if [[ -f "$target_file" || -L "$target_file" ]]; then
+        local result=$($diff_cmd "$target_file" "$expected_file" 2>/dev/null)
+        if [[ -n "$result" ]]; then
+            echo "=== $header ==="
+            echo "$result"
+            echo ""
+            [[ "$cleanup_expected" == true ]] && rm -f "$expected_file"
+            return 0
+        fi
+    else
+        echo "=== $header ==="
+        echo "  (new file would be created)"
+        echo ""
+        [[ "$cleanup_expected" == true ]] && rm -f "$expected_file"
+        return 0
+    fi
+
+    [[ "$cleanup_expected" == true ]] && rm -f "$expected_file"
+    return 1
+}
+
+_profile_diff_last_wins_paths() {
+    local profiles="$1" domain="$2" target_root="$3" label_prefix="$4" diff_cmd="$5"
+    shift 5
+
+    local diff_found=false
+    local relative_path=""
+    for relative_path in "$@"; do
+        local source_file=$(_profile_resolve_last_wins_source "$profiles" "$domain" "$relative_path")
+        [[ -z "$source_file" ]] && continue
+
+        local target_file="$target_root/$relative_path"
+        if [[ -f "$target_file" || -L "$target_file" ]]; then
+            local real_target="$target_file"
+            [[ -L "$target_file" ]] && real_target=$(readlink "$target_file")
+            if [[ "$real_target" != "$source_file" ]]; then
+                local result=$($diff_cmd "$target_file" "$source_file" 2>/dev/null)
+                if [[ -n "$result" ]]; then
+                    echo "=== $label_prefix/$relative_path ($target_file) ==="
+                    echo "$result"
+                    echo ""
+                    diff_found=true
+                fi
+            fi
+        else
+            echo "=== $label_prefix/$relative_path ($target_file) ==="
+            echo "  (new file would be created)"
+            echo ""
+            diff_found=true
+        fi
+    done
+
+    [[ "$diff_found" == true ]]
+}
+
+_profile_diff_union_file_collection() {
+    local profiles="$1" domain="$2" relative_dir="$3" glob_pattern="$4" target_root="$5" label_prefix="$6" diff_cmd="$7"
+    local diff_found=false
+    local basename="" source_file=""
+
+    while IFS=$'\t' read -r basename source_file; do
+        [[ -z "$basename" || -z "$source_file" ]] && continue
+        local target_file="$target_root/$relative_dir/$basename"
+        if [[ -f "$target_file" || -L "$target_file" ]]; then
+            local real_target="$target_file"
+            [[ -L "$target_file" ]] && real_target=$(readlink "$target_file")
+            if [[ "$real_target" != "$source_file" ]]; then
+                local result=$($diff_cmd "$target_file" "$source_file" 2>/dev/null)
+                if [[ -n "$result" ]]; then
+                    echo "=== $label_prefix/$basename ==="
+                    echo "$result"
+                    echo ""
+                    diff_found=true
+                fi
+            fi
+        else
+            echo "=== $label_prefix/$basename ==="
+            echo "  (new file would be created)"
+            echo ""
+            diff_found=true
+        fi
+    done < <(_profile_collect_union_file_sources "$profiles" "$domain" "$relative_dir" "$glob_pattern")
+
+    [[ "$diff_found" == true ]]
+}
+
+_profile_diff_union_dir_collection() {
+    local profiles="$1" domain="$2" relative_dir="$3" target_root="$4" label_prefix="$5"
+    local diff_found=false
+    local dirname="" source_dir=""
+
+    while IFS=$'\t' read -r dirname source_dir; do
+        [[ -z "$dirname" || -z "$source_dir" ]] && continue
+        local target_dir="$target_root/$relative_dir/$dirname"
+        if [[ -d "$target_dir" || -L "$target_dir" ]]; then
+            local real_target="$target_dir"
+            [[ -L "$target_dir" ]] && real_target=$(readlink "$target_dir")
+            if [[ "$real_target" != "$source_dir" ]]; then
+                echo "=== $label_prefix/$dirname ==="
+                echo "  symlink target differs: $real_target -> $source_dir"
+                echo ""
+                diff_found=true
+            fi
+        else
+            echo "=== $label_prefix/$dirname ==="
+            echo "  (new directory would be linked)"
+            echo ""
+            diff_found=true
+        fi
+    done < <(_profile_collect_union_dir_sources "$profiles" "$domain" "$relative_dir")
+
+    [[ "$diff_found" == true ]]
+}
+
+_profile_diff_derived_symlink() {
+    local header="$1" source_file="$2" target_file="$3"
+
+    [[ ! -e "$source_file" && ! -L "$source_file" ]] && return 1
+
+    if [[ -L "$target_file" && "$(readlink "$target_file")" == "$source_file" ]]; then
+        return 1
+    fi
+
+    echo "=== $header ==="
+    if [[ -L "$target_file" ]]; then
+        echo "  symlink target differs: $(readlink "$target_file") -> $source_file"
+    else
+        echo "  (new file would be linked)"
+    fi
+    echo ""
+    return 0
+}
+
 _profile_diff() {
     local profiles="$1"
     local has_diff=false
@@ -99,151 +257,40 @@ _profile_diff() {
         rm -f "$tmpfile"
     fi
 
-    # Claude Code
-    local has_claude=false
-    [[ -f "$PROFILES_DIR/default/claude/settings.json" ]] && has_claude=true
-    for p in ${=profiles}; do
-        [[ "$p" == "default" ]] && continue
-        [[ -f "$PROFILES_DIR/$p/claude/settings.json" ]] && has_claude=true
-    done
-    if [[ "$has_claude" == "true" ]]; then
-        local target="$HOME/.claude/settings.json"
-        local tmpfile=$(mktemp)
-        local -a claude_files=()
-        [[ -f "$PROFILES_DIR/default/claude/settings.json" ]] && claude_files+=("$PROFILES_DIR/default/claude/settings.json")
-        for p in ${=profiles}; do
-        [[ "$p" == "default" ]] && continue
-            local pf="$PROFILES_DIR/$p/claude/settings.json"
-            [[ -f "$pf" ]] && claude_files+=("$pf")
-        done
-        if [[ ${#claude_files[@]} -eq 1 ]]; then
-            cp "${claude_files[1]}" "$tmpfile"
-        else
-            jq -s 'reduce .[] as $item ({}; . * $item)' "${claude_files[@]}" > "$tmpfile"
-        fi
-        result=$($diff_cmd "$target" "$tmpfile" 2>/dev/null)
-        if [[ -n "$result" ]]; then
-            echo "=== claude (~/.claude/settings.json) ==="
-            echo "$result"
-            echo ""
-            has_diff=true
-        fi
-        rm -f "$tmpfile"
+    if _profile_diff_structured_profile_config "$profiles" "claude" "settings.json" "$HOME/.claude" "json" "claude (~/.claude/settings.json)" "$diff_cmd"; then
+        has_diff=true
+    fi
+    if _profile_diff_last_wins_paths "$profiles" "claude" "$HOME/.claude" "claude" "$diff_cmd" "${_CLAUDE_LAST_WINS_PATHS[@]}"; then
+        has_diff=true
+    fi
+    if _profile_diff_union_file_collection "$profiles" "claude" "hooks" "*.sh" "$HOME/.claude" "claude/hooks" "$diff_cmd"; then
+        has_diff=true
+    fi
+    if _profile_diff_union_dir_collection "$profiles" "claude" "skills" "$HOME/.claude" "claude/skills"; then
+        has_diff=true
+    fi
+    if _profile_diff_union_file_collection "$profiles" "claude" "commands" "*.md" "$HOME/.claude" "claude/commands" "$diff_cmd"; then
+        has_diff=true
     fi
 
-    # Claude "last profile wins" paths (CLAUDE.md, system-prompt.md, statusline.sh, etc.)
-    for relative_path in "${_CLAUDE_LAST_WINS_PATHS[@]}"; do
-        local source=$(_profile_claude_resolve_source "$profiles" "$relative_path")
-        [[ -z "$source" ]] && continue
-        local ftarget="$HOME/.claude/$relative_path"
-        if [[ -f "$ftarget" ]]; then
-            local real_path="$ftarget"
-            [[ -L "$ftarget" ]] && real_path=$(readlink "$ftarget")
-            if [[ "$real_path" != "$source" ]]; then
-                result=$($diff_cmd "$ftarget" "$source" 2>/dev/null)
-                if [[ -n "$result" ]]; then
-                    echo "=== claude/$relative_path (~/.claude/$relative_path) ==="
-                    echo "$result"
-                    echo ""
-                    has_diff=true
-                fi
-            fi
-        else
-            echo "=== claude/$relative_path (~/.claude/$relative_path) ==="
-            echo "  (new file would be created)"
-            echo ""
-            has_diff=true
-        fi
-    done
-
-    # Claude hooks
-    local -a diff_hook_sources=("$PROFILES_DIR/default")
-    for p in ${=profiles}; do
-        [[ "$p" == "default" ]] && continue
-        diff_hook_sources+=("$PROFILES_DIR/$p")
-    done
-    local -A diff_hook_map=()
-    for dir in "${diff_hook_sources[@]}"; do
-        for f in "$dir"/claude/hooks/*.sh(N); do
-            diff_hook_map[${f:t}]="$f"
-        done
-    done
-    for script source in ${(kv)diff_hook_map}; do
-        local htarget="$HOME/.claude/hooks/$script"
-        if [[ -f "$htarget" ]]; then
-            local real_hook="$htarget"
-            [[ -L "$htarget" ]] && real_hook=$(readlink "$htarget")
-            if [[ "$real_hook" != "$source" ]]; then
-                result=$($diff_cmd "$htarget" "$source" 2>/dev/null)
-                if [[ -n "$result" ]]; then
-                    echo "=== claude/hooks/$script ==="
-                    echo "$result"
-                    echo ""
-                    has_diff=true
-                fi
-            fi
-        else
-            echo "=== claude/hooks/$script ==="
-            echo "  (new file would be created)"
-            echo ""
-            has_diff=true
-        fi
-    done
-
-    # Claude skills
-    local -A diff_skill_map=()
-    for dir in "${diff_hook_sources[@]}"; do
-        for d in "$dir"/claude/skills/*(N/); do
-            diff_skill_map[${d:t}]="$d"
-        done
-    done
-    for skill source in ${(kv)diff_skill_map}; do
-        local starget="$HOME/.claude/skills/$skill"
-        if [[ -d "$starget" ]]; then
-            local real_skill="$starget"
-            [[ -L "$starget" ]] && real_skill=$(readlink "$starget")
-            if [[ "$real_skill" != "$source" ]]; then
-                echo "=== claude/skills/$skill ==="
-                echo "  symlink target differs: $real_skill -> $source"
-                echo ""
-                has_diff=true
-            fi
-        else
-            echo "=== claude/skills/$skill ==="
-            echo "  (new skill would be linked)"
-            echo ""
-            has_diff=true
-        fi
-    done
-
-    # Claude commands
-    local -A diff_cmd_map=()
-    for dir in "${diff_hook_sources[@]}"; do
-        for f in "$dir"/claude/commands/*.md(N); do
-            diff_cmd_map[${f:t}]="$f"
-        done
-    done
-    for cmd source in ${(kv)diff_cmd_map}; do
-        local ctarget="$HOME/.claude/commands/$cmd"
-        if [[ -f "$ctarget" ]]; then
-            local real_cmd="$ctarget"
-            [[ -L "$ctarget" ]] && real_cmd=$(readlink "$ctarget")
-            if [[ "$real_cmd" != "$source" ]]; then
-                result=$($diff_cmd "$ctarget" "$source" 2>/dev/null)
-                if [[ -n "$result" ]]; then
-                    echo "=== claude/commands/$cmd ==="
-                    echo "$result"
-                    echo ""
-                    has_diff=true
-                fi
-            fi
-        else
-            echo "=== claude/commands/$cmd ==="
-            echo "  (new command would be linked)"
-            echo ""
-            has_diff=true
-        fi
-    done
+    if _profile_diff_structured_profile_config "$profiles" "codex" "config.toml" "$HOME/.codex" "toml" "codex (~/.codex/config.toml)" "$diff_cmd"; then
+        has_diff=true
+    fi
+    if _profile_diff_structured_profile_config "$profiles" "codex" "hooks.json" "$HOME/.codex" "json" "codex (~/.codex/hooks.json)" "$diff_cmd"; then
+        has_diff=true
+    fi
+    if _profile_diff_last_wins_paths "$profiles" "codex" "$HOME/.codex" "codex" "$diff_cmd" "${_CODEX_LAST_WINS_PATHS[@]}"; then
+        has_diff=true
+    fi
+    if _profile_diff_union_file_collection "$profiles" "codex" "hooks" "*" "$HOME/.codex" "codex/hooks" "$diff_cmd"; then
+        has_diff=true
+    fi
+    if _profile_diff_union_file_collection "$profiles" "codex" "agents" "*.toml" "$HOME/.codex" "codex/agents" "$diff_cmd"; then
+        has_diff=true
+    fi
+    if _profile_diff_derived_symlink "codex/AGENTS.md (~/.codex/AGENTS.md)" "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md"; then
+        has_diff=true
+    fi
 
     # Tmux
     local tmux_source=""

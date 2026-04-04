@@ -359,90 +359,33 @@ _profile_apply_mise() {
 
 _profile_apply_claude() {
     local profiles="$1"
-    local target="$HOME/.claude/settings.json"
-
-    local has_config=false
-    [[ -f "$PROFILES_DIR/default/claude/settings.json" ]] && has_config=true
-    for p in ${=profiles}; do
-        [[ "$p" == "default" ]] && continue
-        [[ -f "$PROFILES_DIR/$p/claude/settings.json" ]] && has_config=true
-    done
-    [[ "$has_config" == "false" ]] && return 0
 
     mkdir -p "$HOME/.claude"
-
-    local -a settings_files=()
-    [[ -f "$PROFILES_DIR/default/claude/settings.json" ]] && settings_files+=("$PROFILES_DIR/default/claude/settings.json")
-    for p in ${=profiles}; do
-        [[ "$p" == "default" ]] && continue
-        local pf="$PROFILES_DIR/$p/claude/settings.json"
-        [[ -f "$pf" ]] && settings_files+=("$pf")
-    done
-
-    if [[ ${#settings_files[@]} -eq 1 ]]; then
-        ln -sf "${settings_files[1]}" "$target"
-    else
-        jq -s 'reduce .[] as $item ({}; . * $item)' "${settings_files[@]}" > "$target"
-    fi
-
-    local label="default"
-    for p in ${=profiles}; do
-        [[ "$p" == "default" ]] && continue
-        [[ -f "$PROFILES_DIR/$p/claude/settings.json" ]] && label+=" + $p"
-    done
-    echo "Applying Claude Code settings: $label"
+    _profile_apply_structured_profile_config \
+        "Claude Code settings" "$profiles" "claude" "settings.json" "$HOME/.claude" "json"
 
     _profile_claude_link_files "$profiles"
+    _profile_link_union_file_collection "$profiles" "claude" "hooks" "*.sh" "$HOME/.claude" "apply" "Hooks"
+    _profile_link_union_dir_collection "$profiles" "claude" "skills" "$HOME/.claude" "apply" "Skills"
+    _profile_link_union_file_collection "$profiles" "claude" "commands" "*.md" "$HOME/.claude" "apply" "Commands"
+}
 
-    # Hooks — symlink each *.sh script (union across profiles, last wins)
-    local -a hook_sources=("$PROFILES_DIR/default")
-    for p in ${=profiles}; do
-        [[ "$p" == "default" ]] && continue
-        hook_sources+=("$PROFILES_DIR/$p")
-    done
-    local -A hook_map=()
-    for dir in "${hook_sources[@]}"; do
-        for f in "$dir"/claude/hooks/*.sh(N); do
-            hook_map[${f:t}]="$f"
-        done
-    done
-    if [[ ${#hook_map} -gt 0 ]]; then
-        mkdir -p "$HOME/.claude/hooks"
-        for script source in ${(kv)hook_map}; do
-            ln -sf "$source" "$HOME/.claude/hooks/$script"
-        done
-        echo "  Hooks: ${(j:, :)${(k)hook_map}}"
-    fi
+# --- Codex ---
 
-    # Skills — symlink each skill directory (union across profiles, last wins)
-    local -A skill_map=()
-    for dir in "${hook_sources[@]}"; do
-        for d in "$dir"/claude/skills/*(N/); do
-            skill_map[${d:t}]="$d"
-        done
-    done
-    if [[ ${#skill_map} -gt 0 ]]; then
-        mkdir -p "$HOME/.claude/skills"
-        for skill source in ${(kv)skill_map}; do
-            ln -sfn "$source" "$HOME/.claude/skills/$skill"
-        done
-        echo "  Skills: ${(j:, :)${(k)skill_map}}"
-    fi
+_profile_apply_codex() {
+    local profiles="$1"
 
-    # Commands — symlink each *.md file (union across profiles, last wins)
-    local -A cmd_map=()
-    for dir in "${hook_sources[@]}"; do
-        for f in "$dir"/claude/commands/*.md(N); do
-            cmd_map[${f:t}]="$f"
-        done
-    done
-    if [[ ${#cmd_map} -gt 0 ]]; then
-        mkdir -p "$HOME/.claude/commands"
-        for cmd source in ${(kv)cmd_map}; do
-            ln -sf "$source" "$HOME/.claude/commands/$cmd"
-        done
-        echo "  Commands: ${(j:, :)${(k)cmd_map}}"
-    fi
+    mkdir -p "$HOME/.codex"
+
+    _profile_apply_structured_profile_config \
+        "Codex config" "$profiles" "codex" "config.toml" "$HOME/.codex" "toml"
+    _profile_apply_structured_profile_config \
+        "Codex hooks" "$profiles" "codex" "hooks.json" "$HOME/.codex" "json"
+
+    _profile_link_last_wins_paths "$profiles" "codex" "$HOME/.codex" "apply" "${_CODEX_LAST_WINS_PATHS[@]}"
+    _profile_link_union_file_collection "$profiles" "codex" "hooks" "*" "$HOME/.codex" "apply" "Hooks"
+    _profile_link_union_file_collection "$profiles" "codex" "agents" "*.toml" "$HOME/.codex" "apply" "Agents"
+    _profile_ensure_derived_symlink "AGENTS.md" "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md" "apply"
 }
 
 # --- Tmux ---

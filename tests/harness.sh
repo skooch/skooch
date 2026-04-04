@@ -14,17 +14,34 @@ TEST_STATE=$(mktemp -d)
 
 # Set up minimal profile directory structure
 mkdir -p "$TEST_DOTFILES/profiles/default/claude"
+mkdir -p "$TEST_DOTFILES/profiles/default/codex/hooks"
+mkdir -p "$TEST_DOTFILES/profiles/default/codex/agents"
+mkdir -p "$TEST_DOTFILES/profiles/default/codex/rules"
 mkdir -p "$TEST_DOTFILES/profiles/default/git"
 mkdir -p "$TEST_DOTFILES/profiles/default/mise"
 mkdir -p "$TEST_DOTFILES/profiles/default/vscode"
 mkdir -p "$TEST_DOTFILES/profiles/default/iterm"
 mkdir -p "$TEST_DOTFILES/profiles/testprofile/claude"
+mkdir -p "$TEST_DOTFILES/profiles/testprofile/codex"
 mkdir -p "$TEST_DOTFILES/profiles/testprofile/vscode"
 mkdir -p "$TEST_DOTFILES/profiles/testprofile/mise"
 mkdir -p "$TEST_HOME/.claude"
+mkdir -p "$TEST_HOME/.codex"
 
 # Create dummy profile files
 echo '{"test": true}' > "$TEST_DOTFILES/profiles/default/claude/settings.json"
+cat > "$TEST_DOTFILES/profiles/default/codex/config.toml" << 'EOF'
+model = "gpt-5.4"
+
+[features]
+codex_hooks = true
+EOF
+cat > "$TEST_DOTFILES/profiles/default/codex/hooks.json" << 'EOF'
+{"hooks":{"SessionStart":[{"hooks":[{"command":"default"}]}]}}
+EOF
+echo '#!/usr/bin/env python3' > "$TEST_DOTFILES/profiles/default/codex/hooks/permission_bridge.py"
+echo 'name = "explorer"' > "$TEST_DOTFILES/profiles/default/codex/agents/explorer.toml"
+echo 'prefix_rule(pattern = ["rg"], decision = "allow")' > "$TEST_DOTFILES/profiles/default/codex/rules/default.rules"
 printf '[include]\n\tpath = default\n' > "$TEST_DOTFILES/profiles/default/git/config"
 printf '[tools]\nnode = "lts"\n' > "$TEST_DOTFILES/profiles/default/mise/config.toml"
 echo '{"editor.fontSize": 14}' > "$TEST_DOTFILES/profiles/default/vscode/settings.json"
@@ -34,6 +51,15 @@ echo '{"Profiles":[{"Name":"Default"}]}' > "$TEST_DOTFILES/profiles/default/iter
 echo 'brew "git"' > "$TEST_DOTFILES/profiles/default/Brewfile"
 
 echo '{"extra": true}' > "$TEST_DOTFILES/profiles/testprofile/claude/settings.json"
+cat > "$TEST_DOTFILES/profiles/testprofile/codex/config.toml" << 'EOF'
+approval_policy = "on-request"
+
+[features]
+shell_snapshot = true
+EOF
+cat > "$TEST_DOTFILES/profiles/testprofile/codex/hooks.json" << 'EOF'
+{"hooks":{"Stop":[{"hooks":[{"command":"testprofile"}]}]}}
+EOF
 echo '{"editor.tabSize": 2}' > "$TEST_DOTFILES/profiles/testprofile/vscode/settings.json"
 printf '[tools]\npython = "3.12"\n' > "$TEST_DOTFILES/profiles/testprofile/mise/config.toml"
 

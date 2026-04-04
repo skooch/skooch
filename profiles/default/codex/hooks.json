@@ -1,0 +1,37 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 /Users/skooch/.codex/hooks/permission_bridge.py session",
+            "statusMessage": "Loading home permission context"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 /Users/skooch/.codex/hooks/permission_bridge.py prompt",
+            "statusMessage": "Capturing home edit permission"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/usr/bin/python3 /Users/skooch/.codex/hooks/permission_bridge.py digest",
+            "statusMessage": "Writing permission digest"
+          }
+        ]
+      }
+    ]
+  }
+}

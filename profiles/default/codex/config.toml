@@ -1,0 +1,75 @@
+model = "gpt-5.4"
+model_reasoning_effort = "xhigh"
+plan_mode_reasoning_effort = "xhigh"
+approval_policy = "on-request"
+sandbox_mode = "danger-full-access"
+allow_login_shell = true
+notify = [
+    "/usr/bin/python3",
+    "/Users/skooch/.codex/hooks/permission_bridge.py",
+    "notify",
+]
+
+# Irrelevant because sandbox is in danger-full-access
+# [sandbox_workspace_write]
+# network_access = true
+# exclude_tmpdir_env_var = false
+# exclude_slash_tmp = false
+# writable_roots = ["/tmp", "/Users/skooch/.codex", "/Users/skooch/projects"]
+
+[features]
+codex_hooks = true
+shell_snapshot = true
+
+# Shell-first mise setup:
+# Codex shells should inherit `mise` from ~/.zshrc via login shells and
+# shell snapshots instead of relying on per-command wrapper approvals.
+
+[projects."/Users/skooch/projects/tdeck-pro-rust/tdeck-pro-rust"]
+trust_level = "trusted"
+
+[projects."/Users/skooch"]
+trust_level = "trusted"
+
+[mcp_servers.tdeck]
+command = "/Users/skooch/.local/bin/tdeck"
+args = ["mcp"]
+
+[mcp_servers.tdeck.tools.tdeck_qemu_screenshot]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_mcp_recent]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_ping]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_bg_status]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_qemu_run]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_qemu_defmt]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_kill]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_mcp_logs]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_run]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_monitor]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_bg_stop]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_qemu_build]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_preview]
+approval_mode = "approve"

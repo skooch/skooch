@@ -26,8 +26,7 @@ _profile_sync_config() {
 
     # No local file yet — just apply
     if [[ ! -f "$local_file" ]]; then
-        mkdir -p "$(dirname "$local_file")"
-        cp "$expected_file" "$local_file"
+        _profile_replace_file "$expected_file" "$local_file"
         echo "  $label: created"
         return 1
     fi
@@ -49,7 +48,7 @@ _profile_sync_config() {
         printf "  Apply? [Y/n] "
         local answer; read -r answer <"${_PROFILE_INPUT:-/dev/tty}"
         [[ "$answer" == [nN]* ]] && return 0
-        cp "$expected_file" "$local_file"
+        _profile_replace_file "$expected_file" "$local_file"
         return 1
 
     elif [[ "$profile_changed" == false && "$local_changed" == true ]]; then
@@ -112,7 +111,7 @@ _profile_sync_config() {
                     echo "  Kept local (update profile sources manually)"
                 fi
                 ;;
-            2) cp "$expected_file" "$local_file"; echo "  Applied profile version" ;;
+            2) _profile_replace_file "$expected_file" "$local_file"; echo "  Applied profile version" ;;
             3) ${EDITOR:-vim} "$local_file"; echo "  Edited locally" ;;
         esac
         return 1
@@ -645,115 +644,35 @@ _profile_sync_mise() {
 
 _profile_sync_claude() {
     local profiles="$1"
-    local target="$HOME/.claude/settings.json"
-
-    local -a settings_files=()
-    [[ -f "$PROFILES_DIR/default/claude/settings.json" ]] && settings_files+=("$PROFILES_DIR/default/claude/settings.json")
-    for p in ${=profiles}; do
-        [[ "$p" == "default" ]] && continue
-        local pf="$PROFILES_DIR/$p/claude/settings.json"
-        [[ -f "$pf" ]] && settings_files+=("$pf")
-    done
-    [[ ${#settings_files[@]} -eq 0 ]] && return 0
 
     mkdir -p "$HOME/.claude"
-
-    if [[ ${#settings_files[@]} -eq 1 ]]; then
-        # Single source: symlink keeps it in sync automatically
-        if [[ -L "$target" && "$(readlink "$target")" == "${settings_files[1]}" ]]; then
-            echo "  Claude: in sync (symlinked)"
-        else
-            ln -sf "${settings_files[1]}" "$target"
-            echo "  Claude: symlinked -> ${settings_files[1]##*/}"
-        fi
-    else
-        local expected=$(mktemp)
-        jq -s 'reduce .[] as $item ({}; . * $item)' "${settings_files[@]}" > "$expected"
-        _profile_sync_config "Claude" "$target" "$expected" "${settings_files[@]}"
-        rm -f "$expected"
-    fi
-
+    _profile_sync_structured_profile_config \
+        "Claude" "$profiles" "claude" "settings.json" "$HOME/.claude" "json"
     _profile_claude_link_files "$profiles" sync
+    _profile_link_union_file_collection "$profiles" "claude" "hooks" "*.sh" "$HOME/.claude" "sync" "Hooks"
+    _profile_link_union_dir_collection "$profiles" "claude" "skills" "$HOME/.claude" "sync" "Skills"
+    _profile_link_union_file_collection "$profiles" "claude" "commands" "*.md" "$HOME/.claude" "sync" "Commands"
+}
 
-    # Hooks — symlink each *.sh script (union across profiles, last wins)
-    local -a hook_sources=("$PROFILES_DIR/default")
-    for p in ${=profiles}; do
-        [[ "$p" == "default" ]] && continue
-        hook_sources+=("$PROFILES_DIR/$p")
-    done
-    local -A hook_map=()
-    for dir in "${hook_sources[@]}"; do
-        for f in "$dir"/claude/hooks/*.sh(N); do
-            hook_map[${f:t}]="$f"
-        done
-    done
-    if [[ ${#hook_map} -gt 0 ]]; then
-        mkdir -p "$HOME/.claude/hooks"
-        local hooks_changed=false
-        for script source in ${(kv)hook_map}; do
-            local htarget="$HOME/.claude/hooks/$script"
-            if [[ -L "$htarget" && "$(readlink "$htarget")" == "$source" ]]; then
-                continue
-            fi
-            ln -sf "$source" "$htarget"
-            hooks_changed=true
-        done
-        if [[ "$hooks_changed" == true ]]; then
-            echo "  Hooks: updated (${(j:, :)${(k)hook_map}})"
-        else
-            echo "  Hooks: in sync (${(j:, :)${(k)hook_map}})"
-        fi
+_profile_sync_codex() {
+    local profiles="$1"
+
+    mkdir -p "$HOME/.codex"
+
+    _profile_sync_structured_profile_config \
+        "Codex config" "$profiles" "codex" "config.toml" "$HOME/.codex" "toml"
+    _profile_sync_structured_profile_config \
+        "Codex hooks" "$profiles" "codex" "hooks.json" "$HOME/.codex" "json"
+
+    local rules_source=$(_profile_codex_resolve_source "$profiles" "rules/default.rules")
+    if [[ -n "$rules_source" ]]; then
+        mkdir -p "$HOME/.codex/rules"
+        _profile_sync_config "Codex rules" "$HOME/.codex/rules/default.rules" "$rules_source" "$rules_source"
     fi
 
-    # Skills — symlink each skill directory (union across profiles, last wins)
-    local -A skill_map=()
-    for dir in "${hook_sources[@]}"; do
-        for d in "$dir"/claude/skills/*(N/); do
-            skill_map[${d:t}]="$d"
-        done
-    done
-    if [[ ${#skill_map} -gt 0 ]]; then
-        mkdir -p "$HOME/.claude/skills"
-        local skills_changed=false
-        for skill source in ${(kv)skill_map}; do
-            local starget="$HOME/.claude/skills/$skill"
-            if [[ -L "$starget" && "$(readlink "$starget")" == "$source" ]]; then
-                continue
-            fi
-            ln -sfn "$source" "$starget"
-            skills_changed=true
-        done
-        if [[ "$skills_changed" == true ]]; then
-            echo "  Skills: updated (${(j:, :)${(k)skill_map}})"
-        else
-            echo "  Skills: in sync (${(j:, :)${(k)skill_map}})"
-        fi
-    fi
-
-    # Commands — symlink each *.md file (union across profiles, last wins)
-    local -A cmd_map=()
-    for dir in "${hook_sources[@]}"; do
-        for f in "$dir"/claude/commands/*.md(N); do
-            cmd_map[${f:t}]="$f"
-        done
-    done
-    if [[ ${#cmd_map} -gt 0 ]]; then
-        mkdir -p "$HOME/.claude/commands"
-        local cmds_changed=false
-        for cmd source in ${(kv)cmd_map}; do
-            local ctarget="$HOME/.claude/commands/$cmd"
-            if [[ -L "$ctarget" && "$(readlink "$ctarget")" == "$source" ]]; then
-                continue
-            fi
-            ln -sf "$source" "$ctarget"
-            cmds_changed=true
-        done
-        if [[ "$cmds_changed" == true ]]; then
-            echo "  Commands: updated (${(j:, :)${(k)cmd_map}})"
-        else
-            echo "  Commands: in sync (${(j:, :)${(k)cmd_map}})"
-        fi
-    fi
+    _profile_link_union_file_collection "$profiles" "codex" "hooks" "*" "$HOME/.codex" "sync" "Hooks"
+    _profile_link_union_file_collection "$profiles" "codex" "agents" "*.toml" "$HOME/.codex" "sync" "Agents"
+    _profile_ensure_derived_symlink "AGENTS.md" "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md" "sync"
 }
 
 _profile_sync_tmux() {

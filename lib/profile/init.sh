@@ -73,7 +73,7 @@ _profile_ensure_links() {
 
 _profile_check_deps() {
     local -a missing=()
-    for cmd in brew jq; do
+    for cmd in brew jq python3; do
         command -v "$cmd" &>/dev/null || missing+=("$cmd")
     done
     if [[ ${#missing[@]} -gt 0 ]]; then

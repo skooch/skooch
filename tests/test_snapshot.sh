@@ -22,6 +22,18 @@ assert_neq "$old_hash" "$new_hash"
 # Restore
 echo '{"test": true}' > "$PROFILES_DIR/default/claude/settings.json"
 
+_TEST_NAME="compute_hash changes when codex profile content changes"
+local old_codex_hash=$(_profile_compute_hash "default")
+echo 'model = "gpt-5.4-mini"' > "$PROFILES_DIR/default/codex/config.toml"
+local new_codex_hash=$(_profile_compute_hash "default")
+assert_neq "$old_codex_hash" "$new_codex_hash"
+cat > "$PROFILES_DIR/default/codex/config.toml" << 'EOF'
+model = "gpt-5.4"
+
+[features]
+codex_hooks = true
+EOF
+
 # --- _profile_take_snapshot ---
 
 _TEST_NAME="take_snapshot creates snapshot file"

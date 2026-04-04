@@ -127,6 +127,9 @@ local -a expected_patterns=(
     "claude/statusline.sh"
     "claude/sync-plugins.sh"
     "claude/read-once/hook.sh"
+    "codex/config.toml"
+    "codex/hooks.json"
+    "codex/rules/default.rules"
 )
 local all_found=true
 for pattern in "${expected_patterns[@]}"; do
@@ -137,6 +140,39 @@ for pattern in "${expected_patterns[@]}"; do
     fi
 done
 [[ "$all_found" == true ]] && pass
+
+_TEST_NAME="repo-root .codex duplicate is ignored by target path discovery"
+mkdir -p "$TEST_DOTFILES/.codex/agents"
+echo 'name = "shadow"' > "$TEST_DOTFILES/.codex/agents/shadow.toml"
+local codex_targets=$(_profile_target_paths "default")
+assert_not_contains "$codex_targets" "shadow.toml"
+
+_TEST_NAME="repo .gitignore ignores repo-root .codex duplicate"
+local repo_gitignore=$(cat "${0:A:h}/../.gitignore")
+assert_contains "$repo_gitignore" ".codex"
+
+# --- BUG: writing merged output through an old symlink mutates the profile source ---
+# Switching from a single-source symlinked config to a multi-profile merged config
+# must replace the local target, not overwrite the original profile file.
+
+_TEST_NAME="apply_codex does not overwrite source when replacing symlinked hooks.json with merged output"
+HOME="$TEST_HOME"
+rm -f "$TEST_HOME/.codex/hooks.json"
+cat > "$PROFILES_DIR/default/codex/hooks.json" << 'EOF'
+{"hooks":{"SessionStart":[{"hooks":[{"command":"default"}]}]}}
+EOF
+cat > "$PROFILES_DIR/testprofile/codex/hooks.json" << 'EOF'
+{"hooks":{"Stop":[{"hooks":[{"command":"testprofile"}]}]}}
+EOF
+_profile_apply_codex "default" > /dev/null 2>&1
+_profile_apply_codex "testprofile" > /dev/null 2>&1
+local default_hooks_source=$(cat "$PROFILES_DIR/default/codex/hooks.json")
+assert_not_contains "$default_hooks_source" "Stop"
+_TEST_NAME="apply_codex leaves merged hooks.json only in local target"
+local local_hooks_target=$(cat "$TEST_HOME/.codex/hooks.json")
+assert_contains "$local_hooks_target" "SessionStart"
+_TEST_NAME="apply_codex keeps merged later-profile hook entries in local target"
+assert_contains "$local_hooks_target" "Stop"
 
 # --- BUG: local path shadows zsh tied variable ---
 # In zsh, `path` is tied to PATH. Using `local path=...` inside a function

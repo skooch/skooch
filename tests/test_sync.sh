@@ -162,6 +162,71 @@ assert_symlink "$TEST_HOME/.claude/read-once/hook.sh" "$PROFILES_DIR/default/cla
 rm -f "$PROFILES_DIR/default/claude/statusline.sh"
 rm -rf "$PROFILES_DIR/default/claude/read-once"
 
+# --- _profile_sync_codex ---
+
+_TEST_NAME="sync_codex symlinks single-source config.toml"
+rm -f "$PROFILES_DIR/testprofile/codex/config.toml"
+rm -f "$TEST_HOME/.codex/config.toml"
+_profile_sync_codex "default" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.codex/config.toml" "$PROFILES_DIR/default/codex/config.toml"
+cat > "$PROFILES_DIR/testprofile/codex/config.toml" << 'EOF'
+approval_policy = "on-request"
+
+[features]
+shell_snapshot = true
+EOF
+
+_TEST_NAME="sync_codex creates merged config.toml for multiple sources"
+rm -f "$TEST_HOME/.codex/config.toml"
+_profile_sync_codex "testprofile" > /dev/null 2>&1
+assert_not_symlink "$TEST_HOME/.codex/config.toml"
+local synced_codex_config=$(cat "$TEST_HOME/.codex/config.toml")
+assert_contains "$synced_codex_config" 'model = "gpt-5.4"'
+_TEST_NAME="sync_codex merged config.toml includes nested merged values"
+assert_contains "$synced_codex_config" 'shell_snapshot = true'
+
+_TEST_NAME="sync_codex creates merged hooks.json for multiple sources"
+rm -f "$TEST_HOME/.codex/hooks.json"
+_profile_sync_codex "testprofile" > /dev/null 2>&1
+assert_not_symlink "$TEST_HOME/.codex/hooks.json"
+local synced_codex_hooks=$(cat "$TEST_HOME/.codex/hooks.json")
+assert_contains "$synced_codex_hooks" "SessionStart"
+_TEST_NAME="sync_codex merged hooks.json includes later profile hook entries"
+assert_contains "$synced_codex_hooks" "Stop"
+
+_TEST_NAME="sync_codex syncs local rules edits back to winning profile"
+ln -sf "$PROFILES_DIR/default/codex/config.toml" "$TEST_HOME/.codex/config.toml"
+ln -sf "$PROFILES_DIR/default/codex/hooks.json" "$TEST_HOME/.codex/hooks.json"
+mkdir -p "$TEST_HOME/.codex/rules"
+echo 'prefix_rule(pattern = ["cat"], decision = "allow")' > "$TEST_HOME/.codex/rules/default.rules"
+printf '%s\t%s\n' "$TEST_HOME/.codex/rules/default.rules" "$(_platform_md5 "$PROFILES_DIR/default/codex/rules/default.rules")" >> "$PROFILE_STATE_DIR/snapshot-local"
+echo "y" | _profile_sync_codex "default" > /dev/null 2>&1
+local synced_rules_source=$(cat "$PROFILES_DIR/default/codex/rules/default.rules")
+assert_contains "$synced_rules_source" 'pattern = ["cat"]'
+
+_TEST_NAME="sync_codex enforces codex hook symlinks"
+rm -f "$TEST_HOME/.codex/config.toml" "$TEST_HOME/.codex/hooks.json"
+mkdir -p "$PROFILES_DIR/testprofile/codex/hooks" "$TEST_HOME/.codex/hooks"
+echo '#!/usr/bin/env python3' > "$PROFILES_DIR/testprofile/codex/hooks/extra.py"
+echo "old hook" > "$TEST_HOME/.codex/hooks/permission_bridge.py"
+echo "old extra" > "$TEST_HOME/.codex/hooks/extra.py"
+_profile_sync_codex "testprofile" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.codex/hooks/permission_bridge.py" "$PROFILES_DIR/default/codex/hooks/permission_bridge.py"
+_TEST_NAME="sync_codex enforces unioned codex agent symlinks"
+mkdir -p "$PROFILES_DIR/testprofile/codex/agents" "$TEST_HOME/.codex/agents"
+echo 'name = "worker"' > "$PROFILES_DIR/testprofile/codex/agents/worker.toml"
+echo "old agent" > "$TEST_HOME/.codex/agents/worker.toml"
+_profile_sync_codex "testprofile" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.codex/agents/worker.toml" "$PROFILES_DIR/testprofile/codex/agents/worker.toml"
+
+_TEST_NAME="sync_codex restores AGENTS bridge"
+echo "# Instructions" > "$PROFILES_DIR/default/claude/CLAUDE.md"
+_profile_apply_claude "default" > /dev/null 2>&1
+rm -f "$TEST_HOME/.codex/config.toml" "$TEST_HOME/.codex/hooks.json"
+echo "old agents" > "$TEST_HOME/.codex/AGENTS.md"
+_profile_sync_codex "default" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.codex/AGENTS.md" "$TEST_HOME/.claude/CLAUDE.md"
+
 # --- Regression: prompts must work inside while-read loops (stdin redirected) ---
 
 _TEST_NAME="sync_config conflict prompt works inside while-read loop"

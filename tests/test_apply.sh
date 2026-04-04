@@ -190,12 +190,78 @@ rm -f "$TEST_HOME/.claude/commands/test-command.md"
 _profile_apply_claude "default" > /dev/null 2>&1
 assert_symlink "$TEST_HOME/.claude/commands/test-command.md" "$PROFILES_DIR/default/claude/commands/test-command.md"
 
+# --- _profile_apply_codex ---
+
+_TEST_NAME="apply_codex symlinks config.toml for single source"
+rm -f "$TEST_HOME/.codex/config.toml"
+_profile_apply_codex "default" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.codex/config.toml" "$PROFILES_DIR/default/codex/config.toml"
+
+_TEST_NAME="apply_codex merges config.toml for multiple sources"
+rm -f "$TEST_HOME/.codex/config.toml"
+_profile_apply_codex "testprofile" > /dev/null 2>&1
+assert_not_symlink "$TEST_HOME/.codex/config.toml" "multiple codex config sources should merge into a regular file"
+local codex_config_content=$(cat "$TEST_HOME/.codex/config.toml")
+assert_contains "$codex_config_content" 'model = "gpt-5.4"'
+_TEST_NAME="apply_codex merged config.toml includes later profile values"
+assert_contains "$codex_config_content" 'approval_policy = "on-request"'
+
+_TEST_NAME="apply_codex merges hooks.json for multiple sources"
+rm -f "$TEST_HOME/.codex/hooks.json"
+_profile_apply_codex "testprofile" > /dev/null 2>&1
+assert_not_symlink "$TEST_HOME/.codex/hooks.json" "multiple codex hooks sources should merge into a regular file"
+if grep -q "SessionStart" "$TEST_HOME/.codex/hooks.json"; then
+    pass
+else
+    fail "'SessionStart' not found in output"
+fi
+_TEST_NAME="apply_codex merged hooks.json keeps later hook entries"
+if grep -q "Stop" "$TEST_HOME/.codex/hooks.json"; then
+    pass
+else
+    fail "'Stop' not found in output"
+fi
+
+_TEST_NAME="apply_codex rules last profile wins"
+mkdir -p "$PROFILES_DIR/testprofile/codex/rules"
+echo 'prefix_rule(pattern = ["cat"], decision = "allow")' > "$PROFILES_DIR/testprofile/codex/rules/default.rules"
+rm -f "$TEST_HOME/.codex/rules/default.rules"
+_profile_apply_codex "testprofile" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.codex/rules/default.rules" "$PROFILES_DIR/testprofile/codex/rules/default.rules"
+rm -f "$PROFILES_DIR/testprofile/codex/rules/default.rules"
+
+_TEST_NAME="apply_codex symlinks codex hooks"
+mkdir -p "$PROFILES_DIR/testprofile/codex/hooks"
+echo '#!/usr/bin/env python3' > "$PROFILES_DIR/testprofile/codex/hooks/extra_hook.py"
+rm -f "$TEST_HOME/.codex/hooks/permission_bridge.py" "$TEST_HOME/.codex/hooks/extra_hook.py"
+_profile_apply_codex "testprofile" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.codex/hooks/permission_bridge.py" "$PROFILES_DIR/default/codex/hooks/permission_bridge.py"
+_TEST_NAME="apply_codex symlinks unioned extra codex hooks"
+assert_symlink "$TEST_HOME/.codex/hooks/extra_hook.py" "$PROFILES_DIR/testprofile/codex/hooks/extra_hook.py"
+
+_TEST_NAME="apply_codex symlinks codex agents"
+mkdir -p "$PROFILES_DIR/testprofile/codex/agents"
+echo 'name = "worker"' > "$PROFILES_DIR/testprofile/codex/agents/worker.toml"
+rm -f "$TEST_HOME/.codex/agents/explorer.toml" "$TEST_HOME/.codex/agents/worker.toml"
+_profile_apply_codex "testprofile" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.codex/agents/explorer.toml" "$PROFILES_DIR/default/codex/agents/explorer.toml"
+_TEST_NAME="apply_codex symlinks unioned codex agent overrides"
+assert_symlink "$TEST_HOME/.codex/agents/worker.toml" "$PROFILES_DIR/testprofile/codex/agents/worker.toml"
+
+_TEST_NAME="apply_codex creates AGENTS bridge to claude instructions"
+echo "# Test instructions" > "$PROFILES_DIR/default/claude/CLAUDE.md"
+_profile_apply_claude "default" > /dev/null 2>&1
+rm -f "$TEST_HOME/.codex/AGENTS.md"
+_profile_apply_codex "default" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.codex/AGENTS.md" "$TEST_HOME/.claude/CLAUDE.md"
+
 # Clean up test fixtures
 rm -rf "$PROFILES_DIR/default/claude/hooks" "$PROFILES_DIR/default/claude/skills"
 rm -rf "$PROFILES_DIR/default/claude/read-once" "$PROFILES_DIR/default/claude/commands"
 rm -rf "$PROFILES_DIR/testprofile/claude/hooks"
 rm -f "$PROFILES_DIR/default/claude/CLAUDE.md" "$PROFILES_DIR/default/claude/system-prompt.md"
 rm -f "$PROFILES_DIR/default/claude/statusline.sh" "$PROFILES_DIR/default/claude/sync-plugins.sh"
+rm -rf "$PROFILES_DIR/testprofile/codex/hooks" "$PROFILES_DIR/testprofile/codex/agents"
 
 # --- _profile_apply_tmux ---
 

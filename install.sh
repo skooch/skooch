@@ -208,20 +208,23 @@ if [ "$all_good" = 1 ]; then
     # Check hosts.json for recommended profiles
     HOSTS_FILE="$DOTFILES_DIR/hosts.json"
     recommended=""
+    current_machine_id=""
     if [ -f "$HOSTS_FILE" ]; then
-        current_host=$(hostname)
-        recommended=$(jq -r --arg h "$current_host" '.[$h] // empty | join(" ")' "$HOSTS_FILE" 2>/dev/null)
+        current_machine_id=$("$BREW_ZSH" -c "source '$DOTFILES_DIR/lib/profile/index.sh' && _profile_machine_id" 2>/dev/null)
+        if [ -n "$current_machine_id" ]; then
+            recommended=$(jq -r --arg h "$current_machine_id" '.[$h] // empty | join(" ")' "$HOSTS_FILE" 2>/dev/null)
+        fi
     fi
 
     echo "Next steps:"
     echo "  1. Restart your shell"
     if [ -n "$recommended" ]; then
-        echo "  2. Run: profile use $recommended  (from hosts.json for $(hostname))"
+        echo "  2. Run: profile use $recommended  (from hosts.json for $current_machine_id)"
     else
         echo "  2. Run: profile use <name> [name2 ...]  (e.g. embedded, b)"
     fi
     echo ""
-    echo "Note: 'profile use' applies all profile configs (brew, vscode, git, mise, claude, iterm)."
+    echo "Note: 'profile use' applies all profile configs (brew, vscode, git, mise, claude, codex, iterm, tmux)."
     echo "After initial setup, use 'profile sync' to reconcile changes in either direction."
 else
     echo "=== Some issues found — see warnings above ==="

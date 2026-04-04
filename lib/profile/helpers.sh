@@ -12,35 +12,337 @@ _CLAUDE_LAST_WINS_PATHS=(
     read-once/hook.sh
 )
 
+# --- Codex "last profile wins" file list ---
+
+_CODEX_LAST_WINS_PATHS=(
+    rules/default.rules
+)
+
+# --- Shared profile-tree helpers ---
+
+_profile_collect_domain_dirs() {
+    local profiles="$1" domain="$2"
+    local -a dirs=()
+
+    [[ -d "$PROFILES_DIR/default/$domain" ]] && dirs+=("$PROFILES_DIR/default/$domain")
+    for p in ${=profiles}; do
+        [[ "$p" == "default" ]] && continue
+        [[ -d "$PROFILES_DIR/$p/$domain" ]] && dirs+=("$PROFILES_DIR/$p/$domain")
+    done
+
+    printf '%s\n' "${dirs[@]}"
+}
+
+_profile_collect_domain_file_sources() {
+    local profiles="$1" domain="$2" relative_path="$3"
+    local domain_dir
+    while IFS= read -r domain_dir; do
+        [[ -n "$domain_dir" && -f "$domain_dir/$relative_path" ]] && echo "$domain_dir/$relative_path"
+    done < <(_profile_collect_domain_dirs "$profiles" "$domain")
+}
+
+_profile_profile_source_label() {
+    local profiles="$1" domain="$2" relative_path="$3"
+    local -a labels=()
+    local label=""
+
+    [[ -f "$PROFILES_DIR/default/$domain/$relative_path" ]] && labels+=("default")
+    for p in ${=profiles}; do
+        [[ "$p" == "default" ]] && continue
+        [[ -f "$PROFILES_DIR/$p/$domain/$relative_path" ]] && labels+=("$p")
+    done
+
+    for p in "${labels[@]}"; do
+        if [[ -n "$label" ]]; then
+            label+=" + $p"
+        else
+            label="$p"
+        fi
+    done
+
+    [[ -n "$label" ]] && echo "$label"
+}
+
+_profile_resolve_last_wins_source() {
+    local profiles="$1" domain="$2" relative_path="$3"
+    local source=""
+    local candidate=""
+    while IFS= read -r candidate; do
+        [[ -n "$candidate" ]] && source="$candidate"
+    done < <(_profile_collect_domain_file_sources "$profiles" "$domain" "$relative_path")
+    [[ -n "$source" ]] && echo "$source"
+}
+
+_profile_merge_json_files() {
+    local output_file="$1"
+    shift
+    local -a source_files=("$@")
+
+    [[ ${#source_files[@]} -eq 0 ]] && return 1
+    if [[ ${#source_files[@]} -eq 1 ]]; then
+        cp "${source_files[1]}" "$output_file"
+    else
+        jq -s 'reduce .[] as $item ({}; . * $item)' "${source_files[@]}" > "$output_file"
+    fi
+}
+
+_profile_merge_toml_files() {
+    local output_file="$1"
+    shift
+    local -a source_files=("$@")
+
+    [[ ${#source_files[@]} -eq 0 ]] && return 1
+    if [[ ${#source_files[@]} -eq 1 ]]; then
+        cp "${source_files[1]}" "$output_file"
+    else
+        python3 "$_PROFILE_LIB_DIR/toml_merge.py" "$output_file" "${source_files[@]}"
+    fi
+}
+
+_profile_merge_structured_files() {
+    local format="$1" output_file="$2"
+    shift 2
+
+    case "$format" in
+        json) _profile_merge_json_files "$output_file" "$@" ;;
+        toml) _profile_merge_toml_files "$output_file" "$@" ;;
+        *)
+            echo "Unsupported structured config format: $format" >&2
+            return 1
+            ;;
+    esac
+}
+
+_profile_replace_file() {
+    local source_file="$1" target_file="$2"
+    local tmpfile
+    tmpfile=$(mktemp)
+    mkdir -p "$(dirname "$target_file")"
+    cp "$source_file" "$tmpfile"
+    mv "$tmpfile" "$target_file"
+}
+
+_profile_apply_structured_profile_config() {
+    local label="$1" profiles="$2" domain="$3" relative_path="$4" target_root="$5" format="$6"
+    local -a source_files=()
+    local source_file=""
+
+    while IFS= read -r source_file; do
+        [[ -n "$source_file" ]] && source_files+=("$source_file")
+    done < <(_profile_collect_domain_file_sources "$profiles" "$domain" "$relative_path")
+    [[ ${#source_files[@]} -eq 0 ]] && return 0
+
+    local target_file="$target_root/$relative_path"
+    mkdir -p "$(dirname "$target_file")"
+
+    if [[ ${#source_files[@]} -eq 1 ]]; then
+        ln -sf "${source_files[1]}" "$target_file"
+    else
+        local merged_file
+        merged_file=$(mktemp)
+        _profile_merge_structured_files "$format" "$merged_file" "${source_files[@]}" || {
+            rm -f "$merged_file"
+            return 1
+        }
+        mv "$merged_file" "$target_file"
+    fi
+
+    local source_label=$(_profile_profile_source_label "$profiles" "$domain" "$relative_path")
+    echo "Applying $label: $source_label"
+}
+
+_profile_sync_structured_profile_config() {
+    local label="$1" profiles="$2" domain="$3" relative_path="$4" target_root="$5" format="$6"
+    local -a source_files=()
+    local source_file=""
+
+    while IFS= read -r source_file; do
+        [[ -n "$source_file" ]] && source_files+=("$source_file")
+    done < <(_profile_collect_domain_file_sources "$profiles" "$domain" "$relative_path")
+    [[ ${#source_files[@]} -eq 0 ]] && return 0
+
+    local target_file="$target_root/$relative_path"
+    mkdir -p "$(dirname "$target_file")"
+
+    if [[ ${#source_files[@]} -eq 1 ]]; then
+        if [[ ! -e "$target_file" && ! -L "$target_file" ]]; then
+            ln -sf "${source_files[1]}" "$target_file"
+            echo "  $label: symlinked -> ${source_files[1]:t}"
+            return 0
+        fi
+        if [[ -L "$target_file" && "$(readlink "$target_file")" == "${source_files[1]}" ]]; then
+            echo "  $label: in sync (symlinked)"
+        elif [[ -L "$target_file" ]]; then
+            ln -sf "${source_files[1]}" "$target_file"
+            echo "  $label: symlinked -> ${source_files[1]:t}"
+        else
+            _profile_sync_config "$label" "$target_file" "${source_files[1]}" "${source_files[1]}"
+            return $?
+        fi
+        return 0
+    fi
+
+    local expected_file
+    expected_file=$(mktemp)
+    _profile_merge_structured_files "$format" "$expected_file" "${source_files[@]}" || {
+        rm -f "$expected_file"
+        return 1
+    }
+    _profile_sync_config "$label" "$target_file" "$expected_file" "${source_files[@]}"
+    local result=$?
+    rm -f "$expected_file"
+    return $result
+}
+
+_profile_collect_union_file_sources() {
+    local profiles="$1" domain="$2" relative_dir="$3" glob_pattern="$4"
+    local -A source_map=()
+    local domain_dir=""
+    local matched_file=""
+
+    while IFS= read -r domain_dir; do
+        [[ -z "$domain_dir" ]] && continue
+        for matched_file in "$domain_dir/$relative_dir"/$~glob_pattern(N-.); do
+            source_map[${matched_file:t}]="$matched_file"
+        done
+    done < <(_profile_collect_domain_dirs "$profiles" "$domain")
+
+    local basename=""
+    for basename in ${(ok)source_map}; do
+        printf '%s\t%s\n' "$basename" "$source_map[$basename]"
+    done
+}
+
+_profile_collect_union_dir_sources() {
+    local profiles="$1" domain="$2" relative_dir="$3"
+    local -A source_map=()
+    local domain_dir=""
+    local matched_dir=""
+
+    while IFS= read -r domain_dir; do
+        [[ -z "$domain_dir" ]] && continue
+        for matched_dir in "$domain_dir/$relative_dir"/*(N/); do
+            source_map[${matched_dir:t}]="$matched_dir"
+        done
+    done < <(_profile_collect_domain_dirs "$profiles" "$domain")
+
+    local dirname=""
+    for dirname in ${(ok)source_map}; do
+        printf '%s\t%s\n' "$dirname" "$source_map[$dirname]"
+    done
+}
+
+_profile_link_last_wins_paths() {
+    local profiles="$1" domain="$2" target_root="$3" mode="${4:-apply}"
+    shift 4
+
+    local relative_path=""
+    for relative_path in "$@"; do
+        local source=$(_profile_resolve_last_wins_source "$profiles" "$domain" "$relative_path")
+        [[ -z "$source" ]] && continue
+
+        local target_file="$target_root/$relative_path"
+        mkdir -p "$(dirname "$target_file")"
+        if [[ "$mode" == "sync" && -L "$target_file" && "$(readlink "$target_file")" == "$source" ]]; then
+            echo "  $relative_path: in sync (symlinked)"
+        else
+            ln -sf "$source" "$target_file"
+            echo "  $relative_path: symlinked"
+        fi
+    done
+}
+
+_profile_link_union_file_collection() {
+    local profiles="$1" domain="$2" relative_dir="$3" glob_pattern="$4" target_root="$5" mode="${6:-apply}" label="$7"
+    local -a linked_names=()
+    local collection_changed=false
+    local basename="" source_file=""
+
+    while IFS=$'\t' read -r basename source_file; do
+        [[ -z "$basename" || -z "$source_file" ]] && continue
+        linked_names+=("$basename")
+        local target_file="$target_root/$relative_dir/$basename"
+        mkdir -p "$(dirname "$target_file")"
+        if [[ "$mode" == "sync" && -L "$target_file" && "$(readlink "$target_file")" == "$source_file" ]]; then
+            continue
+        fi
+        ln -sf "$source_file" "$target_file"
+        collection_changed=true
+    done < <(_profile_collect_union_file_sources "$profiles" "$domain" "$relative_dir" "$glob_pattern")
+
+    [[ ${#linked_names[@]} -eq 0 ]] && return 0
+    if [[ "$mode" == "sync" ]]; then
+        if [[ "$collection_changed" == true ]]; then
+            echo "  $label: updated (${(j:, :)linked_names})"
+        else
+            echo "  $label: in sync (${(j:, :)linked_names})"
+        fi
+    else
+        echo "  $label: ${(j:, :)linked_names}"
+    fi
+}
+
+_profile_link_union_dir_collection() {
+    local profiles="$1" domain="$2" relative_dir="$3" target_root="$4" mode="${5:-apply}" label="$6"
+    local -a linked_names=()
+    local collection_changed=false
+    local dirname="" source_dir=""
+
+    while IFS=$'\t' read -r dirname source_dir; do
+        [[ -z "$dirname" || -z "$source_dir" ]] && continue
+        linked_names+=("$dirname")
+        local target_dir="$target_root/$relative_dir/$dirname"
+        mkdir -p "$(dirname "$target_dir")"
+        if [[ "$mode" == "sync" && -L "$target_dir" && "$(readlink "$target_dir")" == "$source_dir" ]]; then
+            continue
+        fi
+        ln -sfn "$source_dir" "$target_dir"
+        collection_changed=true
+    done < <(_profile_collect_union_dir_sources "$profiles" "$domain" "$relative_dir")
+
+    [[ ${#linked_names[@]} -eq 0 ]] && return 0
+    if [[ "$mode" == "sync" ]]; then
+        if [[ "$collection_changed" == true ]]; then
+            echo "  $label: updated (${(j:, :)linked_names})"
+        else
+            echo "  $label: in sync (${(j:, :)linked_names})"
+        fi
+    else
+        echo "  $label: ${(j:, :)linked_names}"
+    fi
+}
+
+_profile_ensure_derived_symlink() {
+    local label="$1" source_file="$2" target_file="$3" mode="${4:-apply}"
+
+    [[ ! -e "$source_file" && ! -L "$source_file" ]] && return 0
+
+    mkdir -p "$(dirname "$target_file")"
+    if [[ "$mode" == "sync" && -L "$target_file" && "$(readlink "$target_file")" == "$source_file" ]]; then
+        echo "  $label: in sync (symlinked)"
+    else
+        ln -sf "$source_file" "$target_file"
+        echo "  $label: symlinked"
+    fi
+}
+
 # Resolve "last profile wins" source for a claude path.
 # Prints the winning source path, or nothing if no profile has the file.
 _profile_claude_resolve_source() {
     local profiles="$1" relative_path="$2"
-    local source=""
-    [[ -f "$PROFILES_DIR/default/claude/$relative_path" ]] && source="$PROFILES_DIR/default/claude/$relative_path"
-    for p in ${=profiles}; do
-        [[ "$p" == "default" ]] && continue
-        [[ -f "$PROFILES_DIR/$p/claude/$relative_path" ]] && source="$PROFILES_DIR/$p/claude/$relative_path"
-    done
-    [[ -n "$source" ]] && echo "$source"
+    _profile_resolve_last_wins_source "$profiles" "claude" "$relative_path"
+}
+
+_profile_codex_resolve_source() {
+    local profiles="$1" relative_path="$2"
+    _profile_resolve_last_wins_source "$profiles" "codex" "$relative_path"
 }
 
 # Symlink all "last profile wins" claude paths.
 # In sync mode, skips files already correctly symlinked and reports status.
 _profile_claude_link_files() {
     local profiles="$1" mode="${2:-apply}"
-    for relative_path in "${_CLAUDE_LAST_WINS_PATHS[@]}"; do
-        local source=$(_profile_claude_resolve_source "$profiles" "$relative_path")
-        [[ -z "$source" ]] && continue
-        local target="$HOME/.claude/$relative_path"
-        mkdir -p "$(dirname "$target")"
-        if [[ "$mode" == "sync" && -L "$target" && "$(readlink "$target")" == "$source" ]]; then
-            echo "  $relative_path: in sync (symlinked)"
-        else
-            ln -sf "$source" "$target"
-            echo "  $relative_path: symlinked"
-        fi
-    done
+    _profile_link_last_wins_paths "$profiles" "claude" "$HOME/.claude" "$mode" "${_CLAUDE_LAST_WINS_PATHS[@]}"
 }
 
 # --- Detection helpers ---
@@ -167,12 +469,17 @@ _profile_snapshot_files() {
              "$dir/iterm/profile.json" \
              "$dir/git/config" "$dir/mise/config.toml" \
              "$dir/claude/settings.json" \
+             "$dir/codex/config.toml" "$dir/codex/hooks.json" \
              "$dir/tmux/tmux.conf"; do
         echo "$f"
     done
     # Claude "last profile wins" paths
     for relative_path in "${_CLAUDE_LAST_WINS_PATHS[@]}"; do
         echo "$dir/claude/$relative_path"
+    done
+    # Codex "last profile wins" paths
+    for relative_path in "${_CODEX_LAST_WINS_PATHS[@]}"; do
+        echo "$dir/codex/$relative_path"
     done
     # Claude hooks (*.sh scripts only)
     for f in "$dir"/claude/hooks/*.sh(N); do
@@ -184,6 +491,14 @@ _profile_snapshot_files() {
     done
     # Claude commands (*.md files)
     for f in "$dir"/claude/commands/*.md(N); do
+        echo "$f"
+    done
+    # Codex hooks (durable file union)
+    for f in "$dir"/codex/hooks/*(N-.); do
+        echo "$f"
+    done
+    # Codex agents (*.toml files)
+    for f in "$dir"/codex/agents/*.toml(N); do
         echo "$f"
     done
 }
@@ -252,37 +567,53 @@ _profile_target_paths() {
     done
 
     # Claude hooks (union of *.sh scripts across profiles)
-    local -a claude_hook_scripts=()
-    for dir in "$PROFILES_DIR/default" ${${(s: :)profiles}/#/$PROFILES_DIR/}; do
-        for f in "$dir"/claude/hooks/*.sh(N); do
-            claude_hook_scripts+=("${f:t}")
-        done
-    done
-    for script in ${(u)claude_hook_scripts}; do
-        paths+=("$HOME/.claude/hooks/$script")
-    done
+    local basename="" source_file=""
+    while IFS=$'\t' read -r basename source_file; do
+        [[ -n "$basename" ]] && paths+=("$HOME/.claude/hooks/$basename")
+    done < <(_profile_collect_union_file_sources "$profiles" "claude" "hooks" "*.sh")
 
     # Claude skills (union of skill dirs across profiles)
-    local -a claude_skill_names=()
-    for dir in "$PROFILES_DIR/default" ${${(s: :)profiles}/#/$PROFILES_DIR/}; do
-        for d in "$dir"/claude/skills/*(N/); do
-            claude_skill_names+=("${d:t}")
-        done
-    done
-    for skill in ${(u)claude_skill_names}; do
-        paths+=("$HOME/.claude/skills/$skill")
-    done
+    local dirname="" source_dir=""
+    while IFS=$'\t' read -r dirname source_dir; do
+        [[ -n "$dirname" ]] && paths+=("$HOME/.claude/skills/$dirname")
+    done < <(_profile_collect_union_dir_sources "$profiles" "claude" "skills")
 
     # Claude commands (union of *.md files across profiles)
-    local -a claude_command_names=()
-    for dir in "$PROFILES_DIR/default" ${${(s: :)profiles}/#/$PROFILES_DIR/}; do
-        for f in "$dir"/claude/commands/*.md(N); do
-            claude_command_names+=("${f:t}")
-        done
+    while IFS=$'\t' read -r basename source_file; do
+        [[ -n "$basename" ]] && paths+=("$HOME/.claude/commands/$basename")
+    done < <(_profile_collect_union_file_sources "$profiles" "claude" "commands" "*.md")
+
+    # Codex config
+    local has_codex_config=false
+    [[ -f "$PROFILES_DIR/default/codex/config.toml" ]] && has_codex_config=true
+    for p in ${=profiles}; do
+        [[ -f "$PROFILES_DIR/$p/codex/config.toml" ]] && has_codex_config=true
     done
-    for cmd in ${(u)claude_command_names}; do
-        paths+=("$HOME/.claude/commands/$cmd")
+    [[ "$has_codex_config" == "true" ]] && paths+=("$HOME/.codex/config.toml")
+
+    local has_codex_hooks_json=false
+    [[ -f "$PROFILES_DIR/default/codex/hooks.json" ]] && has_codex_hooks_json=true
+    for p in ${=profiles}; do
+        [[ -f "$PROFILES_DIR/$p/codex/hooks.json" ]] && has_codex_hooks_json=true
     done
+    [[ "$has_codex_hooks_json" == "true" ]] && paths+=("$HOME/.codex/hooks.json")
+
+    for relative_path in "${_CODEX_LAST_WINS_PATHS[@]}"; do
+        local source=$(_profile_codex_resolve_source "$profiles" "$relative_path")
+        [[ -n "$source" ]] && paths+=("$HOME/.codex/$relative_path")
+    done
+
+    while IFS=$'\t' read -r basename source_file; do
+        [[ -n "$basename" ]] && paths+=("$HOME/.codex/hooks/$basename")
+    done < <(_profile_collect_union_file_sources "$profiles" "codex" "hooks" "*")
+
+    while IFS=$'\t' read -r basename source_file; do
+        [[ -n "$basename" ]] && paths+=("$HOME/.codex/agents/$basename")
+    done < <(_profile_collect_union_file_sources "$profiles" "codex" "agents" "*.toml")
+
+    if [[ -n "$(_profile_claude_resolve_source "$profiles" "CLAUDE.md")" ]]; then
+        paths+=("$HOME/.codex/AGENTS.md")
+    fi
 
     # Tmux
     local has_tmux=false

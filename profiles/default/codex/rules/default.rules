@@ -1,0 +1,189 @@
+# Stable Codex rules for local development.
+# Keep these generic and durable. Do not store shell wrappers or one-off
+# approvals here; shell initialization should provide the `mise` environment.
+
+# -----------------------------------------------------------------------------
+# Safe inspection and navigation
+# -----------------------------------------------------------------------------
+prefix_rule(pattern = ["ls"], decision = "allow", justification = "Allow directory inspection")
+prefix_rule(pattern = ["pwd"], decision = "allow", justification = "Allow working directory checks")
+prefix_rule(pattern = ["rg"], decision = "allow", justification = "Allow fast code search")
+prefix_rule(pattern = ["grep"], decision = "allow", justification = "Allow text search")
+prefix_rule(pattern = ["find"], decision = "allow", justification = "Allow file discovery")
+prefix_rule(pattern = ["cat"], decision = "allow", justification = "Allow file reads")
+prefix_rule(pattern = ["head"], decision = "allow", justification = "Allow partial file reads")
+prefix_rule(pattern = ["tail"], decision = "allow", justification = "Allow partial file reads")
+prefix_rule(pattern = ["sed"], decision = "allow", justification = "Allow targeted text inspection")
+prefix_rule(pattern = ["awk"], decision = "allow", justification = "Allow structured text processing")
+prefix_rule(pattern = ["jq"], decision = "allow", justification = "Allow JSON inspection")
+prefix_rule(pattern = ["wc"], decision = "allow", justification = "Allow counts and sizing")
+prefix_rule(pattern = ["sort"], decision = "allow", justification = "Allow sorting")
+prefix_rule(pattern = ["uniq"], decision = "allow", justification = "Allow deduplication")
+prefix_rule(pattern = ["cut"], decision = "allow", justification = "Allow field extraction")
+prefix_rule(pattern = ["tr"], decision = "allow", justification = "Allow simple text transforms")
+prefix_rule(pattern = ["which"], decision = "allow", justification = "Allow command discovery")
+prefix_rule(pattern = ["command"], decision = "allow", justification = "Allow shell builtin inspection")
+prefix_rule(pattern = ["env"], decision = "allow", justification = "Allow environment inspection")
+prefix_rule(pattern = ["test"], decision = "allow", justification = "Allow shell tests")
+prefix_rule(pattern = ["["], decision = "allow", justification = "Allow POSIX test builtin form")
+prefix_rule(pattern = ["true"], decision = "allow", justification = "Allow true builtin")
+prefix_rule(pattern = ["false"], decision = "allow", justification = "Allow false builtin")
+prefix_rule(pattern = ["printf"], decision = "allow", justification = "Allow formatted shell output")
+prefix_rule(pattern = ["echo"], decision = "allow", justification = "Allow shell output")
+prefix_rule(pattern = ["shasum"], decision = "allow", justification = "Allow checksums")
+prefix_rule(pattern = ["xxd"], decision = "allow", justification = "Allow hex inspection")
+prefix_rule(pattern = ["mdfind"], decision = "allow", justification = "Allow Spotlight search")
+prefix_rule(pattern = ["defaults", "read"], decision = "allow", justification = "Allow macOS defaults reads")
+prefix_rule(pattern = ["ioreg"], decision = "allow", justification = "Allow macOS hardware inspection")
+prefix_rule(pattern = ["sips"], decision = "allow", justification = "Allow image inspection and transforms")
+
+# -----------------------------------------------------------------------------
+# Local git workflows
+# -----------------------------------------------------------------------------
+prefix_rule(pattern = ["git"], decision = "allow", justification = "Allow git command family")
+
+# -----------------------------------------------------------------------------
+# Core development tooling
+# -----------------------------------------------------------------------------
+prefix_rule(pattern = ["cargo"], decision = "allow", justification = "Allow Rust workflows")
+prefix_rule(pattern = ["uv"], decision = "allow", justification = "Allow uv-based Python workflows")
+prefix_rule(pattern = ["tdeck"], decision = "allow", justification = "Allow T-Deck CLI workflows")
+prefix_rule(pattern = ["codex", "mcp", "add"], decision = "allow", justification = "Allow Codex MCP configuration")
+prefix_rule(pattern = ["lefthook"], decision = "allow", justification = "Allow repository hook runner")
+prefix_rule(pattern = ["ruff"], decision = "allow", justification = "Allow Ruff linting")
+prefix_rule(pattern = ["mypy"], decision = "allow", justification = "Allow mypy checks")
+prefix_rule(pattern = ["mise"], decision = "allow", justification = "Allow mise command family")
+prefix_rule(pattern = ["python3", "--version"], decision = "allow", justification = "Allow Python version checks")
+prefix_rule(pattern = ["python3", "-m", "py_compile"], decision = "allow", justification = "Allow Python syntax and bytecode verification")
+prefix_rule(pattern = ["python3", "-m", "pytest"], decision = "allow", justification = "Allow pytest via python -m")
+prefix_rule(pattern = ["pytest"], decision = "allow", justification = "Allow pytest test runs")
+prefix_rule(pattern = ["base64"], decision = "allow", justification = "Allow base64 encode and decode")
+prefix_rule(pattern = ["gh"], decision = "allow", justification = "Allow GitHub CLI command family")
+prefix_rule(pattern = ["defmt-print"], decision = "allow", justification = "Allow defmt decoding")
+prefix_rule(pattern = ["xtensa-esp32s3-elf-gcc"], decision = "allow", justification = "Allow ESP32 toolchain commands")
+prefix_rule(pattern = ["xtensa-esp32s3-elf-ld"], decision = "allow", justification = "Allow ESP32 toolchain commands")
+prefix_rule(pattern = ["xtensa-esp32s3-elf-objdump"], decision = "allow", justification = "Allow ESP32 toolchain commands")
+
+# -----------------------------------------------------------------------------
+# Common non-destructive file operations
+# -----------------------------------------------------------------------------
+prefix_rule(pattern = ["mkdir"], decision = "allow", justification = "Allow directory creation")
+prefix_rule(pattern = ["touch"], decision = "allow", justification = "Allow file creation and timestamp updates")
+prefix_rule(pattern = ["cp"], decision = "allow", justification = "Allow file copying")
+prefix_rule(pattern = ["mv"], decision = "allow", justification = "Allow moves and renames")
+prefix_rule(pattern = ["ln"], decision = "allow", justification = "Allow symlink creation")
+
+# -----------------------------------------------------------------------------
+# Prompt for higher-risk or easy-to-abuse patterns
+# -----------------------------------------------------------------------------
+prefix_rule(pattern = ["source"], decision = "prompt", justification = "Prompt before sourcing shell code")
+prefix_rule(pattern = ["eval"], decision = "prompt", justification = "Prompt before eval")
+prefix_rule(pattern = ["sudo"], decision = "prompt", justification = "Prompt before privilege escalation")
+prefix_rule(pattern = ["chmod"], decision = "prompt", justification = "Prompt before permission changes")
+prefix_rule(pattern = ["curl"], decision = "prompt", justification = "Prompt before fetching arbitrary URLs")
+prefix_rule(pattern = ["wget"], decision = "prompt", justification = "Prompt before fetching arbitrary URLs")
+prefix_rule(pattern = ["dd"], decision = "prompt", justification = "Prompt before block-device style operations")
+prefix_rule(pattern = ["mkfs"], decision = "prompt", justification = "Prompt before filesystem formatting")
+prefix_rule(pattern = ["xargs"], decision = "prompt", justification = "Prompt before xargs fan-out")
+prefix_rule(pattern = ["brew"], decision = "prompt", justification = "Prompt for Homebrew commands")
+prefix_rule(pattern = ["rm", ["-r", "-R", "-rf", "-fr"]], decision = "prompt", justification = "Prompt before recursive deletion")
+
+# -----------------------------------------------------------------------------
+# Forbidden sensitive access
+# -----------------------------------------------------------------------------
+prefix_rule(pattern = ["cat", "~/.ssh/"], decision = "forbidden", justification = "Do not read SSH material")
+prefix_rule(pattern = ["cat", "~/.gnupg/"], decision = "forbidden", justification = "Do not read GnuPG secrets")
+prefix_rule(pattern = ["cat", "~/.aws/"], decision = "forbidden", justification = "Do not read AWS credentials")
+prefix_rule(pattern = ["cat", "~/.azure/"], decision = "forbidden", justification = "Do not read Azure credentials")
+prefix_rule(pattern = ["cat", "~/.config/gh/"], decision = "forbidden", justification = "Do not read GitHub CLI auth material")
+prefix_rule(pattern = ["cat", "~/.config/gcloud/"], decision = "forbidden", justification = "Do not read gcloud credentials")
+prefix_rule(pattern = ["cat", "~/.git-credentials"], decision = "forbidden", justification = "Do not read git credentials")
+prefix_rule(pattern = ["cat", "~/.docker/config.json"], decision = "forbidden", justification = "Do not read Docker credentials")
+prefix_rule(pattern = ["cat", "~/.kube/"], decision = "forbidden", justification = "Do not read kube credentials")
+prefix_rule(pattern = ["cat", "~/.npmrc"], decision = "forbidden", justification = "Do not read npm credentials")
+prefix_rule(pattern = ["cat", "~/.npm/"], decision = "forbidden", justification = "Do not read npm auth material")
+prefix_rule(pattern = ["cat", "~/.netrc"], decision = "forbidden", justification = "Do not read netrc credentials")
+prefix_rule(pattern = ["cat", "~/.pypirc"], decision = "forbidden", justification = "Do not read PyPI credentials")
+prefix_rule(pattern = ["cat", "~/.gem/credentials"], decision = "forbidden", justification = "Do not read RubyGems credentials")
+prefix_rule(pattern = ["cat", "~/Library/Keychains/"], decision = "forbidden", justification = "Do not read macOS keychains")
+prefix_rule(pattern = ["head", "~/.ssh/"], decision = "forbidden", justification = "Do not read SSH material")
+prefix_rule(pattern = ["head", "~/.gnupg/"], decision = "forbidden", justification = "Do not read GnuPG secrets")
+prefix_rule(pattern = ["head", "~/.aws/"], decision = "forbidden", justification = "Do not read AWS credentials")
+prefix_rule(pattern = ["head", "~/.azure/"], decision = "forbidden", justification = "Do not read Azure credentials")
+prefix_rule(pattern = ["head", "~/.config/gh/"], decision = "forbidden", justification = "Do not read GitHub CLI auth material")
+prefix_rule(pattern = ["head", "~/.config/gcloud/"], decision = "forbidden", justification = "Do not read gcloud credentials")
+prefix_rule(pattern = ["head", "~/.git-credentials"], decision = "forbidden", justification = "Do not read git credentials")
+prefix_rule(pattern = ["head", "~/.docker/config.json"], decision = "forbidden", justification = "Do not read Docker credentials")
+prefix_rule(pattern = ["head", "~/.kube/"], decision = "forbidden", justification = "Do not read kube credentials")
+prefix_rule(pattern = ["head", "~/.npmrc"], decision = "forbidden", justification = "Do not read npm credentials")
+prefix_rule(pattern = ["head", "~/.npm/"], decision = "forbidden", justification = "Do not read npm auth material")
+prefix_rule(pattern = ["head", "~/.netrc"], decision = "forbidden", justification = "Do not read netrc credentials")
+prefix_rule(pattern = ["head", "~/.pypirc"], decision = "forbidden", justification = "Do not read PyPI credentials")
+prefix_rule(pattern = ["head", "~/.gem/credentials"], decision = "forbidden", justification = "Do not read RubyGems credentials")
+prefix_rule(pattern = ["head", "~/Library/Keychains/"], decision = "forbidden", justification = "Do not read macOS keychains")
+prefix_rule(pattern = ["tail", "~/.ssh/"], decision = "forbidden", justification = "Do not read SSH material")
+prefix_rule(pattern = ["tail", "~/.gnupg/"], decision = "forbidden", justification = "Do not read GnuPG secrets")
+prefix_rule(pattern = ["tail", "~/.aws/"], decision = "forbidden", justification = "Do not read AWS credentials")
+prefix_rule(pattern = ["tail", "~/.azure/"], decision = "forbidden", justification = "Do not read Azure credentials")
+prefix_rule(pattern = ["tail", "~/.config/gh/"], decision = "forbidden", justification = "Do not read GitHub CLI auth material")
+prefix_rule(pattern = ["tail", "~/.config/gcloud/"], decision = "forbidden", justification = "Do not read gcloud credentials")
+prefix_rule(pattern = ["tail", "~/.git-credentials"], decision = "forbidden", justification = "Do not read git credentials")
+prefix_rule(pattern = ["tail", "~/.docker/config.json"], decision = "forbidden", justification = "Do not read Docker credentials")
+prefix_rule(pattern = ["tail", "~/.kube/"], decision = "forbidden", justification = "Do not read kube credentials")
+prefix_rule(pattern = ["tail", "~/.npmrc"], decision = "forbidden", justification = "Do not read npm credentials")
+prefix_rule(pattern = ["tail", "~/.npm/"], decision = "forbidden", justification = "Do not read npm auth material")
+prefix_rule(pattern = ["tail", "~/.netrc"], decision = "forbidden", justification = "Do not read netrc credentials")
+prefix_rule(pattern = ["tail", "~/.pypirc"], decision = "forbidden", justification = "Do not read PyPI credentials")
+prefix_rule(pattern = ["tail", "~/.gem/credentials"], decision = "forbidden", justification = "Do not read RubyGems credentials")
+prefix_rule(pattern = ["tail", "~/Library/Keychains/"], decision = "forbidden", justification = "Do not read macOS keychains")
+prefix_rule(pattern = ["base64", "~/.ssh/"], decision = "forbidden", justification = "Do not encode SSH material")
+prefix_rule(pattern = ["base64", "~/.gnupg/"], decision = "forbidden", justification = "Do not encode GnuPG secrets")
+prefix_rule(pattern = ["base64", "~/.aws/"], decision = "forbidden", justification = "Do not encode AWS credentials")
+prefix_rule(pattern = ["base64", "~/.azure/"], decision = "forbidden", justification = "Do not encode Azure credentials")
+prefix_rule(pattern = ["base64", "~/.config/gh/"], decision = "forbidden", justification = "Do not encode GitHub CLI auth material")
+prefix_rule(pattern = ["base64", "~/.config/gcloud/"], decision = "forbidden", justification = "Do not encode gcloud credentials")
+prefix_rule(pattern = ["base64", "~/.git-credentials"], decision = "forbidden", justification = "Do not encode git credentials")
+prefix_rule(pattern = ["base64", "~/.docker/config.json"], decision = "forbidden", justification = "Do not encode Docker credentials")
+prefix_rule(pattern = ["base64", "~/.kube/"], decision = "forbidden", justification = "Do not encode kube credentials")
+prefix_rule(pattern = ["base64", "~/.npmrc"], decision = "forbidden", justification = "Do not encode npm credentials")
+prefix_rule(pattern = ["base64", "~/.npm/"], decision = "forbidden", justification = "Do not encode npm auth material")
+prefix_rule(pattern = ["base64", "~/.netrc"], decision = "forbidden", justification = "Do not encode netrc credentials")
+prefix_rule(pattern = ["base64", "~/.pypirc"], decision = "forbidden", justification = "Do not encode PyPI credentials")
+prefix_rule(pattern = ["base64", "~/.gem/credentials"], decision = "forbidden", justification = "Do not encode RubyGems credentials")
+prefix_rule(pattern = ["base64", "~/Library/Keychains/"], decision = "forbidden", justification = "Do not encode macOS keychains")
+prefix_rule(pattern = ["xxd", "~/.ssh/"], decision = "forbidden", justification = "Do not hex-dump SSH material")
+prefix_rule(pattern = ["xxd", "~/.gnupg/"], decision = "forbidden", justification = "Do not hex-dump GnuPG secrets")
+prefix_rule(pattern = ["xxd", "~/.aws/"], decision = "forbidden", justification = "Do not hex-dump AWS credentials")
+prefix_rule(pattern = ["xxd", "~/.azure/"], decision = "forbidden", justification = "Do not hex-dump Azure credentials")
+prefix_rule(pattern = ["xxd", "~/.config/gh/"], decision = "forbidden", justification = "Do not hex-dump GitHub CLI auth material")
+prefix_rule(pattern = ["xxd", "~/.config/gcloud/"], decision = "forbidden", justification = "Do not hex-dump gcloud credentials")
+prefix_rule(pattern = ["xxd", "~/.git-credentials"], decision = "forbidden", justification = "Do not hex-dump git credentials")
+prefix_rule(pattern = ["xxd", "~/.docker/config.json"], decision = "forbidden", justification = "Do not hex-dump Docker credentials")
+prefix_rule(pattern = ["xxd", "~/.kube/"], decision = "forbidden", justification = "Do not hex-dump kube credentials")
+prefix_rule(pattern = ["xxd", "~/.npmrc"], decision = "forbidden", justification = "Do not hex-dump npm credentials")
+prefix_rule(pattern = ["xxd", "~/.npm/"], decision = "forbidden", justification = "Do not hex-dump npm auth material")
+prefix_rule(pattern = ["xxd", "~/.netrc"], decision = "forbidden", justification = "Do not hex-dump netrc credentials")
+prefix_rule(pattern = ["xxd", "~/.pypirc"], decision = "forbidden", justification = "Do not hex-dump PyPI credentials")
+prefix_rule(pattern = ["xxd", "~/.gem/credentials"], decision = "forbidden", justification = "Do not hex-dump RubyGems credentials")
+prefix_rule(pattern = ["xxd", "~/Library/Keychains/"], decision = "forbidden", justification = "Do not hex-dump macOS keychains")
+prefix_rule(pattern = ["cat", "~/Library/CloudStorage/"], decision = "forbidden", justification = "Do not read synced cloud storage by default")
+prefix_rule(pattern = ["cat", "~/Library/Mobile Documents/"], decision = "forbidden", justification = "Do not read iCloud documents by default")
+prefix_rule(pattern = ["cat", "~/Dropbox/"], decision = "forbidden", justification = "Do not read Dropbox data by default")
+prefix_rule(pattern = ["cat", "~/Google Drive/"], decision = "forbidden", justification = "Do not read Google Drive data by default")
+prefix_rule(pattern = ["cat", "~/OneDrive/"], decision = "forbidden", justification = "Do not read OneDrive data by default")
+prefix_rule(pattern = ["cat", "~/Box/"], decision = "forbidden", justification = "Do not read Box data by default")
+
+# -----------------------------------------------------------------------------
+# Home Codex maintenance
+# -----------------------------------------------------------------------------
+prefix_rule(pattern = ["date"], decision = "allow", justification = "Allow timestamp and clock reads")
+prefix_rule(pattern = ["./.venv/bin/pytest"], decision = "allow", justification = "Allow local virtualenv pytest runs")
+prefix_rule(pattern = ["python3", "/Users/skooch/.codex/hooks/permission_bridge.py", "sync-rules"], decision = "allow", justification = "Allow deterministic home rule sync generation")
+
+# >>> HOME AUTO-GENERATED COMMAND RULES >>>
+# Managed by ~/.codex/hooks/permission_bridge.py sync-rules.
+# This block only promotes repeated safe command families observed home-wide.
+# <<< HOME AUTO-GENERATED COMMAND RULES <<<
+
+prefix_rule(pattern=["rm", "-f", "/Users/skooch/projects/tdeck-pro-rust/worktrees/ui-style-consolidation/.claude/plans/in-progress/codex-overhaul/04-ui-and-style-system-consolidation-plan.md"], decision="allow")
+prefix_rule(pattern=["rm", "-f", "/tmp/tdeck-qemu-defmt.bin", "/tmp/qemu-qmp.sock"], decision="allow")
