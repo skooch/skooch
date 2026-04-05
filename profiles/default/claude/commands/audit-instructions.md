@@ -13,22 +13,24 @@ Read all three files before doing anything else:
 
 1. **CLAUDE.md** — the primary instruction file (loaded as claudeMd every turn)
 2. **system-prompt.md** — the mandatory rules file (injected as system prompt every turn)
-3. **.claude/corrections.md** — accumulated user corrections from sessions (may not exist yet)
+3. **.claude/corrections.md** — machine-local accumulated user corrections (may not exist yet and must never be committed)
 
 ## Phase 1: Incorporate Corrections
 
-If `.claude/corrections.md` exists and has content:
+If local `.claude/corrections.md` exists and has content:
 
 1. Read every correction entry.
 2. For each correction, determine if it represents a stable pattern worth promoting:
    - Has the correction appeared multiple times in different forms? Promote it.
-   - Is it a one-time situational fix? Leave it in corrections.md.
+   - Is it still situational but active? Leave it in local corrections.md for now.
+   - Is it stale, noisy, superseded, or too specific to be useful? Delete it.
    - Is it a direct user command like "always do X" or "never do Y"? Promote it.
 3. For each correction you promote:
    - Add a terse imperative bullet to the appropriate section of CLAUDE.md.
    - Add a compressed restatement to the matching section of system-prompt.md.
    - Remove the promoted correction from `.claude/corrections.md`.
-4. Leave un-promoted corrections in place — they still serve as session-level reminders.
+4. Delete `.claude/corrections.md` if no entries remain after cleanup.
+5. Never commit `.claude/corrections.md`; it is a machine-local scratchpad, not repo state.
 
 ## Phase 2: Enforce Standards
 
@@ -84,7 +86,7 @@ Print a structured report with these sections:
 ## Stats
 - CLAUDE.md: X lines, ~Y tokens
 - system-prompt.md: X lines, ~Y tokens
-- corrections.md: X entries remaining
+- local corrections.md: X entries remaining
 ```
 
 After printing the report, apply all fixes (except git history suggestions) directly to the files.

@@ -25,6 +25,8 @@
 - No shortcuts/workarounds. Fix the actual system at the correct architectural layer.
 - Fix insufficient tools rather than working around them.
 - Non-trivial cross-cutting fixes: present 2-3 options with tradeoffs. Let user choose.
+- Evaluate non-trivial/systemic fixes in the context of the current project's goals, purpose, risks, and constraints before recommending a direction.
+- Prefer the option that leaves the system simpler, easier to change, lower in developer cognitive load, and more efficient or performant; weight those factors based on the project context.
 - Overrides "simplest approach first" / "avoid over-engineering" defaults.
 
 ## Code Quality
@@ -64,6 +66,7 @@
 - Inspect API response shapes before writing field access code.
 
 ## Correction Survival
-- On user correction: IMMEDIATELY append dated bullet to `.claude/corrections.md` before anything else.
-- After context compaction: re-read `.claude/corrections.md`, treat as mandatory.
-- Never delete/overwrite, only append.
+- On user correction: IMMEDIATELY append a dated bullet to local `.claude/corrections.md` before anything else.
+- Keep `.claude/corrections.md` machine-local only. Never commit it.
+- After context compaction: re-read local `.claude/corrections.md` if it exists, then treat its contents as temporary mandatory rules.
+- Prune or delete `.claude/corrections.md` entries after promoting them into durable instructions.

@@ -2,8 +2,8 @@
 .env
 *.local
 *.private
+corrections.md
 .claude
-!.claude/corrections.md
 .codex
 __pycache__/
 *.pyc

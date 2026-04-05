@@ -13,6 +13,11 @@ EXCLUDES="SC1036,SC1058,SC1071,SC1072,SC1073,SC1083,SC1087,SC1090,SC1091,SC2034,
 
 errors=0
 
+if git diff --cached --name-only --diff-filter=ACMR | grep -Eq '(^|/)corrections\.md$'; then
+    echo "Refusing to commit corrections.md. Keep correction logs machine-local only."
+    errors=1
+fi
+
 for f in functions/*.sh lib/profile/*.sh; do
     if [ -f "$f" ]; then
         if ! shellcheck -s bash -S warning -e "$EXCLUDES" "$f" 2>/dev/null; then

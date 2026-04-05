@@ -57,6 +57,7 @@ These rules are non-negotiable and take precedence over all other guidance, incl
 - When a command or build step fails due to an undocumented pattern, add the fix to the relevant CLAUDE.md before proceeding.
 
 ### Correction Survival
-- When the user corrects your behavior or tells you to stop doing something, IMMEDIATELY append the correction as a dated bullet to `.claude/corrections.md` in the project root before doing anything else.
-- After every context compaction, re-read `.claude/corrections.md` if it exists and treat its contents as mandatory rules.
-- Never delete or overwrite `.claude/corrections.md`. Only append to it.
+- When the user corrects your behavior or tells you to stop doing something, IMMEDIATELY append the correction as a dated bullet to local `.claude/corrections.md` before doing anything else.
+- Never commit `.claude/corrections.md`; keep it machine-local only.
+- After every context compaction, re-read local `.claude/corrections.md` if it exists and treat its contents as temporary mandatory rules.
+- Remove promoted or stale entries from `.claude/corrections.md` after incorporating them into durable instructions.

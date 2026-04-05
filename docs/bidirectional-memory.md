@@ -2,7 +2,7 @@
 
 ## Background
 
-This repo was originally configured around Claude Code, with important project context stored in Claude-specific files such as `.claude/CLAUDE.md`, `.claude/MEMORY.md`, `.claude/corrections.md`, and `.claude/rules/*.md`.
+This repo was originally configured around Claude Code, with important project context stored in Claude-specific files such as `.claude/CLAUDE.md`, `.claude/MEMORY.md`, and `.claude/rules/*.md`. `.claude/corrections.md` is separate machine-local scratch space and is not part of shared committed memory.
 
 During the Codex onboarding review, we separated two distinct concerns:
 
