@@ -67,15 +67,31 @@ _skooch_activate_mise() {
     [[ "$path_changed" == true ]] && rehash
 }
 
+_skooch_find_python3() {
+    local real_python=""
+
+    if command -v uv >/dev/null 2>&1; then
+        real_python="$(uv python find 2>/dev/null)" || return 1
+        [[ -x "$real_python" ]] && {
+            printf "%s" "$real_python"
+            return 0
+        }
+    fi
+
+    local python_cmd=""
+    python_cmd="$(command -v python3 2>/dev/null)" || return 1
+
+    real_python="$("$python_cmd" -c 'import sys; print(sys.executable)' 2>/dev/null)" || return 1
+    [[ -x "$real_python" ]] || return 1
+
+    printf "%s" "$real_python"
+}
+
 _skooch_capture_python3() {
     [[ -n "${SKOOCH_PYTHON3_BIN:-}" && -x "${SKOOCH_PYTHON3_BIN}" ]] && return 0
 
-    local python_cmd=""
-    python_cmd="$(command -v python3 2>/dev/null)" || return 0
-
     local real_python=""
-    real_python="$("$python_cmd" -c 'import sys; print(sys.executable)' 2>/dev/null)" || return 0
-    [[ -x "$real_python" ]] || return 0
+    real_python="$(_skooch_find_python3)" || return 0
 
     export SKOOCH_PYTHON3_BIN="$real_python"
 }

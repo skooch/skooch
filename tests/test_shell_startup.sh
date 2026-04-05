@@ -19,16 +19,28 @@ runtime_output=$(
 )
 assert_eq "$TEST_HOME/runtime-home/.local/share/mise/shims/demo-tool" "$runtime_output"
 
-_TEST_NAME="shared shell runtime captures an executable python3 interpreter path"
+_TEST_NAME="shared shell runtime prefers uv python find for an executable python3 path"
 python_output=$(
-    zsh -c '
+    HOME="$TEST_HOME/runtime-python" PATH="/bin" zsh -c '
+        mkdir -p "$HOME/python/bin"
+        print "#!/usr/bin/env zsh\nexit 0" > "$HOME/python/bin/python3.14"
+        chmod +x "$HOME/python/bin/python3.14"
+        PATH="/bin"
+        unset _SKOOCH_SHELL_RUNTIME_LOADED SKOOCH_PYTHON3_BIN
+        function uv() {
+            if [[ "$1" == "python" && "$2" == "find" ]]; then
+                print "$HOME/python/bin/python3.14"
+                return 0
+            fi
+            return 1
+        }
         source "'"$_RUNTIME_SRC"'"
         if [[ -n "${SKOOCH_PYTHON3_BIN:-}" && -x "${SKOOCH_PYTHON3_BIN}" ]]; then
             printf "%s" "${SKOOCH_PYTHON3_BIN}"
         fi
     '
 )
-assert_contains "$python_output" "python"
+assert_eq "$TEST_HOME/runtime-python/python/bin/python3.14" "$python_output"
 
 _TEST_NAME="shared shell runtime enables Codex-specific mise env and uv shim"
 codex_output=$(

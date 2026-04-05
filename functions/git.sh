@@ -117,9 +117,11 @@ _git_worktree_cargo_isolate() {
     local cargo_cfg="$wt_path/.cargo/config.toml"
     [[ -f "$cargo_cfg" ]] || return 0
 
+    local python_bin="${SKOOCH_PYTHON3_BIN:-python3}"
+
     local shared_target=""
-    if command -v python3 >/dev/null 2>&1; then
-        shared_target="$(python3 -c "
+    if [[ -x "$python_bin" ]] || command -v "$python_bin" >/dev/null 2>&1; then
+        shared_target="$("$python_bin" -c "
 import tomllib, sys, os
 with open('$cargo_cfg', 'rb') as f:
     d = tomllib.load(f)
