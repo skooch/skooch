@@ -1,108 +1,100 @@
 # Decision Framework
 
-Use this reference when comparing remedies or preparing the final plan for the user.
+## Intervention Classification
+
+- **Local refactor**: behavior-preserving localized change, no shared boundary changes.
+- **Architectural remediation**: changes shared contracts, data flow, ownership, lifecycle, or boundaries.
+- **Track as debt**: understood, paying down now is worse tradeoff.
+
+State why chosen class fits better than the other two.
 
 ## Evaluation Criteria
 
-Score each serious option against these questions:
+Score each option. Do not treat the framework as flat scoring. Apply it in context.
 
-- Does it remove the root cause, or only mask the symptom?
-- Does it place responsibility at the correct architectural layer?
-- Does it preserve or strengthen system invariants?
-- Does it simplify contracts, ownership, or state transitions?
-- Does it leave the system simpler overall after the change lands?
-- Does it leave the system more open to future change instead of baking in more rigidity?
-- Does it reduce hidden coupling, duplication, or drift between sources of truth?
-- Does it improve developer ergonomics or reduce cognitive load for the people who will maintain and extend this code?
-- Does it behave correctly under retries, concurrency, partial failure, and stale state?
-- Is it efficient enough for the real hot paths, data volumes, and latency constraints involved?
-- Does it improve observability, diagnosability, and testability?
-- Does it avoid introducing new policy exceptions, one-off conditionals, or fragile sequencing?
-- Does it respect current framework or library guidance from authoritative sources?
-- Does it leave the codebase easier to reason about after the fix lands?
+**Root cause and correctness:**
+- Removes root cause or masks symptom?
+- Correct under retries, concurrency, partial failure, stale state?
+- Preserves/strengthens invariants?
 
-## Project Context Weighting
+**Architecture:**
+- Places responsibility at correct architectural layer? Right component truly owns the decision/state?
+- Simplifies contracts, ownership, state transitions?
+- Reduces coupling, duplication, source-of-truth drift?
+- What invariant was violated? Where should it be enforced?
+- What earlier point could prevent the bad state?
 
-Before choosing an option, determine how this project should weight the criteria above.
+**System quality:**
+- Leaves system simpler after the change lands, easier to reason about?
+- Makes future change easier instead of baking in more rigidity?
+- Improves observability, diagnosability, testability?
+- Improves developer ergonomics, reduces cognitive load for the people who will maintain and extend this code?
+- Efficient enough for real hot paths, data volumes, and latency constraints?
 
-Ask these questions:
+**Constraints and tradeoffs:**
+- Surfaces real tradeoffs vs aesthetic claims?
+- Makes product, operational, regulatory, platform, staffing, and compatibility constraints explicit?
+- Aligns with authoritative framework/library guidance?
+- Avoids introducing new policy exceptions, one-off conditionals, fragile sequencing?
+- Preserves compatibility or makes breaks explicit?
+- Reasonable rollback/reversibility?
+- Retires debt, reduces interest, or justifies deferral?
 
-- What is this project for, and what outcomes matter most?
-- What kinds of future change are likely or strategically important?
-- What operational, product, regulatory, platform, or staffing constraints limit the design space?
-- Which failures are most dangerous here: incorrectness, downtime, latency, operator confusion, developer confusion, migration risk, or inability to extend the system?
-- Which qualities deserve extra weight in this codebase: simplicity, adaptability, ergonomics, performance, reliability, observability, or something else?
-- Which qualities can be traded slightly because this particular project values others more?
-
-Do not treat the framework as flat scoring. Apply it in context.
+**Context questions** (before choosing):
+- What outcomes matter most? What future change is likely or strategically important?
+- What constraints limit design space?
+- Most dangerous failures? Extra-weight qualities? Acceptable trades?
 
 ## Red Flags
 
-Treat an option as suspect if it mainly does one of these:
+Suspect if option mainly: guards impossible state; retries without explaining race; patches one caller when contract wrong for all; duplicates logic vs single source of truth; hard-codes around bad data; improves visible symptom but leaves the system impossible to debug next time; jumps to rewrite without incremental option; labels remediation as refactoring; insists on paying debt without justifying cost.
 
-- Adds a guard around a state that should never exist.
-- Retries or delays work without explaining why the underlying race or ordering issue exists.
-- Patches only one caller when the contract is wrong for every caller.
-- Duplicates logic instead of restoring a single source of truth.
-- Hard-codes around bad data instead of fixing validation, ownership, or data production.
-- Improves the visible symptom but leaves the system impossible to debug next time.
+## Remediation Expectations
 
-## Architecture Questions
+- [Remediation playbook](remediation-playbook.md) for snapshot/scenarios.
+- 2+ serious options with tradeoffs, reversibility, compatibility, debt impact.
+- 1+ incremental modernization option before rewrite-shaped change.
+- Rollout/compatibility approach, not just target end state.
 
-Ask these before settling on a recommendation:
-
-- What invariant was violated?
-- What is this project optimizing for at a high level?
-- What risks and limitations of this project should change how the options are judged?
-- Where should that invariant be enforced?
-- Which component truly owns this decision or state transition?
-- Which option leaves the system simpler?
-- Which option leaves the system more open to future change?
-- Which option gives developers the best ergonomics and the lowest cognitive load?
-- Which option has the best performance profile for the actual workload that matters here?
-- What earlier point in the flow could prevent the bad state from existing?
-- What contract, schema, or lifecycle rule is currently implicit and should become explicit?
-- What nearby code would become simpler if the root issue were fixed correctly?
-
-## Online Research Expectations
+## Research Expectations
 
 When external behavior matters:
 
-- Prefer official framework, language, library, or standard documentation.
+- Prefer official docs, specs, library docs, standards, RFCs.
 - Check version-specific behavior instead of assuming older guidance still applies.
-- Use issue trackers or RFCs only to clarify edge cases, compatibility, or known pitfalls.
-- Treat blog posts and forum threads as secondary sources, not as the final authority.
+- Issue trackers/RFCs only for edge cases, compatibility, known pitfalls.
+- Treat blogs and forums as secondary sources, not as the final authority.
 
 ## Plan Template
 
-Use this structure for the final recommendation:
+Every recommendation starts with:
 
-1. Problem statement
-- Symptom, expected behavior, actual behavior, scope, and impact.
+1. **Intervention class** — which, and brief why.
+2. **Problem** — symptom, expected vs actual, scope, impact.
+3. **Evidence** — reproduction, logs, tests, traces, code refs.
+4. **Assumptions** — validated, open, what changes if wrong.
 
-2. Evidence
-- Reproduction, logs, failing tests, traces, code references, and observed facts.
+### Lightweight mode
 
-3. Assumptions and validation status
-- Which assumptions were validated, which remain open, and what would change if they are wrong.
+5. **Options** — serious options, why rejected/retained.
+6. **Fix** — selected, why cleanest effective answer.
+7. **Verification** — tests, checks, regression coverage.
+8. **Residual risks** — remaining uncertainties, follow-up work, and any validation still worth doing.
 
-4. Project context and weighting
-- High-level goals, purpose, risks, limitations, and which decision qualities were weighted most heavily.
+### Remediation mode
 
-5. Architecture findings
-- Relevant code paths, ownership boundaries, invariants, and failure mechanism.
+5. **Context** — goals, future change, weighted qualities, constraints.
+6. **Architecture + scenarios** — boundaries, ownership, contracts, data flow; success/non-regression scenarios.
+7. **Options matrix** — tradeoffs, reversibility, compatibility, debt per option.
+8. **Recommendation** — selected, why best architectural answer.
+9. **ADR** — context, decision, consequences.
+10. **Rollout** — steps, boundaries, migration, compatibility approach.
+11. **Verification** — tests, checks, regression coverage.
+12. **Debt + risks** — retired/deferred, remaining risk, follow-up.
 
-6. Options considered
-- List each serious option, how it would work, and why it was rejected or retained.
+### Debt tracking mode
 
-7. Recommended fix
-- State the selected fix and explain why it is the cleanest and most effective answer.
-
-8. Implementation plan
-- Ordered steps, affected boundaries, migration concerns, and required tests or instrumentation.
-
-9. Verification plan
-- Tests, runtime checks, metrics, logs, rollout checks, and regression coverage.
-
-10. Residual risks
-- Remaining uncertainties, follow-up work, and any validation still worth doing.
+5. **Why not now** — tradeoff justification.
+6. **Deferral cost** — complexity, friction, operational cost.
+7. **Trigger** — signal to revisit.
+8. **Safeguards** — tests, observability, guardrails.

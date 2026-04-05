@@ -1,113 +1,66 @@
 ---
 name: systemic-fix
-description: Systematically diagnose bugs, failures, regressions, reliability issues, confusing behavior, architecture mismatches, and recurring operational problems in a codebase. Use when an agent is given a symptom, error, incident, user complaint, vague concern, or suspected root cause and must understand it without assumptions, validate unknowns before relying on them, research the relevant code paths and architecture, compare all credible fixes including current online guidance and patterns, and present the best architecturally sound fix plan rather than a workaround or fastest patch.
+description: Systematically diagnose bugs, failures, regressions, reliability issues, confusing behavior, architecture mismatches, and recurring operational problems. Use when given a symptom, error, incident, user complaint, vague concern, or suspected root cause and must diagnose without assumptions, compare credible fixes, and recommend the most durable fix plan rather than a workaround or fastest patch.
 ---
 
 # Systemic Fix
 
-## Overview
+Gather evidence, understand architecture, choose the smallest intervention that removes the root cause at the correct layer. Not a rewrite mandate, not ideal-architecture seeking, not incident response — focuses on code/design remediation. Not a workaround disguised as a fix.
 
-Trace an issue from symptom to recommendation by building evidence first, then understanding the surrounding architecture, then evaluating all credible fixes. Optimize for the best root-cause fix, not the quickest patch and not a workaround disguised as a fix.
+Scale investigation depth to issue complexity. Abbreviate for obvious isolated bugs with direct evidence. Full flow when cause is uncertain, multiple paths involved, shared contracts/infrastructure affected, fix changes behavior/boundaries, or the failure is intermittent.
 
-Scale investigation depth to issue complexity. For bugs with an obvious, isolated root cause confirmed by direct evidence, steps 4-9 may be abbreviated. The full workflow is warranted when the cause is uncertain, multiple code paths are involved, the fix touches shared contracts or infrastructure, or the failure is intermittent.
+## Principles
 
-## Operating Principles
-
-- Treat every symptom as incomplete evidence, not as a diagnosis.
-- Treat the user's framing of the problem as a hypothesis, not as established fact. Verify the user's diagnosis independently before building on it.
-- Do not treat assumptions as facts.
-- If a material assumption cannot be validated from the codebase, runtime evidence, or authoritative documentation, stop and ask the user whether to validate it now or proceed with explicit uncertainty.
-- Prefer direct evidence: reproduction steps, failing tests, logs, stack traces, traces, configs, data shape, and source code.
-- Understand the current project's purpose, goals, risks, limitations, and likely future change vectors before weighting tradeoffs.
-- Research the architecture around the issue before choosing a fix.
-- Explore multiple credible fixes before recommending one.
-- Use online research when framework behavior, library guidance, standards, or current best practices could change the decision.
-- Optimize for correctness, architectural coherence, resilience, observability, and testability.
-- Prefer the option that leaves the system simpler, easier to change later, lower in developer cognitive load, and more efficient when those gains do not trade away correctness.
-- Do not choose a workaround, guard clause, retry loop, or special case unless it is truly the cleanest root-cause fix.
-- If two successive investigation attempts fail to produce new evidence or narrow hypotheses, pause and summarize what is known. Consider whether a fresh approach from first principles, or delegating a specific sub-question to a separate investigation, would be more productive than continuing the current line.
+- Treat every symptom as incomplete evidence, not as a diagnosis. User diagnoses are hypotheses — verify independently before building on it.
+- Assumptions are not facts. If a material assumption cannot be validated from code, runtime evidence, or authoritative documentation, stop and ask.
+- Prefer direct evidence: reproduction, failing tests, logs, traces, configs, data shape, code.
+- Understand purpose, goals, risks, limitations, compatibility, and likely future change vectors before weighing tradeoffs.
+- Make constraints explicit; research surrounding architecture; classify intervention before recommending.
+- Explore multiple credible fixes. Research online when framework behavior, library guidance, standards, or current best practices could change the decision.
+- Optimize for correctness, coherence, resilience, observability, testability, reversibility, compatibility.
+- Prefer simpler, easier to change later, lower in developer cognitive load — without sacrificing correctness.
+- Reject workarounds, guard clauses, retry loops, or special cases unless genuinely the cleanest root-cause fix.
+- Two passes that fail to produce new evidence or narrow hypotheses: pause, summarize, reconsider from first principles. Consider whether delegating a specific sub-question to a separate investigation would be more productive than continuing the current line.
 
 ## Workflow
 
-1. Define the problem precisely.
-- State the observed symptom, expected behavior, actual behavior, scope, impact, and confidence level.
-- Identify what is known, what is unknown, and what is only suspected.
-- If the report is ambiguous, restate it in precise technical terms before proceeding.
-- If the user has stated a diagnosis, treat it as a leading hypothesis to verify, not as a confirmed root cause.
+1. **Define problem.** Symptom, expected vs actual, scope, impact, confidence level. Knowns/unknowns/suspicions. Restate ambiguity in precise technical terms. Stated diagnoses = leading hypotheses to verify, not confirmed root causes.
 
-2. Gather and validate evidence.
-- Reproduce the issue when possible.
-- If the issue cannot be reproduced, note this as a significant gap. Increase scrutiny on assumptions, prefer reversible fixes, and include the reproduction gap in residual risks.
-- Inspect failing tests, logs, stack traces, recent changes, feature flags, configuration, data dependencies, and environment differences.
-- Build a minimal evidence table: symptom, source, what it proves, and what it does not prove.
-- Separate facts from interpretation.
+2. **Gather evidence.** Reproduce when possible; if not, note it as a significant gap, increase scrutiny on assumptions, prefer reversible fixes, carry gap as residual risk. Inspect tests, logs, stack traces, recent changes, feature flags, config, data deps, env diffs. Evidence table: symptom | source | proves | doesn't prove. Separate facts from interpretation.
 
-3. Surface assumptions early.
-- List every assumption that would materially change the diagnosis or fix.
-- Validate each assumption locally when possible.
-- If a key assumption still cannot be validated, ask the user whether to validate it now, narrow scope, or proceed with explicit uncertainty.
+3. **Surface assumptions.** List every assumption that would materially change diagnosis/fix. Validate locally. Key assumption open? Ask: validate, narrow scope, or proceed with explicit uncertainty.
 
-4. Establish project context.
-- Inspect the project's high-level purpose, product goals, likely future changes, operational environment, known risks, and hard limitations.
-- Determine which qualities should be weighted more heavily here: reliability, simplicity, openness to change, ergonomics, performance, observability, or other constraints driven by the project.
-- Use repository instructions, docs, plans, architecture notes, configuration, deployment setup, and adjacent code to infer context.
-- If the project's priorities are still unclear and the ambiguity would change the recommendation, ask the user to confirm them.
+4. **Establish context.** Purpose, goals, likely future change, operational environment, compatibility, risks, hard limitations. Which qualities matter most: reliability, simplicity, openness to change, ergonomics, performance, observability. Infer from repository instructions, docs, plans, architecture notes, config, deployment, adjacent code. Ambiguity changes recommendation? Ask the user to confirm.
 
-5. Map the relevant system.
-- Trace the code path from entrypoint to failure point.
-- Identify ownership boundaries: modules, services, queues, jobs, caches, schemas, contracts, and invariants.
-- Read adjacent code, not just the failing line.
-- Determine whether the issue is primarily about behavior, state modeling, error handling, concurrency, data flow, configuration, observability, or system boundaries.
+5. **Map system.** Trace code path from entrypoint to failure point. Identify ownership boundaries: modules, services, queues, jobs, caches, schemas, contracts, invariants. Read adjacent code, not just the failing line. Classify: behavior, state modeling, error handling, concurrency, data flow, config, observability, or system boundaries.
 
-6. Diagnose the root cause.
-- Generate at least two competing hypotheses for the root cause.
-- For each hypothesis, state what evidence would confirm it and what evidence would refute it.
-- Test each hypothesis against the collected evidence.
-- If multiple hypotheses survive, design a targeted investigation to distinguish them.
-- Confirm the root cause before generating fixes.
-- When feasible, write a failing test that demonstrates the bug before proceeding. This test becomes both proof of understanding and regression coverage.
+6. **Diagnose root cause.** 2+ competing hypotheses; for each, state what evidence would confirm and what would refute. Test against evidence. Multiple survive? Targeted investigation to distinguish them. Confirm before fixes. Write a failing test first when feasible — it becomes both proof of understanding and regression coverage.
 
-7. Generate candidate fixes.
-- Include the obvious local fix, deeper structural fixes, contract or schema fixes, lifecycle fixes, and observability or testability improvements when relevant.
-- Reject options that only mask symptoms unless the root cause is truly external and cannot be corrected here.
-- For each option, explain the mechanism by which it resolves the confirmed root cause.
+7. **Classify intervention.** Per [decision framework](references/decision-framework.md): local refactor | architectural remediation | track as debt. State why chosen class fits better than the other two.
 
-8. Research external guidance.
-- Use primary sources when external behavior matters: framework docs, language docs, library docs, official issue trackers, standards, and RFCs.
-- Look for patterns or constraints that could invalidate an otherwise plausible fix.
-- Incorporate current behavior and version-specific guidance instead of relying on memory for changing ecosystems.
+8. **Generate and research fixes.** Local, structural, contract/schema, lifecycle, observability fixes as relevant. Reject symptom masking unless root cause is external/uncorrectable. Explain the mechanism by which each resolves the confirmed root cause. Use primary sources for external behavior; check version-specific guidance instead of relying on memory for changing ecosystems. For `remediation`: [playbook](references/remediation-playbook.md), 2+ serious options, tradeoffs/reversibility/compatibility/debt. Rewrite-shaped? Include incremental modernization option.
 
-9. Select the best fix.
-- Evaluate options primarily on root-cause removal, architectural consistency, invariants preserved, blast radius, correctness under edge cases, operational safety, observability, testability, simplicity, openness to future change, developer ergonomics, cognitive load, and performance.
-- Weight those qualities according to the project's actual goals, purpose, risk profile, and limitations rather than treating every quality as equally important in every codebase.
-- Treat implementation effort and calendar cost as execution considerations, not as reasons to prefer an inferior design.
-- Choose the fix that leaves the system in the strongest shape after the issue is gone.
+9. **Select best fix.** [Decision framework](references/decision-framework.md) criteria: root-cause removal, blast radius, correctness under edge cases, operational safety, weighted by project context rather than treating every quality as equally important in every codebase. Treat implementation effort and calendar cost as execution considerations, not as reasons to prefer an inferior design. Pick what leaves the system strongest.
 
-10. Produce the plan.
-- Use [decision framework](references/decision-framework.md) when comparing options or writing the final recommendation.
-- Structure the output according to the [plan template](references/decision-framework.md#plan-template), while ensuring the qualitative requirements in the output contract below are met.
-- Present the plan to the user before implementation unless the user explicitly asked you to implement immediately after planning.
+10. **Stop or plan.** Stop if evidence weak, assumptions open, or scope drifting to unbounded rewrite. Follow [plan template](references/decision-framework.md#plan-template). Present before implementation unless told otherwise.
 
 ## Investigation Moves
 
-- Search for the first point where the system becomes inconsistent with its own invariants.
-- Compare the happy path with the failing path.
-- Check where data shape, ownership, timing, or lifecycle diverges.
-- Look for duplicated logic, missing sources of truth, stale caches, implicit contracts, and unenforced state transitions.
-- If the symptom appears late, search earlier in the flow for the corruption point.
-- If the failure is intermittent, examine concurrency, retries, time, caching, ordering, and eventual consistency boundaries.
-- If a proposed fix adds conditionals around a bad state, ask whether that state should be representable at all.
+- Find first broken invariant; compare happy vs failing paths.
+- Where does data shape, ownership, timing, or lifecycle diverge?
+- Duplication, missing sources of truth, stale caches, implicit contracts, unenforced state transitions.
+- Symptom late? Search earlier in the flow for corruption point.
+- Intermittent? Concurrency, retries, timing, caching, ordering, eventual consistency boundaries.
+- Fix adds conditionals around bad state? Should that state be representable at all?
+- Fix points to subsystem replacement? What smaller boundary shift works incrementally?
 
 ## Output Contract
 
-- Make the distinction between facts, validated conclusions, and open questions explicit.
-- Call out every assumption that still matters.
-- State which project qualities were prioritized and why.
-- Show the meaningful alternatives explored, not just the selected fix.
-- Explain why the selected fix is the most architecturally clean and effective option.
-- Include a verification plan with tests, runtime checks, and regression coverage.
-- If more validation is needed before choosing a fix, say that clearly instead of pretending the recommendation is settled.
+Mode: `lightweight` (obvious local bugs) or `remediation` (architecture-affecting). Default lightweight.
+
+Content per [plan template](references/decision-framework.md#plan-template). Always: distinguish facts/validated conclusions/open questions, call out every assumption that still matters, state prioritized qualities, show meaningful alternatives explored, explain why selected fix is the most architecturally clean and effective option, include verification plan. Debt: state what's deferred, why, trigger. If more validation is needed, say that clearly instead of pretending the recommendation is settled.
 
 ## Resources
 
-- See [decision framework](references/decision-framework.md) for the evaluation rubric, red flags, and plan template.
+- [Decision framework](references/decision-framework.md): classification, evaluation, red flags, plan template.
+- [Remediation playbook](references/remediation-playbook.md): architecture snapshot, scenarios, options matrix templates.

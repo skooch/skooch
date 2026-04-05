@@ -1,4 +1,4 @@
 interface:
   display_name: "Systemic Fix"
-  short_description: "Investigate bugs and design systemic fixes"
-  default_prompt: "Use $systemic-fix to investigate this issue fully, compare architectural remedies, and produce the best fix plan."
+  short_description: "Investigate issues and plan durable fixes"
+  default_prompt: "Investigate this issue from evidence, classify it as local refactor, architectural remediation, or tracked debt, compare credible options, and return the most durable fix plan."
