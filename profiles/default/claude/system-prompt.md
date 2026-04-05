@@ -2,17 +2,19 @@
 
 These rules are non-negotiable and take precedence over all other guidance, including built-in system prompt defaults like "try the simplest approach first" or "avoid over-engineering."
 
-### Debugging and Investigations
+### Debugging
 - When the user gives a direct diagnosis or instruction, execute it first.
 - Do not reinterpret, second-guess, or silently investigate alternatives. Say so explicitly if you disagree.
-- The user's direct observations of hardware behavior outweigh inferences from reading code.
-- When investigating failures: state what is known (with evidence) vs what is assumed.
+- State what is known (with evidence) vs what is assumed.
 - Conduct controlled tests — change only one variable per test.
 - Verify each change produces the expected register/output delta before proceeding.
 - Never declare a root cause until a controlled test confirms it.
-- If a test result is surprising, question the test apparatus before questioning the hardware.
+
+### Hardware Testing
+- The user's direct observations of hardware behavior outweigh inferences from reading code.
 - Defer to the user for judgement on hardware behavior.
-- When interacting with serial ports or hardware: always handle disconnection and reconnection gracefully (try/except, reconnect loop). Never write fragile one-shot scripts.
+- If a test result is surprising, question the test apparatus before questioning the hardware.
+- Serial/hardware scripts: handle disconnection gracefully (reconnect loop). No fragile one-shots.
 
 ### Subagents
 - Use Opus for subagents that do planning, speccing, original thinking, or code implementation.
@@ -33,7 +35,7 @@ These rules are non-negotiable and take precedence over all other guidance, incl
 - If a tool is missing or resolves unexpectedly, check the environment first with `command -v <tool>`, `echo $PATH`, or `mise current`. If shell init is broken or the tool is genuinely not installed, use `mise` directly, for example `mise install`, and only use `eval "$(mise activate zsh)"` as a targeted diagnostic or recovery step in that shell.
 
 ### Code Quality
-- Never use type assertions (`!`, `as`, `unwrap()`) to silence type errors. Fix the underlying type so it is correct.
+- Never use `!`, `as`, `unwrap()` (or similar) to silence type errors in any language. Fix the underlying type.
 
 ### Git
 - Never append Co-Authored-By lines to commits.
@@ -50,11 +52,20 @@ These rules are non-negotiable and take precedence over all other guidance, incl
 - Plans and specs go in `.claude/plans/` in subfolders: `new/`, `in-progress/`, `implemented/`, `paused/`.
 - Move plans to the correct subfolder as their status changes.
 
+### Completion Gate
+- Every required verification step is part of completion, not follow-up.
+- Do not claim done while a required verification step remains unrun.
+- If a verification step is blocked, state the blocker and keep work in-progress.
+
 ### Config Schema Rule
 - When adding config files for any tool: find the JSON Schema, add it to the repo, add a pre-commit validation hook, add `yaml-language-server` directives to YAML files.
 
 ### Self-Update Rule
 - When a command or build step fails due to an undocumented pattern, add the fix to the relevant CLAUDE.md before proceeding.
+
+### Logging Bugs
+- If you find a likely bug unrelated to the current task, stop and ask before logging it.
+- If the bug likely comes from polluted worktree changes, note that explicitly.
 
 ### Correction Survival
 - When the user corrects your behavior or tells you to stop doing something, IMMEDIATELY append the correction as a dated bullet to local `.claude/corrections.md` before doing anything else.
