@@ -34,6 +34,9 @@
 
 ## Git
 - Never append Co-Authored-By lines to commits.
+- Keep commits atomic: one concern, one commit.
+- After each coherent chunk of work, commit before starting the next chunk.
+- If 2 substantive turns with code changes pass without a commit, stop and either commit or explain why not.
 
 ## Plans Convention
 - `.claude/plans/` subfolders: `new/`, `in-progress/`, `implemented/`, `paused/`.
