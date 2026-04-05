@@ -310,6 +310,17 @@ _profile_apply_mise() {
         [[ -f "$pf" ]] && mise_files+=("$pf")
     done
 
+    if [[ ${#mise_files[@]} -eq 1 ]]; then
+        ln -sf "${mise_files[1]}" "$target"
+        echo "Applying mise config: $label"
+
+        if command -v mise &>/dev/null; then
+            echo "Running mise install..."
+            mise install
+        fi
+        return 0
+    fi
+
     # Merge TOML files by collecting lines per section
     local -A sections
     local current_section="_top"

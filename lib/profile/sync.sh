@@ -526,6 +526,36 @@ _profile_sync_mise() {
         echo "  Mise tools: in sync"
     fi
 
+    if [[ ${#mise_files[@]} -eq 1 ]]; then
+        local source_file="${mise_files[1]}"
+        mkdir -p "$(dirname "$target")"
+
+        if [[ ! -e "$target" && ! -L "$target" ]]; then
+            ln -sf "$source_file" "$target"
+            echo "  Mise config: symlinked -> ${source_file:t}"
+        elif [[ -L "$target" && "$(readlink "$target")" == "$source_file" ]]; then
+            echo "  Mise config: in sync (symlinked)"
+        elif [[ -L "$target" ]]; then
+            ln -sf "$source_file" "$target"
+            echo "  Mise config: symlinked -> ${source_file:t}"
+        else
+            _profile_sync_config "Mise config" "$target" "$source_file" "$source_file"
+
+            if [[ "$(_platform_md5 "$target")" == "$(_platform_md5 "$source_file")" ]]; then
+                ln -sf "$source_file" "$target"
+                echo "  Mise config: symlinked -> ${source_file:t}"
+            else
+                echo "  Mise config: kept local file"
+            fi
+        fi
+
+        if [[ "$tools_changed" == true ]] && command -v mise &>/dev/null; then
+            echo "  Running mise install..."
+            mise install
+        fi
+        return 0
+    fi
+
     # --- Pass 2: Non-tools sections (three-way merge) ---
     local expected_rest=$(mktemp)
     local -A sections

@@ -162,6 +162,54 @@ assert_symlink "$TEST_HOME/.claude/read-once/hook.sh" "$PROFILES_DIR/default/cla
 rm -f "$PROFILES_DIR/default/claude/statusline.sh"
 rm -rf "$PROFILES_DIR/default/claude/read-once"
 
+# --- _profile_sync_mise ---
+
+mise() {
+    case "$1" in
+        ls)
+            echo '{"node":["22.0.0"],"python":["3.12.0"]}'
+            ;;
+        install)
+            echo "MOCK_MISE_INSTALL"
+            ;;
+        uninstall)
+            echo "MOCK_MISE_UNINSTALL: $*"
+            ;;
+    esac
+    return 0
+}
+
+_TEST_NAME="sync_mise symlinks single-source config.toml"
+cat > "$PROFILES_DIR/default/mise/config.toml" << 'EOF'
+[settings]
+trusted_config_paths = ["~/projects", "~/blinq"]
+
+[tools]
+node = "lts"
+EOF
+mkdir -p "$TEST_HOME/.config/mise"
+echo '[tools]
+node = "lts"' > "$TEST_HOME/.config/mise/config.toml"
+printf '%s\t%s\n' "$TEST_HOME/.config/mise/config.toml" "$(_platform_md5 "$TEST_HOME/.config/mise/config.toml")" >> "$PROFILE_STATE_DIR/snapshot-local"
+_profile_sync_mise "default" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.config/mise/config.toml" "$PROFILES_DIR/default/mise/config.toml"
+
+_TEST_NAME="sync_mise creates merged config.toml for multiple sources"
+cat > "$PROFILES_DIR/testprofile/mise/config.toml" << 'EOF'
+[settings]
+not_found_auto_install = true
+
+[tools]
+python = "3.12"
+EOF
+rm -f "$TEST_HOME/.config/mise/config.toml"
+_profile_sync_mise "testprofile" > /dev/null 2>&1
+assert_not_symlink "$TEST_HOME/.config/mise/config.toml" "multiple mise sources should merge into a regular file"
+local synced_mise_config=$(cat "$TEST_HOME/.config/mise/config.toml")
+assert_contains "$synced_mise_config" 'trusted_config_paths = ["~/projects", "~/blinq"]'
+_TEST_NAME="sync_mise merged config.toml includes later-profile tools"
+assert_contains "$synced_mise_config" 'python = "3.12"'
+
 # --- _profile_sync_codex ---
 
 _TEST_NAME="sync_codex symlinks single-source config.toml"

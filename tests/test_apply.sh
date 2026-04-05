@@ -67,6 +67,54 @@ echo '{"extra": true}' > "$PROFILES_DIR/testprofile/claude/settings.json"
 printf '[tools]\nnode = "lts"\n' > "$PROFILES_DIR/default/mise/config.toml"
 printf '[tools]\npython = "3.12"\n' > "$PROFILES_DIR/testprofile/mise/config.toml"
 
+# --- _profile_apply_mise ---
+
+_TEST_NAME="apply_mise symlinks config.toml for single source"
+cat > "$PROFILES_DIR/default/mise/config.toml" << 'EOF'
+[settings]
+trusted_config_paths = ["~/projects"]
+
+[tools]
+node = "lts"
+EOF
+rm -f "$TEST_HOME/.config/mise/config.toml"
+_profile_apply_mise "default" > /dev/null 2>&1
+assert_symlink "$TEST_HOME/.config/mise/config.toml" "$PROFILES_DIR/default/mise/config.toml"
+
+_TEST_NAME="apply_mise single-source symlink stays current when source changes"
+cat > "$PROFILES_DIR/default/mise/config.toml" << 'EOF'
+[settings]
+trusted_config_paths = ["~/projects", "~/blinq"]
+
+[tools]
+node = "lts"
+EOF
+local apply_mise_live_content=$(cat "$TEST_HOME/.config/mise/config.toml")
+assert_contains "$apply_mise_live_content" "~/blinq"
+
+_TEST_NAME="apply_mise merges config.toml for multiple sources"
+cat > "$PROFILES_DIR/default/mise/config.toml" << 'EOF'
+[settings]
+trusted_config_paths = ["~/projects"]
+
+[tools]
+node = "lts"
+EOF
+cat > "$PROFILES_DIR/testprofile/mise/config.toml" << 'EOF'
+[settings]
+not_found_auto_install = true
+
+[tools]
+python = "3.12"
+EOF
+rm -f "$TEST_HOME/.config/mise/config.toml"
+_profile_apply_mise "testprofile" > /dev/null 2>&1
+assert_not_symlink "$TEST_HOME/.config/mise/config.toml" "multiple mise sources should merge into a regular file"
+local apply_mise_merged_content=$(cat "$TEST_HOME/.config/mise/config.toml")
+assert_contains "$apply_mise_merged_content" 'trusted_config_paths = ["~/projects"]'
+_TEST_NAME="apply_mise merged config.toml includes tools from later profiles"
+assert_contains "$apply_mise_merged_content" 'python = "3.12"'
+
 # --- _profile_apply_tmux ---
 
 _TEST_NAME="apply_tmux copies winning profile tmux.conf to home"
