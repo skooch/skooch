@@ -29,7 +29,8 @@ These rules are non-negotiable and take precedence over all other guidance, incl
 ### Package Managers
 - When a project already uses a specific package manager (lockfile exists), follow that convention.
 - Otherwise: JavaScript/TypeScript uses `bun` (never npm/npx/pnpm). Python uses `uv` (never pip/pipx). Rust uses `cargo`.
-- mise manages tool versions. If a tool is missing, run `eval "$(mise activate zsh)" && mise install` before retrying.
+- mise manages tool versions, but Codex shells should already inherit the `mise` environment from shell startup. Do not prepend routine commands with `eval "$(mise activate zsh)"`.
+- If a tool is missing or resolves unexpectedly, check the environment first with `command -v <tool>`, `echo $PATH`, or `mise current`. If shell init is broken or the tool is genuinely not installed, use `mise` directly, for example `mise install`, and only use `eval "$(mise activate zsh)"` as a targeted diagnostic or recovery step in that shell.
 
 ### Code Quality
 - Never use type assertions (`!`, `as`, `unwrap()`) to silence type errors. Fix the underlying type so it is correct.

@@ -96,7 +96,7 @@
       "Bash(lefthook:*)",
       "Bash(mypy:*)",
       "Bash(ruff:*)",
-      "Bash(eval \"$(mise activate zsh)\":*)",
+      "Bash(mise:*)",
       "mcp__ide__getDiagnostics"
     ],
     "deny": [

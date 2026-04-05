@@ -2,7 +2,9 @@
 
 ## Package Managers
 - Follow existing lockfile conventions. Otherwise: JS=`bun`, Python=`uv`, Rust=`cargo`.
-- mise manages tool versions (shims: `~/.local/share/mise/shims`). Missing tool: `eval "$(mise activate zsh)" && mise install`.
+- mise manages tool versions (shims: `~/.local/share/mise/shims`).
+- In Codex shells, shell startup should already provide the `mise` environment. Do not prepend routine commands with `eval "$(mise activate zsh)"`.
+- If a tool is missing or resolves unexpectedly, check the environment first with `command -v <tool>`, `echo $PATH`, or `mise current`. If shell init is broken or the tool is genuinely not installed, use `mise` directly, for example `mise install`, and only use `eval "$(mise activate zsh)"` as a targeted diagnostic or recovery step in that shell.
 
 ## Subagent & Execution Policy
 - Opus/GPT-5.4: planning, speccing, thinking, implementation. Sonnet/GPT-5.4-Mini: reviewing, comparing. Haiku/GPT-5.3-Codex-Spark: searching, exploring. Overrides skill guidance.
@@ -36,6 +38,12 @@
 - Before implementing: move plan from `new/` to `in-progress/`.
 - After completing: move from `in-progress/` to `implemented/`.
 - Abandoned mid-work: move to `paused/`.
+
+## Completion Gate
+- When working from a written plan or an explicit verification checklist, every required verification step is part of completion, not follow-up.
+- Do not claim completion, stop implementation, or move a plan to `implemented` while a required manual, slow, or end-to-end verification step remains unrun.
+- Green unit tests, full test suites, and static checks do not override a missing required verification step.
+- If a required verification step is blocked by time, a broken source URL, unavailable hardware, or another external dependency, say so explicitly with the concrete blocker, keep the work in-progress unless the user agrees otherwise, and treat the task as incomplete.
 
 ## Config Schema Rule
 - New config files: find JSON Schema, add to repo, add pre-commit validation hook, add `yaml-language-server` directives to YAML.

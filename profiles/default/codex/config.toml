@@ -22,8 +22,8 @@ codex_hooks = true
 shell_snapshot = true
 
 # Shell-first mise setup:
-# Codex shells should inherit `mise` from ~/.zshrc via login shells and
-# shell snapshots instead of relying on per-command wrapper approvals.
+# Codex shells should inherit `mise` from shell startup (~/.zshenv runtime)
+# and shell snapshots instead of relying on per-command wrapper approvals.
 
 [projects."/Users/skooch/projects/tdeck-pro-rust/tdeck-pro-rust"]
 trust_level = "trusted"
@@ -35,22 +35,95 @@ trust_level = "trusted"
 command = "/Users/skooch/.local/bin/tdeck"
 args = ["mcp"]
 
-[mcp_servers.tdeck.tools.tdeck_qemu_screenshot]
-approval_mode = "approve"
-
-[mcp_servers.tdeck.tools.tdeck_mcp_recent]
-approval_mode = "approve"
-
-[mcp_servers.tdeck.tools.tdeck_ping]
-approval_mode = "approve"
-
+# Approve every currently exposed tdeck MCP tool.
 [mcp_servers.tdeck.tools.tdeck_bg_status]
 approval_mode = "approve"
 
-[mcp_servers.tdeck.tools.tdeck_qemu_run]
+[mcp_servers.tdeck.tools.tdeck_bg_stop]
 approval_mode = "approve"
 
-[mcp_servers.tdeck.tools.tdeck_qemu_defmt]
+[mcp_servers.tdeck.tools.tdeck_build]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_device_capture]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_device_metrics]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_device_open_screen]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_device_screenshot]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_device_state]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_device_tap]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_device_timing]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_device_unlock]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_espflash_erase]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_espflash_erase_region]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_espflash_info]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_espflash_partitions]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_espflash_save_image]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_flash]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_flash_and_monitor]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_gdb_backtrace]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_gdb_break]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_gdb_command]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_gdb_continue]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_gdb_delete_break]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_gdb_locals]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_gdb_next]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_gdb_print]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_gdb_read_memory]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_gdb_step]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_gen_theme]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_hil]
 approval_mode = "approve"
 
 [mcp_servers.tdeck.tools.tdeck_kill]
@@ -59,32 +132,95 @@ approval_mode = "approve"
 [mcp_servers.tdeck.tools.tdeck_mcp_logs]
 approval_mode = "approve"
 
-[mcp_servers.tdeck.tools.tdeck_run]
+[mcp_servers.tdeck.tools.tdeck_mcp_recent]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_memory]
 approval_mode = "approve"
 
 [mcp_servers.tdeck.tools.tdeck_monitor]
 approval_mode = "approve"
 
-[mcp_servers.tdeck.tools.tdeck_bg_stop]
+[mcp_servers.tdeck.tools.tdeck_openocd_halt]
 approval_mode = "approve"
 
-[mcp_servers.tdeck.tools.tdeck_qemu_build]
+[mcp_servers.tdeck.tools.tdeck_openocd_mdw]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_openocd_reg]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_openocd_reset]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_openocd_reset_and_monitor]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_openocd_resume]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_openocd_stack]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_openocd_start]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_ping]
 approval_mode = "approve"
 
 [mcp_servers.tdeck.tools.tdeck_preview]
 approval_mode = "approve"
 
-[mcp_servers.tdeck.tools.tdeck_device_metrics]
+[mcp_servers.tdeck.tools.tdeck_qemu_assert_screen]
 approval_mode = "approve"
 
-[mcp_servers.tdeck.tools.tdeck_device_state]
+[mcp_servers.tdeck.tools.tdeck_qemu_build]
 approval_mode = "approve"
 
-[mcp_servers.tdeck.tools.tdeck_device_unlock]
+[mcp_servers.tdeck.tools.tdeck_qemu_defmt]
 approval_mode = "approve"
 
-[mcp_servers.tdeck.tools.tdeck_device_screenshot]
+[mcp_servers.tdeck.tools.tdeck_qemu_e2e]
 approval_mode = "approve"
 
-[mcp_servers.tdeck.tools.tdeck_device_capture]
+[mcp_servers.tdeck.tools.tdeck_qemu_key]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_qemu_lock]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_qemu_metrics]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_qemu_open_screen]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_qemu_run]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_qemu_screenshot]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_qemu_sdcard]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_qemu_state]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_qemu_tap]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_qemu_type]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_qemu_wait_boot]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_reset_prefs]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_run]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_serial_reset_and_monitor]
 approval_mode = "approve"
