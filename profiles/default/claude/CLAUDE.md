@@ -42,6 +42,7 @@
 
 ## Self-Update Rule
 - On undocumented build/command failure, add fix to CLAUDE.md before proceeding.
+- 2026-04-05: `~/.claude/skills/.system/skill-creator/scripts/quick_validate.py` may run under a `python3` without `PyYAML`; keep the validator dependency-free enough to validate simple skill frontmatter instead of assuming `yaml` is installed.
 - If a `~/.codex/hooks/*.py` hook fails with `permission denied`, invoke it via `python3 <hook> ...` because the symlink target may be missing the executable bit.
 - If a workflow overrides `HOME`, do not rely on `mise` shims continuing to work. Capture a real interpreter path first, then use that absolute binary after `HOME` changes.
 
