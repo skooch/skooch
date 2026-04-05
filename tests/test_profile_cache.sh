@@ -3,6 +3,8 @@
 source "${0:A:h}/harness.sh"
 
 _CONTROL_SCRIPT_SRC="${0:A:h}/../lib/git-cache/control.sh"
+_SETUP_SCRIPT_SRC="${0:A:h}/../lib/git-cache/setup.sh"
+_PLIST_SRC="${0:A:h}/../lib/git-cache/com.skooch.git-cache-http-server.plist"
 export TEST_HOME
 
 _TEST_NAME="profile cache dispatches to the control script"
@@ -33,6 +35,36 @@ if [[ ! -f "$TEST_HOME/.config/git-cache/disabled" ]]; then
 else
     fail "disabled marker should be removed by profile cache on"
 fi
+
+_TEST_NAME="profile cache on repairs legacy persistent git cache rewrites"
+cp "$_SETUP_SCRIPT_SRC" "$TEST_DOTFILES/lib/git-cache/setup.sh"
+chmod +x "$TEST_DOTFILES/lib/git-cache/setup.sh"
+cp "$_PLIST_SRC" "$TEST_DOTFILES/lib/git-cache/com.skooch.git-cache-http-server.plist"
+fake_bin="$TEST_HOME/bin"
+mkdir -p "$fake_bin" "$TEST_HOME/install-prefix/node_modules/.bin" "$TEST_HOME/.config/git"
+cat > "$fake_bin/launchctl" <<'EOF'
+#!/usr/bin/env zsh
+exit 0
+EOF
+chmod +x "$fake_bin/launchctl"
+cat > "$TEST_HOME/install-prefix/node_modules/.bin/git-cache-http-server" <<'EOF'
+#!/usr/bin/env zsh
+exit 0
+EOF
+chmod +x "$TEST_HOME/install-prefix/node_modules/.bin/git-cache-http-server"
+echo "[url \"http://127.0.0.1:1234/github.com/\"]" > "$TEST_HOME/.config/git/cache.inc"
+HOME="$TEST_HOME" git config --global --add include.path "$TEST_HOME/.config/git/cache.inc"
+HOME="$TEST_HOME" git config --global --add url.http://127.0.0.1:1234/github.com/.insteadOf https://github.com/
+HOME="$TEST_HOME" PATH="$fake_bin:$PATH" DOTFILES_DIR="$TEST_DOTFILES" GIT_CACHE_INSTALL_PREFIX="$TEST_HOME/install-prefix" "$TEST_DOTFILES/lib/git-cache/control.sh" on >/dev/null 2>&1
+if [[ ! -e "$TEST_HOME/.config/git/cache.inc" ]]; then
+    pass
+else
+    fail "legacy cache include file should be removed by profile cache on"
+fi
+legacy_includes=$(HOME="$TEST_HOME" git config --global --get-all include.path 2>/dev/null || true)
+assert_not_contains "$legacy_includes" "$TEST_HOME/.config/git/cache.inc"
+legacy_rewrites=$(HOME="$TEST_HOME" git config --global --get-regexp '^url\.http://127\.0\.0\.1:[0-9]+/github\.com/\.insteadof$' 2>/dev/null || true)
+assert_eq "" "$legacy_rewrites"
 
 _TEST_NAME="profile cache off writes the disabled marker and stops the service"
 HOME="$TEST_HOME" DOTFILES_DIR="$TEST_DOTFILES" GIT_CACHE_SETUP_BIN="$TEST_HOME/fake-setup.sh" "$TEST_DOTFILES/lib/git-cache/control.sh" off >/dev/null 2>&1

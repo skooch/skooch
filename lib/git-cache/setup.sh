@@ -12,6 +12,7 @@ label="com.skooch.git-cache-http-server"
 launch_agent_target="$HOME/Library/LaunchAgents/$label.plist"
 systemd_target="$HOME/.config/systemd/user/git-cache-http-server.service"
 stale_git_include="$HOME/.config/git/cache.inc"
+legacy_github_base="https://github.com/"
 
 usage() {
     cat <<'EOF'
@@ -40,6 +41,32 @@ install_package() {
     npm install --prefix "$install_prefix" git-cache-http-server
     command -v node > "$install_prefix/node-path"
     : > "$install_prefix/upstream.gitconfig"
+}
+
+remove_legacy_git_include_refs() {
+    command -v git >/dev/null 2>&1 || return 0
+
+    local legacy_path
+    for legacy_path in "$stale_git_include" "~/.config/git/cache.inc"; do
+        git config --global --fixed-value --unset-all include.path "$legacy_path" >/dev/null 2>&1 || true
+    done
+}
+
+remove_legacy_git_url_rewrites() {
+    command -v git >/dev/null 2>&1 || return 0
+
+    local key value
+    while read -r key value; do
+        [[ -n "$key" ]] || continue
+        [[ "$value" == "$legacy_github_base" ]] || continue
+        git config --global --fixed-value --unset-all "$key" "$value" >/dev/null 2>&1 || true
+    done < <(git config --global --get-regexp '^url\.http://127\.0\.0\.1:[0-9]+/github\.com/\.insteadof$' 2>/dev/null || true)
+}
+
+repair_legacy_git_rewrite() {
+    rm -f "$stale_git_include"
+    remove_legacy_git_include_refs
+    remove_legacy_git_url_rewrites
 }
 
 install_launch_agent() {
@@ -74,7 +101,7 @@ stop_systemd_unit() {
 setup_all() {
     install_package
     mkdir -p "$cache_dir"
-    rm -f "$stale_git_include"
+    repair_legacy_git_rewrite
 
     if [[ "$OSTYPE" == darwin* ]]; then
         install_launch_agent
@@ -134,7 +161,7 @@ disable_all() {
         systemctl --user daemon-reload
     fi
 
-    rm -f "$stale_git_include"
+    repair_legacy_git_rewrite
     mkdir -p "$config_dir"
     : > "$disabled_file"
 }
@@ -148,6 +175,7 @@ case "$command_name" in
         install_package
         ;;
     start)
+        repair_legacy_git_rewrite
         if [[ "$OSTYPE" == darwin* ]]; then
             install_launch_agent
             start_launch_agent

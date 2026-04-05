@@ -24,7 +24,7 @@ gitcache restart
 gitcache disable
 ```
 
-`profile cache on` installs the daemon if needed, enables the user service, and turns cache-aware Git wrappers on for this machine. `profile cache off` disables the wrappers and stops the service cleanly. `profile cache clear` removes cached repo data without touching your working clones.
+`profile cache on` installs the daemon if needed, enables the user service, turns cache-aware Git wrappers on for this machine, and scrubs the legacy persistent GitHub rewrite from older cache setups. `profile cache off` disables the wrappers, removes that obsolete rewrite if it still exists, and stops the service cleanly. `profile cache clear` removes cached repo data without touching your working clones.
 
 ## Interactive shell behavior
 
