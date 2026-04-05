@@ -282,6 +282,45 @@ _profile_apply_git() {
 
 # --- Mise ---
 
+_profile_mise_merge() {
+    local outfile="$1"; shift
+    local -a infiles=("$@")
+
+    local -A sections
+    local current_section="_top"
+    for f in "${infiles[@]}"; do
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            if [[ "$line" =~ '^\[' ]]; then
+                current_section="$line"
+            elif [[ -n "$line" ]]; then
+                sections[$current_section]+="$line"$'\n'
+            fi
+        done < "$f"
+    done
+
+    {
+        for section in "${(@k)sections}"; do
+            [[ "$section" != "_top" ]] && echo "$section"
+            local -A seen_keys=()
+            local -a ordered_lines=()
+            while IFS= read -r line; do
+                [[ -z "$line" ]] && continue
+                local key="${line%%=*}"
+                key="${key%% }"
+                if [[ -n "${seen_keys[$key]+x}" ]]; then
+                    local idx="${seen_keys[$key]}"
+                    ordered_lines[$idx]="$line"
+                else
+                    ordered_lines+=("$line")
+                    seen_keys[$key]="${#ordered_lines}"
+                fi
+            done <<< "${sections[$section]}"
+            printf '%s\n' "${ordered_lines[@]}"
+            echo ""
+        done
+    } > "$outfile"
+}
+
 _profile_apply_mise() {
     local profiles="$1"
     local target="$HOME/.config/mise/config.toml"
@@ -310,6 +349,80 @@ _profile_apply_mise() {
         [[ -f "$pf" ]] && mise_files+=("$pf")
     done
 
+    # --- Target integrity checks ---
+
+    local expect_symlink=false
+    [[ ${#mise_files[@]} -eq 1 ]] && expect_symlink=true
+    local needs_prompt=false
+    local prompt_reason=""
+
+    if [[ -e "$target" || -L "$target" ]]; then
+        if [[ "$expect_symlink" == true ]]; then
+            # Single source: target should be a symlink to the profile file
+            local expected_link="${mise_files[1]}"
+            if [[ -L "$target" ]]; then
+                local current_link
+                current_link=$(readlink "$target")
+                if [[ "$current_link" != "$expected_link" ]]; then
+                    prompt_reason="symlink points to unexpected target"
+                    echo "Warning: $target is a symlink to an unexpected location."
+                    echo "  Current:  $current_link"
+                    echo "  Expected: $expected_link"
+                    needs_prompt=true
+                fi
+            else
+                prompt_reason="regular file where symlink expected"
+                echo "Warning: $target should be a symlink but is a regular file."
+                echo "  Expected link to: $expected_link"
+                needs_prompt=true
+            fi
+        else
+            # Multi source: target should be a merged regular file
+            if [[ -L "$target" ]]; then
+                prompt_reason="symlink where merged file expected"
+                echo "Warning: $target is a symlink but should be a merged file."
+                echo "  Current link: $(readlink "$target")"
+                needs_prompt=true
+            fi
+        fi
+
+        # Content check: warn if target content differs from what we would write
+        if [[ "$needs_prompt" == false && -f "$target" ]]; then
+            local target_real="$target"
+            [[ -L "$target" ]] && target_real=$(readlink "$target")
+            local target_hash=$(_platform_md5 "$target_real" 2>/dev/null)
+
+            local expected_hash=""
+            if [[ "$expect_symlink" == true ]]; then
+                expected_hash=$(_platform_md5 "${mise_files[1]}" 2>/dev/null)
+            else
+                local tmp_merge
+                tmp_merge=$(mktemp)
+                _profile_mise_merge "$tmp_merge" "${mise_files[@]}"
+                expected_hash=$(_platform_md5 "$tmp_merge" 2>/dev/null)
+                rm -f "$tmp_merge"
+            fi
+
+            if [[ -n "$target_hash" && -n "$expected_hash" && "$target_hash" != "$expected_hash" ]]; then
+                prompt_reason="content differs"
+                echo "Warning: $target has local changes that will be overwritten."
+                needs_prompt=true
+            fi
+        fi
+
+        if [[ "$needs_prompt" == true ]]; then
+            printf "Overwrite? [y/N] "
+            local answer
+            read -r answer
+            if [[ "$answer" != [yY] && "$answer" != [yY][eE][sS] ]]; then
+                echo "Skipping mise config."
+                return 0
+            fi
+        fi
+    fi
+
+    # --- Apply ---
+
     if [[ ${#mise_files[@]} -eq 1 ]]; then
         ln -sf "${mise_files[1]}" "$target"
         echo "Applying mise config: $label"
@@ -321,42 +434,7 @@ _profile_apply_mise() {
         return 0
     fi
 
-    # Merge TOML files by collecting lines per section
-    local -A sections
-    local current_section="_top"
-    for f in "${mise_files[@]}"; do
-        while IFS= read -r line || [[ -n "$line" ]]; do
-            if [[ "$line" =~ '^\[' ]]; then
-                current_section="$line"
-            elif [[ -n "$line" ]]; then
-                sections[$current_section]+="$line"$'\n'
-            fi
-        done < "$f"
-    done
-
-    {
-        for section in "${(@k)sections}"; do
-            [[ "$section" != "_top" ]] && echo "$section"
-            # Deduplicate by key (last value wins)
-            local -A seen_keys=()
-            local -a ordered_lines=()
-            while IFS= read -r line; do
-                [[ -z "$line" ]] && continue
-                local key="${line%%=*}"
-                key="${key%% }"
-                if [[ -n "${seen_keys[$key]+x}" ]]; then
-                    # Replace previous occurrence
-                    local idx="${seen_keys[$key]}"
-                    ordered_lines[$idx]="$line"
-                else
-                    ordered_lines+=("$line")
-                    seen_keys[$key]="${#ordered_lines}"
-                fi
-            done <<< "${sections[$section]}"
-            printf '%s\n' "${ordered_lines[@]}"
-            echo ""
-        done
-    } > "$target"
+    _profile_mise_merge "$target" "${mise_files[@]}"
 
     echo "Applying mise config: $label"
 

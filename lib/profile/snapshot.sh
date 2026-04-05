@@ -3,13 +3,8 @@
 _profile_take_snapshot() {
     local profiles="$1"
     mkdir -p "$PROFILE_STATE_DIR"
-    local hash=""
-    for dir in $(_profile_collect_dirs "$profiles"); do
-        for f in $(_profile_snapshot_files "$dir"); do
-            [[ -f "$f" ]] && hash+=$(_platform_md5 "$f" 2>/dev/null)
-        done
-    done
-    echo "$hash" > "$PROFILE_SNAPSHOT_FILE"
+    # Use the same hash function so no-op detection stays in sync
+    _profile_compute_hash "$profiles" > "$PROFILE_SNAPSHOT_FILE"
 
     # Local target file hashes (for three-way sync direction detection)
     local snap_local="$PROFILE_STATE_DIR/snapshot-local"
@@ -26,11 +21,24 @@ _profile_take_snapshot() {
 _profile_compute_hash() {
     local profiles="$1"
     local hash=""
+    # Source profile files
     for dir in $(_profile_collect_dirs "$profiles"); do
         for f in $(_profile_snapshot_files "$dir"); do
             [[ -f "$f" ]] && hash+=$(_platform_md5 "$f" 2>/dev/null)
         done
     done
+    # Target files - detect overwrites, broken symlinks, regular-file-vs-symlink
+    while IFS= read -r target_path; do
+        if [[ -n "$target_path" ]]; then
+            if [[ -L "$target_path" ]]; then
+                hash+="L:$(readlink "$target_path")"
+            elif [[ -f "$target_path" ]]; then
+                hash+=$(_platform_md5 "$target_path" 2>/dev/null)
+            else
+                hash+="missing"
+            fi
+        fi
+    done < <(_profile_target_paths "$profiles")
     echo "$hash"
 }
 
