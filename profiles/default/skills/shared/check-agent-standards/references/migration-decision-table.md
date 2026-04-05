@@ -32,6 +32,8 @@ Migration rules:
 - Move files from `.claude/plans/paused/` to `docs/plans/paused/`.
 - Move loose legacy plan files into `docs/plans/new/` unless their state is unambiguous.
 - On path conflicts, stop and ask instead of overwriting.
+- After moving plan files, update unambiguous references to the moved
+  paths when the new state folder is clear from the migration.
 
 ## Repo-Local Skills
 
@@ -53,3 +55,27 @@ Compatibility rule:
 
 - If `.claude/skills/` did not previously exist but agent-style discovery is explicitly needed, create `.claude/skills` as a relative symlink to `../.agents/skills`.
 - Do not replace an existing real `.claude/skills/` directory with a symlink to `.agents/skills`.
+- After normalizing skill paths, update unambiguous references to the
+  current skill path shape, including folder-based skill paths such as
+  `.claude/skills/<skill-name>/SKILL.md`.
+
+## Reference Scan
+
+Before changing any instruction, plan, or skill path, search the repo
+for references to the affected path families:
+
+- `AGENTS.md`
+- `CLAUDE.md`
+- `.claude/plans`
+- `docs/plans`
+- `.claude/skills`
+- `.agents/skills`
+
+Reference-update rules:
+
+- Update references when the migration changed the live path and the
+  intended new location is unambiguous.
+- Leave historical reports, archived notes, and examples alone when
+  they are clearly documenting a previous layout on purpose.
+- If a reference might be stale but its intent is ambiguous, report it
+  or ask instead of guessing.
