@@ -86,16 +86,41 @@ _profile_merge_json_files() {
     fi
 }
 
+_profile_python_bin() {
+    if typeset -f _skooch_python3_bin >/dev/null 2>&1; then
+        _skooch_python3_bin
+        return $?
+    fi
+
+    local python_helpers="$HOME/projects/skooch/lib/shell/python.sh"
+    if [[ -f "$python_helpers" ]]; then
+        source "$python_helpers"
+        if typeset -f _skooch_python3_bin >/dev/null 2>&1; then
+            _skooch_python3_bin
+            return $?
+        fi
+    fi
+
+    if [[ -n "${SKOOCH_PYTHON3_BIN:-}" && -x "${SKOOCH_PYTHON3_BIN}" ]]; then
+        printf '%s' "$SKOOCH_PYTHON3_BIN"
+        return 0
+    fi
+
+    command -v python3 2>/dev/null
+}
+
 _profile_merge_toml_files() {
     local output_file="$1"
     shift
     local -a source_files=("$@")
-    local python_bin="${SKOOCH_PYTHON3_BIN:-python3}"
+    local python_bin=""
 
     [[ ${#source_files[@]} -eq 0 ]] && return 1
     if [[ ${#source_files[@]} -eq 1 ]]; then
         cp "${source_files[1]}" "$output_file"
     else
+        python_bin="$(_profile_python_bin 2>/dev/null)" || python_bin=""
+        [[ -n "$python_bin" ]] || python_bin="${SKOOCH_PYTHON3_BIN:-python3}"
         "$python_bin" "$_PROFILE_LIB_DIR/toml_merge.py" "$output_file" "${source_files[@]}"
     fi
 }

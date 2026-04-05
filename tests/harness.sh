@@ -40,6 +40,7 @@ cat > "$TEST_DOTFILES/profiles/default/codex/hooks.json" << 'EOF'
 {"hooks":{"SessionStart":[{"hooks":[{"command":"default"}]}]}}
 EOF
 echo '#!/usr/bin/env python3' > "$TEST_DOTFILES/profiles/default/codex/hooks/permission_bridge.py"
+echo '#!/usr/bin/env zsh' > "$TEST_DOTFILES/profiles/default/codex/hooks/run-with-python3"
 echo 'name = "explorer"' > "$TEST_DOTFILES/profiles/default/codex/agents/explorer.toml"
 echo 'prefix_rule(pattern = ["rg"], decision = "allow")' > "$TEST_DOTFILES/profiles/default/codex/rules/default.rules"
 printf '[include]\n\tpath = default\n' > "$TEST_DOTFILES/profiles/default/git/config"

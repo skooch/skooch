@@ -91,6 +91,27 @@ chmod +x "$fake_bin/git"
 HOME="$TEST_HOME" PATH="$fake_bin:$PATH" zsh -c 'source "$HOME/projects/skooch/functions/git-cache.sh"; source "$HOME/projects/skooch/functions/git.sh"; git push origin main' >/dev/null 2>&1
 assert_eq $'push\norigin\nmain' "$(cat "$TEST_HOME/wrapped-git-call.txt")"
 
+_TEST_NAME="worktree cargo isolation resolves Python via shared helper when PATH is missing"
+mkdir -p "$fake_dotfiles/lib/shell"
+cat > "$fake_dotfiles/lib/shell/python.sh" <<'EOF'
+_skooch_python3_bin() {
+    printf '%s' "$HOME/bin/fake-python3"
+}
+EOF
+cat > "$TEST_HOME/bin/fake-python3" <<'EOF'
+#!/usr/bin/env zsh
+print "$HOME/.cache/cargo-target/shared"
+EOF
+chmod +x "$TEST_HOME/bin/fake-python3"
+mkdir -p "$TEST_HOME/wt/.cargo"
+echo '[package]
+name = "demo"
+version = "0.1.0"' > "$TEST_HOME/wt/Cargo.toml"
+echo '[build]
+target-dir = "~/.cache/cargo-target/shared"' > "$TEST_HOME/wt/.cargo/config.toml"
+worktree_target=$(HOME="$TEST_HOME" PATH="/bin" zsh -c 'source "$HOME/projects/skooch/functions/git.sh"; _git_worktree_cargo_isolate "$HOME/wt" >/dev/null; cat "$HOME/wt/.cargo/.worktree-target"')
+assert_eq "$TEST_HOME/.cache/cargo-target/shared/worktrees/wt" "$worktree_target"
+
 _TEST_NAME="plain git push remains untouched without global rewrite"
 cat > "$fake_bin/git" <<'EOF'
 #!/usr/bin/env zsh

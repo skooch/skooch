@@ -1,0 +1,42 @@
+#!/usr/bin/env zsh
+
+set -euo pipefail
+
+script_path="${0:A}"
+while [[ -L "$script_path" ]]; do
+    link_target="$(readlink "$script_path")"
+    if [[ "$link_target" == /* ]]; then
+        script_path="$link_target"
+    else
+        script_path="${script_path:h}/$link_target"
+    fi
+    script_path="${script_path:A}"
+done
+
+repo_root="${script_path:h:h:h:h:h}"
+python_helpers="$repo_root/lib/shell/python.sh"
+if [[ -f "$python_helpers" ]]; then
+    source "$python_helpers"
+fi
+
+python_bin=""
+if typeset -f _skooch_python3_bin >/dev/null 2>&1; then
+    python_bin="$(_skooch_python3_bin 2>/dev/null || true)"
+fi
+
+if [[ -z "$python_bin" ]]; then
+    if [[ -n "${SKOOCH_PYTHON3_BIN:-}" && -x "${SKOOCH_PYTHON3_BIN}" ]]; then
+        python_bin="$SKOOCH_PYTHON3_BIN"
+    elif command -v uv >/dev/null 2>&1; then
+        python_bin="$(uv python find 2>/dev/null || true)"
+    elif command -v python3 >/dev/null 2>&1; then
+        python_bin="$(command -v python3)"
+    fi
+fi
+
+if [[ -z "$python_bin" || ! -x "$python_bin" ]]; then
+    echo "Unable to resolve a Python 3 interpreter for $0" >&2
+    exit 1
+fi
+
+exec "$python_bin" "$@"

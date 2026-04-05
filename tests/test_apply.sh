@@ -281,9 +281,11 @@ rm -f "$PROFILES_DIR/testprofile/codex/rules/default.rules"
 _TEST_NAME="apply_codex symlinks codex hooks"
 mkdir -p "$PROFILES_DIR/testprofile/codex/hooks"
 echo '#!/usr/bin/env python3' > "$PROFILES_DIR/testprofile/codex/hooks/extra_hook.py"
-rm -f "$TEST_HOME/.codex/hooks/permission_bridge.py" "$TEST_HOME/.codex/hooks/extra_hook.py"
+rm -f "$TEST_HOME/.codex/hooks/permission_bridge.py" "$TEST_HOME/.codex/hooks/run-with-python3" "$TEST_HOME/.codex/hooks/extra_hook.py"
 _profile_apply_codex "testprofile" > /dev/null 2>&1
 assert_symlink "$TEST_HOME/.codex/hooks/permission_bridge.py" "$PROFILES_DIR/default/codex/hooks/permission_bridge.py"
+_TEST_NAME="apply_codex symlinks shared python launcher hook"
+assert_symlink "$TEST_HOME/.codex/hooks/run-with-python3" "$PROFILES_DIR/default/codex/hooks/run-with-python3"
 _TEST_NAME="apply_codex symlinks unioned extra codex hooks"
 assert_symlink "$TEST_HOME/.codex/hooks/extra_hook.py" "$PROFILES_DIR/testprofile/codex/hooks/extra_hook.py"
 

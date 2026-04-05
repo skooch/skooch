@@ -178,7 +178,7 @@ prefix_rule(pattern = ["cat", "~/Box/"], decision = "forbidden", justification =
 # -----------------------------------------------------------------------------
 prefix_rule(pattern = ["date"], decision = "allow", justification = "Allow timestamp and clock reads")
 prefix_rule(pattern = ["./.venv/bin/pytest"], decision = "allow", justification = "Allow local virtualenv pytest runs")
-prefix_rule(pattern = ["python3", "/Users/skooch/.codex/hooks/permission_bridge.py", "sync-rules"], decision = "allow", justification = "Allow deterministic home rule sync generation")
+prefix_rule(pattern = ["/Users/skooch/.codex/hooks/run-with-python3", "/Users/skooch/.codex/hooks/permission_bridge.py", "sync-rules"], decision = "allow", justification = "Allow deterministic home rule sync generation")
 
 # >>> HOME AUTO-GENERATED COMMAND RULES >>>
 # Managed by ~/.codex/hooks/permission_bridge.py sync-rules.

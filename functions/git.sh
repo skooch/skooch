@@ -47,6 +47,29 @@ git() {
 
 # --- Worktree lifecycle helpers ---
 
+_git_python_bin() {
+    if typeset -f _skooch_python3_bin >/dev/null 2>&1; then
+        _skooch_python3_bin
+        return $?
+    fi
+
+    local python_helpers="$HOME/projects/skooch/lib/shell/python.sh"
+    if [[ -f "$python_helpers" ]]; then
+        source "$python_helpers"
+        if typeset -f _skooch_python3_bin >/dev/null 2>&1; then
+            _skooch_python3_bin
+            return $?
+        fi
+    fi
+
+    if [[ -n "${SKOOCH_PYTHON3_BIN:-}" && -x "${SKOOCH_PYTHON3_BIN}" ]]; then
+        printf '%s' "$SKOOCH_PYTHON3_BIN"
+        return 0
+    fi
+
+    command -v python3 2>/dev/null
+}
+
 _git_worktree_add() {
     # Run the real git worktree add, then bootstrap submodules + cargo isolation
     command git worktree add "$@" || return $?
@@ -117,7 +140,9 @@ _git_worktree_cargo_isolate() {
     local cargo_cfg="$wt_path/.cargo/config.toml"
     [[ -f "$cargo_cfg" ]] || return 0
 
-    local python_bin="${SKOOCH_PYTHON3_BIN:-python3}"
+    local python_bin=""
+    python_bin="$(_git_python_bin 2>/dev/null)" || python_bin=""
+    [[ -n "$python_bin" ]] || python_bin="${SKOOCH_PYTHON3_BIN:-python3}"
 
     local shared_target=""
     if [[ -x "$python_bin" ]] || command -v "$python_bin" >/dev/null 2>&1; then
@@ -133,7 +158,7 @@ if td:
     [[ -z "$shared_target" ]] && return 0
 
     local wt_name
-    wt_name="$(basename "$wt_path")"
+    wt_name="${wt_path:t}"
     local isolated_target="$shared_target/worktrees/$wt_name"
 
     # Write marker file (not a cargo config — won't shadow the tracked one)

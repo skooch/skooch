@@ -4,6 +4,8 @@ source "${0:A:h}/harness.sh"
 
 _REPO_ROOT="${0:A:h}/.."
 _RUNTIME_SRC="$_REPO_ROOT/lib/shell/runtime.sh"
+_PYTHON_HELPERS_SRC="$_REPO_ROOT/lib/shell/python.sh"
+_PYTHON_WRAPPER_SRC="$_REPO_ROOT/profiles/default/codex/hooks/run-with-python3"
 _ZSHENV_SRC="$_REPO_ROOT/.zshenv"
 _ZPROFILE_SRC="$_REPO_ROOT/.zprofile"
 
@@ -69,6 +71,25 @@ assert_contains "$(cat "$TEST_HOME/runtime-codex/mise-calls.txt")" "env activate
 _TEST_NAME="Codex shell runtime prepends uv binary from mise install"
 assert_contains "$codex_output" "$TEST_HOME/runtime-codex/mise-root/uv-1.2.3/uv"
 
+_TEST_NAME="Codex Python launcher resolves interpreter via uv instead of PATH"
+launcher_output=$(
+    HOME="$TEST_HOME/runtime-launcher" PATH="/bin" zsh -c '
+        unset SKOOCH_PYTHON3_BIN
+        fake_dotfiles="$HOME/projects/skooch"
+        mkdir -p "$fake_dotfiles/lib/shell" "$fake_dotfiles/profiles/default/codex/hooks" "$HOME/.local/share/mise/shims" "$HOME/.codex/hooks" "$HOME/python/bin"
+        cp "'"$_PYTHON_HELPERS_SRC"'" "$fake_dotfiles/lib/shell/python.sh"
+        cp "'"$_PYTHON_WRAPPER_SRC"'" "$fake_dotfiles/profiles/default/codex/hooks/run-with-python3"
+        chmod +x "$fake_dotfiles/profiles/default/codex/hooks/run-with-python3"
+        ln -sf "$fake_dotfiles/profiles/default/codex/hooks/run-with-python3" "$HOME/.codex/hooks/run-with-python3"
+        print "#!/usr/bin/env zsh\nif [[ \"\$1\" == \"python\" && \"\$2\" == \"find\" ]]; then\n    print \"$HOME/python/bin/python3.14\"\n    exit 0\nfi\nexit 1" > "$HOME/.local/share/mise/shims/uv"
+        chmod +x "$HOME/.local/share/mise/shims/uv"
+        print "#!/usr/bin/env zsh\nprint \"$HOME/python/bin/python3.14\"" > "$HOME/python/bin/python3.14"
+        chmod +x "$HOME/python/bin/python3.14"
+        "$HOME/.codex/hooks/run-with-python3" "$HOME/.codex/hooks/permission_bridge.py" notify
+    '
+)
+assert_eq "$TEST_HOME/runtime-launcher/python/bin/python3.14" "$launcher_output"
+
 _TEST_NAME="login shells load git wrapper from .zshenv"
 fake_dotfiles="$TEST_HOME/projects/skooch"
 mkdir -p "$fake_dotfiles/lib/git-cache" "$fake_dotfiles/lib/shell" "$fake_dotfiles/functions"
@@ -77,6 +98,7 @@ cp "$_ZPROFILE_SRC" "$TEST_HOME/.zprofile"
 ln -s "$fake_dotfiles/functions" "$TEST_HOME/.zsh_functions"
 cp "$_REPO_ROOT/functions/git-cache.sh" "$fake_dotfiles/functions/git-cache.sh"
 cp "$_REPO_ROOT/functions/git.sh" "$fake_dotfiles/functions/git.sh"
+cp "$_PYTHON_HELPERS_SRC" "$fake_dotfiles/lib/shell/python.sh"
 cp "$_RUNTIME_SRC" "$fake_dotfiles/lib/shell/runtime.sh"
 cat > "$fake_dotfiles/lib/git-cache/git.sh" <<'EOF'
 #!/usr/bin/env zsh
