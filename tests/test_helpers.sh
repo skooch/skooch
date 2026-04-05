@@ -85,12 +85,12 @@ echo '#!/bin/bash' > "$PROFILES_DIR/default/claude/hooks/test-hook.sh"
 local snap_with_hooks=$(_profile_snapshot_files "$PROFILES_DIR/default")
 assert_contains "$snap_with_hooks" "claude/hooks/test-hook.sh"
 
-_TEST_NAME="snapshot_files includes claude skill SKILL.md"
-mkdir -p "$PROFILES_DIR/default/claude/skills/my-skill"
-echo "# skill" > "$PROFILES_DIR/default/claude/skills/my-skill/SKILL.md"
+_TEST_NAME="snapshot_files includes audience-routed skill SKILL.md"
+mkdir -p "$PROFILES_DIR/default/skills/shared/my-skill"
+echo "# skill" > "$PROFILES_DIR/default/skills/shared/my-skill/SKILL.md"
 local snap_with_skills=$(_profile_snapshot_files "$PROFILES_DIR/default")
-assert_contains "$snap_with_skills" "claude/skills/my-skill/SKILL.md"
-rm -rf "$PROFILES_DIR/default/claude/hooks" "$PROFILES_DIR/default/claude/skills"
+assert_contains "$snap_with_skills" "skills/shared/my-skill/SKILL.md"
+rm -rf "$PROFILES_DIR/default/claude/hooks" "$PROFILES_DIR/default/skills"
 
 # --- shared profile-tree helpers ---
 
@@ -312,14 +312,14 @@ echo '#!/bin/bash' > "$PROFILES_DIR/default/claude/hooks/my-hook.sh"
 local hook_targets=$(_profile_target_paths "default")
 assert_contains "$hook_targets" ".claude/hooks/my-hook.sh"
 
-_TEST_NAME="target_paths includes claude skills when skill dirs exist"
-mkdir -p "$PROFILES_DIR/default/claude/skills/my-skill"
-echo "# skill" > "$PROFILES_DIR/default/claude/skills/my-skill/SKILL.md"
+_TEST_NAME="target_paths includes shared skills in all agent roots"
+mkdir -p "$PROFILES_DIR/default/skills/shared/my-skill"
+echo "# skill" > "$PROFILES_DIR/default/skills/shared/my-skill/SKILL.md"
 local skill_targets=$(_profile_target_paths "default")
 assert_contains "$skill_targets" ".claude/skills/my-skill"
 
-_TEST_NAME="target_paths includes codex shared skills when skill dirs exist"
-assert_contains "$skill_targets" ".codex/skills"
+_TEST_NAME="target_paths includes shared skills in codex root"
+assert_contains "$skill_targets" ".codex/skills/my-skill"
 
 _TEST_NAME="target_paths includes claude commands when command files exist"
 mkdir -p "$PROFILES_DIR/default/claude/commands"
@@ -336,7 +336,7 @@ assert_contains "$command_targets" ".codex/hooks/permission_bridge.py"
 _TEST_NAME="target_paths includes codex agents when codex agent files exist"
 assert_contains "$command_targets" ".codex/agents/explorer.toml"
 
-rm -rf "$PROFILES_DIR/default/claude/hooks" "$PROFILES_DIR/default/claude/skills"
+rm -rf "$PROFILES_DIR/default/claude/hooks" "$PROFILES_DIR/default/skills"
 rm -rf "$PROFILES_DIR/default/claude/read-once" "$PROFILES_DIR/default/claude/commands"
 rm -f "$PROFILES_DIR/default/claude/CLAUDE.md" "$PROFILES_DIR/default/claude/system-prompt.md"
 rm -f "$PROFILES_DIR/default/claude/statusline.sh" "$PROFILES_DIR/default/claude/sync-plugins.sh"

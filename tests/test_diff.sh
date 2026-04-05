@@ -21,17 +21,17 @@ _TEST_NAME="diff_union_file_collection reports missing codex hook link"
 local hooks_diff=$(_profile_diff_union_file_collection "default" "codex" "hooks" "*" "$TEST_HOME/.codex" "codex/hooks" "diff" 2>&1)
 assert_contains "$hooks_diff" "codex/hooks/permission_bridge.py"
 
-_TEST_NAME="diff_union_dir_collection reports missing claude skill link"
-mkdir -p "$PROFILES_DIR/default/claude/skills/my-skill"
-echo "# skill" > "$PROFILES_DIR/default/claude/skills/my-skill/SKILL.md"
-local skills_diff=$(_profile_diff_union_dir_collection "default" "claude" "skills" "$TEST_HOME/.claude" "claude/skills" 2>&1)
-assert_contains "$skills_diff" "claude/skills/my-skill"
+_TEST_NAME="diff_skills reports missing shared skill link"
+mkdir -p "$PROFILES_DIR/default/skills/shared/my-skill"
+echo "# skill" > "$PROFILES_DIR/default/skills/shared/my-skill/SKILL.md"
+local skills_diff=$(_profile_diff_skills "default" 2>&1)
+assert_contains "$skills_diff" "skills/my-skill"
 
-_TEST_NAME="diff_derived_symlink reports missing codex skills bridge"
-mkdir -p "$TEST_HOME/.claude/skills"
-local codex_skills_diff=$(_profile_diff_derived_symlink "codex/skills (~/.codex/skills)" "$TEST_HOME/.claude/skills" "$TEST_HOME/.codex/skills" 2>&1)
-assert_contains "$codex_skills_diff" "codex/skills (~/.codex/skills)"
-rm -rf "$PROFILES_DIR/default/claude/skills"
+_TEST_NAME="diff_skills is quiet when skills are linked"
+_profile_apply_skills "default" > /dev/null 2>&1
+local quiet_skills_diff=$(_profile_diff_skills "default" 2>&1)
+assert_eq "" "$quiet_skills_diff"
+rm -rf "$PROFILES_DIR/default/skills"
 
 _TEST_NAME="diff_derived_symlink reports missing codex AGENTS bridge"
 echo "# instructions" > "$PROFILES_DIR/default/claude/CLAUDE.md"

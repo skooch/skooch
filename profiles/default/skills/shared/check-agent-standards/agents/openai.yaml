@@ -1,0 +1,4 @@
+interface:
+  display_name: "Check Agent Standards"
+  short_description: "Standardize agent repo layout safely"
+  default_prompt: "Use $check-agent-standards to set up or migrate this repository to the shared agent standards layout."

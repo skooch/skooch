@@ -169,14 +169,14 @@ assert_symlink "$TEST_HOME/.claude/hooks/other-hook.sh" "$PROFILES_DIR/testprofi
 
 # --- _profile_apply_claude: skills ---
 
-_TEST_NAME="apply_claude symlinks skill directories"
-mkdir -p "$PROFILES_DIR/default/claude/skills/my-skill"
-echo "# My skill" > "$PROFILES_DIR/default/claude/skills/my-skill/SKILL.md"
-rm -rf "$TEST_HOME/.claude/skills/my-skill"
-_profile_apply_claude "default" > /dev/null 2>&1
+_TEST_NAME="apply_skills symlinks shared skill into claude"
+mkdir -p "$PROFILES_DIR/default/skills/shared/my-skill"
+echo "# My skill" > "$PROFILES_DIR/default/skills/shared/my-skill/SKILL.md"
+rm -rf "$TEST_HOME/.claude/skills/my-skill" "$TEST_HOME/.codex/skills/my-skill"
+_profile_apply_skills "default" > /dev/null 2>&1
 if [[ -L "$TEST_HOME/.claude/skills/my-skill" ]]; then
     local skill_target=$(readlink "$TEST_HOME/.claude/skills/my-skill")
-    assert_eq "$PROFILES_DIR/default/claude/skills/my-skill" "$skill_target"
+    assert_eq "$PROFILES_DIR/default/skills/shared/my-skill" "$skill_target"
 else
     fail "'$TEST_HOME/.claude/skills/my-skill' is not a symlink"
 fi
@@ -248,25 +248,30 @@ assert_symlink "$TEST_HOME/.codex/agents/explorer.toml" "$PROFILES_DIR/default/c
 _TEST_NAME="apply_codex symlinks unioned codex agent overrides"
 assert_symlink "$TEST_HOME/.codex/agents/worker.toml" "$PROFILES_DIR/testprofile/codex/agents/worker.toml"
 
-_TEST_NAME="apply_codex symlinks codex skill root to claude skills"
-mkdir -p "$PROFILES_DIR/default/claude/skills/layout-check"
-echo "# Layout check" > "$PROFILES_DIR/default/claude/skills/layout-check/SKILL.md"
-rm -rf "$TEST_HOME/.codex/skills"
-_profile_apply_claude "default" > /dev/null 2>&1
-_profile_apply_codex "default" > /dev/null 2>&1
-assert_symlink "$TEST_HOME/.codex/skills" "$TEST_HOME/.claude/skills"
+_TEST_NAME="apply_skills routes codex-only skill to codex only"
+mkdir -p "$PROFILES_DIR/default/skills/codex/codex-only-skill"
+echo "# Codex only" > "$PROFILES_DIR/default/skills/codex/codex-only-skill/SKILL.md"
+rm -rf "$TEST_HOME/.codex/skills/codex-only-skill" "$TEST_HOME/.claude/skills/codex-only-skill"
+_profile_apply_skills "default" > /dev/null 2>&1
+if [[ -L "$TEST_HOME/.codex/skills/codex-only-skill" ]]; then
+    local codex_skill_target=$(readlink "$TEST_HOME/.codex/skills/codex-only-skill")
+    assert_eq "$PROFILES_DIR/default/skills/codex/codex-only-skill" "$codex_skill_target"
+else
+    fail "'$TEST_HOME/.codex/skills/codex-only-skill' is not a symlink"
+fi
 
-_TEST_NAME="apply_codex skips conflicting codex skill root directories without nesting"
-rm -f "$TEST_HOME/.codex/skills"
-mkdir -p "$TEST_HOME/.codex/skills"
-echo "# Existing skill" > "$TEST_HOME/.codex/skills/SKILL.md"
-_profile_apply_codex "default" > /dev/null 2>&1
-assert_not_symlink "$TEST_HOME/.codex/skills"
-_TEST_NAME="apply_codex does not create nested skills link inside conflicting root"
-if [[ -e "$TEST_HOME/.codex/skills/skills" ]]; then
-    fail "nested link should not be created inside conflicting root"
+_TEST_NAME="apply_skills does not route codex-only skill to claude"
+if [[ -e "$TEST_HOME/.claude/skills/codex-only-skill" ]]; then
+    fail "codex-only skill should not appear in claude"
 else
     pass
+fi
+
+_TEST_NAME="apply_skills routes shared skill to both agents"
+if [[ -L "$TEST_HOME/.codex/skills/my-skill" ]]; then
+    pass
+else
+    fail "shared skill should appear in codex"
 fi
 
 _TEST_NAME="apply_codex creates AGENTS bridge to claude instructions"
@@ -277,7 +282,7 @@ _profile_apply_codex "default" > /dev/null 2>&1
 assert_symlink "$TEST_HOME/.codex/AGENTS.md" "$TEST_HOME/.claude/CLAUDE.md"
 
 # Clean up test fixtures
-rm -rf "$PROFILES_DIR/default/claude/hooks" "$PROFILES_DIR/default/claude/skills"
+rm -rf "$PROFILES_DIR/default/claude/hooks" "$PROFILES_DIR/default/skills"
 rm -rf "$PROFILES_DIR/default/claude/read-once" "$PROFILES_DIR/default/claude/commands"
 rm -rf "$PROFILES_DIR/testprofile/claude/hooks"
 rm -f "$PROFILES_DIR/default/claude/CLAUDE.md" "$PROFILES_DIR/default/claude/system-prompt.md"

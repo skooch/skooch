@@ -1,5 +1,5 @@
 model = "gpt-5.3-codex-spark"
-model_reasoning_effort = "high"
+model_reasoning_effort = "xhigh"
 plan_mode_reasoning_effort = "xhigh"
 approval_policy = "on-request"
 sandbox_mode = "danger-full-access"
@@ -72,4 +72,19 @@ approval_mode = "approve"
 approval_mode = "approve"
 
 [mcp_servers.tdeck.tools.tdeck_preview]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_device_metrics]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_device_state]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_device_unlock]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_device_screenshot]
+approval_mode = "approve"
+
+[mcp_servers.tdeck.tools.tdeck_device_capture]
 approval_mode = "approve"

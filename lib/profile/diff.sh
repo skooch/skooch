@@ -160,6 +160,72 @@ _profile_diff_derived_symlink() {
     return 0
 }
 
+_profile_diff_skills() {
+    local profiles="$1"
+    local -A agent_roots=([claude]="$HOME/.claude" [codex]="$HOME/.codex")
+    local -a all_agents=(${(k)agent_roots})
+    local diff_found=false
+
+    local profile_name=""
+    local -a profile_list=(default)
+    for profile_name in ${=profiles}; do
+        [[ "$profile_name" == "default" ]] && continue
+        profile_list+=("$profile_name")
+    done
+
+    local -A audience_sources=()
+    for profile_name in "${profile_list[@]}"; do
+        local skills_dir="$PROFILES_DIR/$profile_name/skills"
+        [[ -d "$skills_dir" ]] || continue
+        local audience_dir=""
+        for audience_dir in "$skills_dir"/*(N/); do
+            local audience="${audience_dir:t}"
+            local skill_dir=""
+            for skill_dir in "$audience_dir"/*(N/); do
+                local skill_name="${skill_dir:t}"
+                [[ "$skill_name" == .system ]] && continue
+                local skill_key="${audience}/${skill_name}"
+                audience_sources[$skill_key]="$skill_dir"
+            done
+        done
+    done
+
+    local key=""
+    for key in ${(ok)audience_sources}; do
+        local audience="${key%%/*}"
+        local skill_name="${key#*/}"
+        local source_dir="${audience_sources[$key]}"
+        local -a targets=()
+        if [[ "$audience" == "shared" ]]; then
+            targets=("${all_agents[@]}")
+        elif (( ${+agent_roots[$audience]} )); then
+            targets=("$audience")
+        else
+            continue
+        fi
+        local target_agent="" target_dir="" real_target=""
+        for target_agent in "${targets[@]}"; do
+            target_dir="${agent_roots[$target_agent]}/skills/$skill_name"
+            if [[ -L "$target_dir" ]]; then
+                real_target=$(readlink "$target_dir")
+                if [[ "$real_target" != "$source_dir" ]]; then
+                    echo "=== skills/$skill_name -> $target_agent ==="
+                    echo "  symlink target differs: $real_target -> $source_dir"
+                    echo ""
+                    diff_found=true
+                fi
+            elif [[ ! -e "$target_dir" ]]; then
+                echo "=== skills/$skill_name -> $target_agent ==="
+                echo "  (new skill would be linked)"
+                echo ""
+                diff_found=true
+            fi
+        done
+    done
+
+    [[ "$diff_found" == true ]]
+}
+
 _profile_diff() {
     local profiles="$1"
     local has_diff=false
@@ -268,9 +334,6 @@ _profile_diff() {
     if _profile_diff_union_file_collection "$profiles" "claude" "hooks" "*.sh" "$HOME/.claude" "claude/hooks" "$diff_cmd"; then
         has_diff=true
     fi
-    if _profile_diff_union_dir_collection "$profiles" "claude" "skills" "$HOME/.claude" "claude/skills"; then
-        has_diff=true
-    fi
     if _profile_diff_union_file_collection "$profiles" "claude" "commands" "*.md" "$HOME/.claude" "claude/commands" "$diff_cmd"; then
         has_diff=true
     fi
@@ -290,7 +353,7 @@ _profile_diff() {
     if _profile_diff_union_file_collection "$profiles" "codex" "agents" "*.toml" "$HOME/.codex" "codex/agents" "$diff_cmd"; then
         has_diff=true
     fi
-    if _profile_diff_derived_symlink "codex/skills (~/.codex/skills)" "$HOME/.claude/skills" "$HOME/.codex/skills"; then
+    if _profile_diff_skills "$profiles"; then
         has_diff=true
     fi
     if _profile_diff_derived_symlink "codex/AGENTS.md (~/.codex/AGENTS.md)" "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md"; then

@@ -650,7 +650,6 @@ _profile_sync_claude() {
         "Claude" "$profiles" "claude" "settings.json" "$HOME/.claude" "json"
     _profile_claude_link_files "$profiles" sync
     _profile_link_union_file_collection "$profiles" "claude" "hooks" "*.sh" "$HOME/.claude" "sync" "Hooks"
-    _profile_link_union_dir_collection "$profiles" "claude" "skills" "$HOME/.claude" "sync" "Skills"
     _profile_link_union_file_collection "$profiles" "claude" "commands" "*.md" "$HOME/.claude" "sync" "Commands"
 }
 
@@ -672,8 +671,119 @@ _profile_sync_codex() {
 
     _profile_link_union_file_collection "$profiles" "codex" "hooks" "*" "$HOME/.codex" "sync" "Hooks"
     _profile_link_union_file_collection "$profiles" "codex" "agents" "*.toml" "$HOME/.codex" "sync" "Agents"
-    _profile_ensure_derived_symlink "skills" "$HOME/.claude/skills" "$HOME/.codex/skills" "sync"
     _profile_ensure_derived_symlink "AGENTS.md" "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md" "sync"
+}
+
+# --- Skills (cross-agent routing) ---
+
+_profile_skills_link() {
+    local profiles="$1" mode="$2"
+    # Known agent roots for skill routing. Add new agents here.
+    local -A agent_roots=(
+        [claude]="$HOME/.claude"
+        [codex]="$HOME/.codex"
+    )
+    local -a all_agents=(${(k)agent_roots})
+    local -a linked_skills=()
+    local collection_changed=false
+
+    # Migrate: if any agent skills dir is a symlink (old derived-symlink model), replace with real dir
+    local agent_name=""
+    for agent_name in "${all_agents[@]}"; do
+        local agent_skills="${agent_roots[$agent_name]}/skills"
+        if [[ -L "$agent_skills" ]]; then
+            rm "$agent_skills"
+            mkdir -p "$agent_skills"
+            collection_changed=true
+        else
+            mkdir -p "$agent_skills"
+        fi
+    done
+
+    # Collect all audience dirs across profiles
+    local -A audience_sources=()  # audience/skill_name -> source_path (last profile wins)
+    local profile_name=""
+    local -a profile_list=(default)
+    for profile_name in ${=profiles}; do
+        [[ "$profile_name" == "default" ]] && continue
+        profile_list+=("$profile_name")
+    done
+    for profile_name in "${profile_list[@]}"; do
+        local skills_dir="$PROFILES_DIR/$profile_name/skills"
+        [[ -d "$skills_dir" ]] || continue
+        local audience_dir=""
+        for audience_dir in "$skills_dir"/*(N/); do
+            local audience="${audience_dir:t}"
+            local skill_dir=""
+            for skill_dir in "$audience_dir"/*(N/); do
+                local skill_name="${skill_dir:t}"
+                [[ "$skill_name" == .system ]] && continue
+                local skill_key="${audience}/${skill_name}"
+                audience_sources[$skill_key]="$skill_dir"
+            done
+        done
+    done
+
+    [[ ${#audience_sources} -eq 0 ]] && return 0
+
+    # Route each skill to target agents
+    local key=""
+    for key in ${(ok)audience_sources}; do
+        local audience="${key%%/*}"
+        local skill_name="${key#*/}"
+        local source_dir="${audience_sources[$key]}"
+
+        # Determine target agents
+        local -a targets=()
+        if [[ "$audience" == "shared" ]]; then
+            targets=("${all_agents[@]}")
+        elif (( ${+agent_roots[$audience]} )); then
+            targets=("$audience")
+        else
+            echo "  Skills: warning: unknown audience '$audience', skipping $skill_name"
+            continue
+        fi
+
+        linked_skills+=("$skill_name:$audience")
+
+        local target_agent=""
+        for target_agent in "${targets[@]}"; do
+            local target_dir="${agent_roots[$target_agent]}/skills/$skill_name"
+            if [[ "$mode" == "sync" && -L "$target_dir" && "$(readlink "$target_dir")" == "$source_dir" ]]; then
+                continue
+            fi
+            if [[ -d "$target_dir" && ! -L "$target_dir" ]]; then
+                if ! rmdir "$target_dir" 2>/dev/null; then
+                    echo "  Skills: skipped $skill_name -> $target_agent (conflicting directory)"
+                    continue
+                fi
+            fi
+            ln -sfn "$source_dir" "$target_dir"
+            collection_changed=true
+        done
+    done
+
+    if [[ ${#linked_skills[@]} -eq 0 ]]; then
+        return 0
+    fi
+
+    if [[ "$mode" == "sync" ]]; then
+        if [[ "$collection_changed" == true ]]; then
+            echo "  Skills: updated (${(j:, :)linked_skills})"
+        else
+            echo "  Skills: in sync (${(j:, :)linked_skills})"
+        fi
+    else
+        echo "  Skills: ${(j:, :)linked_skills}"
+    fi
+}
+
+_profile_sync_skills() {
+    _profile_skills_link "$1" "sync"
+}
+
+_profile_apply_skills() {
+    _profile_skills_link "$1" "apply"
 }
 
 _profile_sync_tmux() {

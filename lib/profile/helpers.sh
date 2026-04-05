@@ -504,8 +504,8 @@ _profile_snapshot_files() {
     for f in "$dir"/claude/hooks/*.sh(N); do
         echo "$f"
     done
-    # Claude skills (each skill dir's SKILL.md)
-    for f in "$dir"/claude/skills/*/SKILL.md(N); do
+    # Skills (audience-routed: skills/{shared,claude,codex,...}/<skill>/SKILL.md)
+    for f in "$dir"/skills/*/*/SKILL.md(N); do
         echo "$f"
     done
     # Claude commands (*.md files)
@@ -591,16 +591,35 @@ _profile_target_paths() {
         [[ -n "$basename" ]] && paths+=("$HOME/.claude/hooks/$basename")
     done < <(_profile_collect_union_file_sources "$profiles" "claude" "hooks" "*.sh")
 
-    # Claude skills (union of skill dirs across profiles)
-    local dirname="" source_dir=""
-    local has_claude_skills=false
-    while IFS=$'\t' read -r dirname source_dir; do
-        [[ -n "$dirname" ]] && paths+=("$HOME/.claude/skills/$dirname")
-        [[ -n "$dirname" ]] && has_claude_skills=true
-    done < <(_profile_collect_union_dir_sources "$profiles" "claude" "skills")
-    if [[ "$has_claude_skills" == "true" || -d "$HOME/.claude/skills" || -L "$HOME/.claude/skills" ]]; then
-        paths+=("$HOME/.codex/skills")
-    fi
+    # Skills (audience-routed across agents)
+    local -A _tp_agent_roots=([claude]="$HOME/.claude" [codex]="$HOME/.codex")
+    local -a _tp_all_agents=(${(k)_tp_agent_roots})
+    local _tp_profile=""
+    for _tp_profile in default ${=profiles}; do
+        local _tp_skills_dir="$PROFILES_DIR/$_tp_profile/skills"
+        [[ -d "$_tp_skills_dir" ]] || continue
+        local _tp_audience_dir=""
+        for _tp_audience_dir in "$_tp_skills_dir"/*(N/); do
+            local _tp_audience="${_tp_audience_dir:t}"
+            local -a _tp_targets=()
+            if [[ "$_tp_audience" == "shared" ]]; then
+                _tp_targets=("${_tp_all_agents[@]}")
+            elif (( ${+_tp_agent_roots[$_tp_audience]} )); then
+                _tp_targets=("$_tp_audience")
+            else
+                continue
+            fi
+            local _tp_skill_dir=""
+            for _tp_skill_dir in "$_tp_audience_dir"/*(N/); do
+                local _tp_skill_name="${_tp_skill_dir:t}"
+                [[ "$_tp_skill_name" == .system ]] && continue
+                local _tp_target_agent=""
+                for _tp_target_agent in "${_tp_targets[@]}"; do
+                    paths+=("${_tp_agent_roots[$_tp_target_agent]}/skills/$_tp_skill_name")
+                done
+            done
+        done
+    done
 
     # Claude commands (union of *.md files across profiles)
     while IFS=$'\t' read -r basename source_file; do

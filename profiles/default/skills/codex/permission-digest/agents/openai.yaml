@@ -1,0 +1,7 @@
+interface:
+  display_name: "Permission Digest"
+  short_description: "Compile permission requests into inbox"
+  default_prompt: "Use $permission-digest to compile the latest session permission requests into a concise inbox digest."
+
+policy:
+  allow_implicit_invocation: true
