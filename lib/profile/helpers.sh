@@ -25,10 +25,14 @@ _profile_relpath() {
     # Both arguments should be absolute paths. $2 must be an existing directory.
     local source="$1" from_dir="$2"
 
-    # Resolve to canonical absolute paths
+    # Normalize to absolute paths without following symlinks.
+    # Using :a (not :A) avoids resolving symlinks, which is critical in
+    # sandboxed environments (e.g. macOS app containers) where pwd -P
+    # resolves target dirs to /private/var/... container paths while
+    # source dirs stay at /Users/..., breaking relative path computation.
     local source_abs from_abs
-    source_abs="$(cd "$(dirname "$source")" 2>/dev/null && echo "$(pwd -P)/$(basename "$source")")" || return 1
-    from_abs="$(cd "$from_dir" 2>/dev/null && pwd -P)" || return 1
+    source_abs="${source:a}"
+    from_abs="${from_dir:a}"
 
     # Split into path components
     local -a src_parts=(${(s:/:)source_abs})
@@ -75,23 +79,21 @@ _profile_ln_sn() {
 _profile_symlink_matches() {
     # Check whether symlink at $1 ultimately points to the same file as $2.
     # Handles both absolute and relative symlink targets.
-    # Resolves through pwd -P to canonicalize paths (e.g. /var -> /private/var on macOS).
+    # Uses :a to normalize without following symlinks (sandbox-safe).
     local symlink="$1" expected_source="$2"
     [[ -L "$symlink" ]] || return 1
 
     local link_target
     link_target=$(readlink "$symlink")
 
-    # Resolve link target to canonical absolute path
+    # Resolve link target to normalized absolute path
     if [[ "$link_target" != /* ]]; then
-        link_target="$(cd "$(dirname "$symlink")" && cd "$(dirname "$link_target")" 2>/dev/null && echo "$(pwd -P)/$(basename "$link_target")")" || return 1
-    else
-        link_target="$(cd "$(dirname "$link_target")" 2>/dev/null && echo "$(pwd -P)/$(basename "$link_target")")" || return 1
+        link_target="$(dirname "$symlink")/$link_target"
     fi
+    link_target="${link_target:a}"
 
-    # Resolve expected source to canonical absolute path
-    local expected_abs
-    expected_abs="$(cd "$(dirname "$expected_source")" 2>/dev/null && echo "$(pwd -P)/$(basename "$expected_source")")" || return 1
+    # Resolve expected source to normalized absolute path
+    local expected_abs="${expected_source:a}"
 
     [[ "$link_target" == "$expected_abs" ]]
 }
