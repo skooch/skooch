@@ -98,13 +98,21 @@ ALWAYS prefer MCP graph tools over grep/glob/file-search for code discovery.
 4. `query_graph` — run Cypher queries for complex patterns
 5. `get_architecture` — high-level project summary
 
+## Known Bugs (as of 2026-04-06)
+- **`qn_pattern` on `search_graph` is broken**: returns all nodes unfiltered. Use `name_pattern` + `label` instead, or use `query_graph` with Cypher (`WHERE n.qualified_name =~ '...'`) for qualified name filtering.
+- **`file_pattern` on `search_graph` is broken**: same symptom — no filtering applied. Use `query_graph` with Cypher (`WHERE n.file_path LIKE '...'`) or filter by `label`/`name_pattern`.
+- **`trace_call_path`**: call edges for Rust code may not be populated. Fall back to `search_code` (grep-backed) or Grep for caller/callee analysis.
+- **Large `external-resources/` dirs pollute the index**: 200k+ nodes from submodules drown actual source. Use `name_pattern` + `label` filters aggressively, or scope Cypher queries with `WHERE n.file_path LIKE 'src/%'`.
+
 ## When to fall back to grep/glob
 - Searching for string literals, error messages, config values
 - Searching non-code files (Dockerfiles, shell scripts, configs)
 - When MCP tools return insufficient results
+- When `qn_pattern` or `file_pattern` filtering is needed (broken — use Cypher instead)
 
 ## Examples
 - Find a handler: `search_graph(name_pattern=".*OrderHandler.*")`
 - Who calls it: `trace_call_path(function_name="OrderHandler", direction="inbound")`
 - Read source: `get_code_snippet(qualified_name="pkg/orders.OrderHandler")`
+- Filter by file path (workaround): `query_graph(query="MATCH (n) WHERE n.file_path LIKE 'src/%' AND n.name =~ '.*Handler.*' RETURN n.name, n.file_path LIMIT 20")`
 <!-- codebase-memory-mcp:end -->
