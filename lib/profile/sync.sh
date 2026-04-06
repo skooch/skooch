@@ -531,18 +531,18 @@ _profile_sync_mise() {
         mkdir -p "$(dirname "$target")"
 
         if [[ ! -e "$target" && ! -L "$target" ]]; then
-            ln -sf "$source_file" "$target"
+            _profile_ln_s "$source_file" "$target"
             echo "  Mise config: symlinked -> ${source_file:t}"
-        elif [[ -L "$target" && "$(readlink "$target")" == "$source_file" ]]; then
+        elif _profile_symlink_matches "$target" "$source_file"; then
             echo "  Mise config: in sync (symlinked)"
         elif [[ -L "$target" ]]; then
-            ln -sf "$source_file" "$target"
+            _profile_ln_s "$source_file" "$target"
             echo "  Mise config: symlinked -> ${source_file:t}"
         else
             _profile_sync_config "Mise config" "$target" "$source_file" "$source_file"
 
             if [[ "$(_platform_md5 "$target")" == "$(_platform_md5 "$source_file")" ]]; then
-                ln -sf "$source_file" "$target"
+                _profile_ln_s "$source_file" "$target"
                 echo "  Mise config: symlinked -> ${source_file:t}"
             else
                 echo "  Mise config: kept local file"
@@ -779,7 +779,7 @@ _profile_skills_link() {
         local target_agent=""
         for target_agent in "${targets[@]}"; do
             local target_dir="${agent_roots[$target_agent]}/skills/$skill_name"
-            if [[ "$mode" == "sync" && -L "$target_dir" && "$(readlink "$target_dir")" == "$source_dir" ]]; then
+            if [[ "$mode" == "sync" ]] && _profile_symlink_matches "$target_dir" "$source_dir"; then
                 continue
             fi
             if [[ -d "$target_dir" && ! -L "$target_dir" ]]; then
@@ -788,7 +788,7 @@ _profile_skills_link() {
                     continue
                 fi
             fi
-            ln -sfn "$source_dir" "$target_dir"
+            _profile_ln_sn "$source_dir" "$target_dir"
             collection_changed=true
         done
     done

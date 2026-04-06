@@ -18,6 +18,84 @@ _CODEX_LAST_WINS_PATHS=(
     rules/default.rules
 )
 
+# --- Relative symlink helpers ---
+
+_profile_relpath() {
+    # Compute relative path from directory $2 to file/dir $1.
+    # Both arguments should be absolute paths. $2 must be an existing directory.
+    local source="$1" from_dir="$2"
+
+    # Resolve to canonical absolute paths
+    local source_abs from_abs
+    source_abs="$(cd "$(dirname "$source")" 2>/dev/null && echo "$(pwd -P)/$(basename "$source")")" || return 1
+    from_abs="$(cd "$from_dir" 2>/dev/null && pwd -P)" || return 1
+
+    # Split into path components
+    local -a src_parts=(${(s:/:)source_abs})
+    local -a from_parts=(${(s:/:)from_abs})
+
+    # Find common prefix length
+    local i=1
+    while (( i <= $#src_parts && i <= $#from_parts )) && [[ "${src_parts[$i]}" == "${from_parts[$i]}" ]]; do
+        (( i++ ))
+    done
+
+    # Build relative path: ../ for each remaining from_parts component, then src_parts remainder
+    local result=""
+    local j
+    for (( j=i; j <= $#from_parts; j++ )); do
+        result+="../"
+    done
+    for (( j=i; j <= $#src_parts; j++ )); do
+        result+="${src_parts[$j]}"
+        (( j < $#src_parts )) && result+="/"
+    done
+
+    echo "${result:-.}"
+}
+
+_profile_ln_s() {
+    # Create a relative file symlink (ln -sf equivalent).
+    # Usage: _profile_ln_s <source_absolute> <target>
+    local source="$1" target="$2"
+    local rel
+    rel=$(_profile_relpath "$source" "$(dirname "$target")")
+    ln -sf "$rel" "$target"
+}
+
+_profile_ln_sn() {
+    # Create a relative directory symlink (ln -sfn equivalent).
+    # Usage: _profile_ln_sn <source_absolute> <target>
+    local source="$1" target="$2"
+    local rel
+    rel=$(_profile_relpath "$source" "$(dirname "$target")")
+    ln -sfn "$rel" "$target"
+}
+
+_profile_symlink_matches() {
+    # Check whether symlink at $1 ultimately points to the same file as $2.
+    # Handles both absolute and relative symlink targets.
+    # Resolves through pwd -P to canonicalize paths (e.g. /var -> /private/var on macOS).
+    local symlink="$1" expected_source="$2"
+    [[ -L "$symlink" ]] || return 1
+
+    local link_target
+    link_target=$(readlink "$symlink")
+
+    # Resolve link target to canonical absolute path
+    if [[ "$link_target" != /* ]]; then
+        link_target="$(cd "$(dirname "$symlink")" && cd "$(dirname "$link_target")" 2>/dev/null && echo "$(pwd -P)/$(basename "$link_target")")" || return 1
+    else
+        link_target="$(cd "$(dirname "$link_target")" 2>/dev/null && echo "$(pwd -P)/$(basename "$link_target")")" || return 1
+    fi
+
+    # Resolve expected source to canonical absolute path
+    local expected_abs
+    expected_abs="$(cd "$(dirname "$expected_source")" 2>/dev/null && echo "$(pwd -P)/$(basename "$expected_source")")" || return 1
+
+    [[ "$link_target" == "$expected_abs" ]]
+}
+
 # --- Shared profile-tree helpers ---
 
 _profile_collect_domain_dirs() {
@@ -162,7 +240,7 @@ _profile_apply_structured_profile_config() {
     mkdir -p "$(dirname "$target_file")"
 
     if [[ ${#source_files[@]} -eq 1 ]]; then
-        ln -sf "${source_files[1]}" "$target_file"
+        _profile_ln_s "${source_files[1]}" "$target_file"
     else
         local merged_file
         merged_file=$(mktemp)
@@ -192,14 +270,14 @@ _profile_sync_structured_profile_config() {
 
     if [[ ${#source_files[@]} -eq 1 ]]; then
         if [[ ! -e "$target_file" && ! -L "$target_file" ]]; then
-            ln -sf "${source_files[1]}" "$target_file"
+            _profile_ln_s "${source_files[1]}" "$target_file"
             echo "  $label: symlinked -> ${source_files[1]:t}"
             return 0
         fi
-        if [[ -L "$target_file" && "$(readlink "$target_file")" == "${source_files[1]}" ]]; then
+        if _profile_symlink_matches "$target_file" "${source_files[1]}"; then
             echo "  $label: in sync (symlinked)"
         elif [[ -L "$target_file" ]]; then
-            ln -sf "${source_files[1]}" "$target_file"
+            _profile_ln_s "${source_files[1]}" "$target_file"
             echo "  $label: symlinked -> ${source_files[1]:t}"
         else
             _profile_sync_config "$label" "$target_file" "${source_files[1]}" "${source_files[1]}"
@@ -269,10 +347,10 @@ _profile_link_last_wins_paths() {
 
         local target_file="$target_root/$relative_path"
         mkdir -p "$(dirname "$target_file")"
-        if [[ "$mode" == "sync" && -L "$target_file" && "$(readlink "$target_file")" == "$source" ]]; then
+        if [[ "$mode" == "sync" ]] && _profile_symlink_matches "$target_file" "$source"; then
             echo "  $relative_path: in sync (symlinked)"
         else
-            ln -sf "$source" "$target_file"
+            _profile_ln_s "$source" "$target_file"
             echo "  $relative_path: symlinked"
         fi
     done
@@ -289,10 +367,10 @@ _profile_link_union_file_collection() {
         linked_names+=("$basename")
         local target_file="$target_root/$relative_dir/$basename"
         mkdir -p "$(dirname "$target_file")"
-        if [[ "$mode" == "sync" && -L "$target_file" && "$(readlink "$target_file")" == "$source_file" ]]; then
+        if [[ "$mode" == "sync" ]] && _profile_symlink_matches "$target_file" "$source_file"; then
             continue
         fi
-        ln -sf "$source_file" "$target_file"
+        _profile_ln_s "$source_file" "$target_file"
         collection_changed=true
     done < <(_profile_collect_union_file_sources "$profiles" "$domain" "$relative_dir" "$glob_pattern")
 
@@ -326,10 +404,10 @@ _profile_link_union_dir_collection() {
                 continue
             fi
         fi
-        if [[ "$mode" == "sync" && -L "$target_dir" && "$(readlink "$target_dir")" == "$source_dir" ]]; then
+        if [[ "$mode" == "sync" ]] && _profile_symlink_matches "$target_dir" "$source_dir"; then
             continue
         fi
-        ln -sfn "$source_dir" "$target_dir"
+        _profile_ln_sn "$source_dir" "$target_dir"
         collection_changed=true
     done < <(_profile_collect_union_dir_sources "$profiles" "$domain" "$relative_dir")
 
@@ -354,7 +432,7 @@ _profile_ensure_derived_symlink() {
     [[ ! -e "$source_path" && ! -L "$source_path" ]] && return 0
 
     mkdir -p "$(dirname "$target_path")"
-    if [[ "$mode" == "sync" && -L "$target_path" && "$(readlink "$target_path")" == "$source_path" ]]; then
+    if [[ "$mode" == "sync" ]] && _profile_symlink_matches "$target_path" "$source_path"; then
         echo "  $label: in sync (symlinked)"
         return 0
     fi
@@ -366,7 +444,7 @@ _profile_ensure_derived_symlink() {
         fi
     fi
 
-    ln -sfn "$source_path" "$target_path"
+    _profile_ln_sn "$source_path" "$target_path"
     echo "  $label: symlinked"
 }
 

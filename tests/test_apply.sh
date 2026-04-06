@@ -222,11 +222,10 @@ mkdir -p "$PROFILES_DIR/default/skills/shared/my-skill"
 echo "# My skill" > "$PROFILES_DIR/default/skills/shared/my-skill/SKILL.md"
 rm -rf "$TEST_HOME/.claude/skills/my-skill" "$TEST_HOME/.codex/skills/my-skill"
 _profile_apply_skills "default" > /dev/null 2>&1
-if [[ -L "$TEST_HOME/.claude/skills/my-skill" ]]; then
-    local skill_target=$(readlink "$TEST_HOME/.claude/skills/my-skill")
-    assert_eq "$PROFILES_DIR/default/skills/shared/my-skill" "$skill_target"
+if _profile_symlink_matches "$TEST_HOME/.claude/skills/my-skill" "$PROFILES_DIR/default/skills/shared/my-skill"; then
+    pass
 else
-    fail "'$TEST_HOME/.claude/skills/my-skill' is not a symlink"
+    fail "skill symlink does not resolve to expected source"
 fi
 
 # --- _profile_apply_claude: commands ---
@@ -303,11 +302,10 @@ mkdir -p "$PROFILES_DIR/default/skills/codex/codex-only-skill"
 echo "# Codex only" > "$PROFILES_DIR/default/skills/codex/codex-only-skill/SKILL.md"
 rm -rf "$TEST_HOME/.codex/skills/codex-only-skill" "$TEST_HOME/.claude/skills/codex-only-skill"
 _profile_apply_skills "default" > /dev/null 2>&1
-if [[ -L "$TEST_HOME/.codex/skills/codex-only-skill" ]]; then
-    local codex_skill_target=$(readlink "$TEST_HOME/.codex/skills/codex-only-skill")
-    assert_eq "$PROFILES_DIR/default/skills/codex/codex-only-skill" "$codex_skill_target"
+if _profile_symlink_matches "$TEST_HOME/.codex/skills/codex-only-skill" "$PROFILES_DIR/default/skills/codex/codex-only-skill"; then
+    pass
 else
-    fail "'$TEST_HOME/.codex/skills/codex-only-skill' is not a symlink"
+    fail "codex skill symlink does not resolve to expected source"
 fi
 
 _TEST_NAME="apply_skills does not route codex-only skill to claude"

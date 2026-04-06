@@ -46,26 +46,26 @@ _profile_ensure_links() {
     )
 
     for src dst in "${(@kv)links}"; do
-        if [[ -L "$dst" && "$(readlink "$dst")" == "$src" ]]; then
+        if _profile_symlink_matches "$dst" "$src"; then
             continue
         fi
         if [[ -e "$dst" && ! -L "$dst" ]]; then
             mv "$dst" "$dst.bak"
             echo "Backed up existing $dst to $dst.bak"
         fi
-        ln -sf "$src" "$dst"
+        _profile_ln_s "$src" "$dst"
         echo "Linked $dst -> $src"
     done
 
     for src dst in "${(@kv)dir_links}"; do
-        if [[ -L "$dst" && "$(readlink "$dst")" == "$src" ]]; then
+        if _profile_symlink_matches "$dst" "$src"; then
             continue
         fi
         if [[ -e "$dst" && ! -L "$dst" ]]; then
             mv "$dst" "$dst.bak"
             echo "Backed up existing $dst to $dst.bak"
         fi
-        ln -sfn "$src" "$dst"
+        _profile_ln_sn "$src" "$dst"
         echo "Linked $dst -> $src"
     done
 }

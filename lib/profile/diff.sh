@@ -58,9 +58,7 @@ _profile_diff_last_wins_paths() {
 
         local target_file="$target_root/$relative_path"
         if [[ -f "$target_file" || -L "$target_file" ]]; then
-            local real_target="$target_file"
-            [[ -L "$target_file" ]] && real_target=$(readlink "$target_file")
-            if [[ "$real_target" != "$source_file" ]]; then
+            if ! _profile_symlink_matches "$target_file" "$source_file"; then
                 local result=$($diff_cmd "$target_file" "$source_file" 2>/dev/null)
                 if [[ -n "$result" ]]; then
                     echo "=== $label_prefix/$relative_path ($target_file) ==="
@@ -89,9 +87,7 @@ _profile_diff_union_file_collection() {
         [[ -z "$basename" || -z "$source_file" ]] && continue
         local target_file="$target_root/$relative_dir/$basename"
         if [[ -f "$target_file" || -L "$target_file" ]]; then
-            local real_target="$target_file"
-            [[ -L "$target_file" ]] && real_target=$(readlink "$target_file")
-            if [[ "$real_target" != "$source_file" ]]; then
+            if ! _profile_symlink_matches "$target_file" "$source_file"; then
                 local result=$($diff_cmd "$target_file" "$source_file" 2>/dev/null)
                 if [[ -n "$result" ]]; then
                     echo "=== $label_prefix/$basename ==="
@@ -120,11 +116,9 @@ _profile_diff_union_dir_collection() {
         [[ -z "$dirname" || -z "$source_dir" ]] && continue
         local target_dir="$target_root/$relative_dir/$dirname"
         if [[ -d "$target_dir" || -L "$target_dir" ]]; then
-            local real_target="$target_dir"
-            [[ -L "$target_dir" ]] && real_target=$(readlink "$target_dir")
-            if [[ "$real_target" != "$source_dir" ]]; then
+            if ! _profile_symlink_matches "$target_dir" "$source_dir"; then
                 echo "=== $label_prefix/$dirname ==="
-                echo "  symlink target differs: $real_target -> $source_dir"
+                echo "  symlink target differs: $(readlink "$target_dir") -> $source_dir"
                 echo ""
                 diff_found=true
             fi
@@ -144,7 +138,7 @@ _profile_diff_derived_symlink() {
 
     [[ ! -e "$source_file" && ! -L "$source_file" ]] && return 1
 
-    if [[ -L "$target_file" && "$(readlink "$target_file")" == "$source_file" ]]; then
+    if _profile_symlink_matches "$target_file" "$source_file"; then
         return 1
     fi
 
@@ -207,10 +201,9 @@ _profile_diff_skills() {
         for target_agent in "${targets[@]}"; do
             target_dir="${agent_roots[$target_agent]}/skills/$skill_name"
             if [[ -L "$target_dir" ]]; then
-                real_target=$(readlink "$target_dir")
-                if [[ "$real_target" != "$source_dir" ]]; then
+                if ! _profile_symlink_matches "$target_dir" "$source_dir"; then
                     echo "=== skills/$skill_name -> $target_agent ==="
-                    echo "  symlink target differs: $real_target -> $source_dir"
+                    echo "  symlink target differs: $(readlink "$target_dir") -> $source_dir"
                     echo ""
                     diff_found=true
                 fi

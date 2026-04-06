@@ -163,11 +163,24 @@ assert_file_exists() {
 assert_symlink() {
     local filepath="$1" expected_target="$2" msg="${3:-}"
     if [[ -L "$filepath" ]]; then
-        local actual_target=$(readlink "$filepath")
-        if [[ "$actual_target" == "$expected_target" ]]; then
+        # Resolve actual symlink target to canonical absolute path
+        local raw_target actual_abs expected_abs
+        raw_target=$(readlink "$filepath")
+        if [[ "$raw_target" == /* ]]; then
+            actual_abs="$(cd "$(dirname "$raw_target")" 2>/dev/null && echo "$(pwd -P)/$(basename "$raw_target")")"
+        else
+            actual_abs="$(cd "$(dirname "$filepath")" && cd "$(dirname "$raw_target")" && echo "$(pwd -P)/$(basename "$raw_target")")"
+        fi
+        # Resolve expected target to canonical absolute path
+        if [[ "$expected_target" == /* ]]; then
+            expected_abs="$(cd "$(dirname "$expected_target")" 2>/dev/null && echo "$(pwd -P)/$(basename "$expected_target")")"
+        else
+            expected_abs="$expected_target"
+        fi
+        if [[ "$actual_abs" == "$expected_abs" ]]; then
             pass
         else
-            fail "${msg:+$msg: }symlink target is '$actual_target', expected '$expected_target'"
+            fail "${msg:+$msg: }symlink resolves to '$actual_abs', expected '$expected_abs' (raw: '$raw_target')"
         fi
     else
         fail "${msg:+$msg: }'$filepath' is not a symlink"

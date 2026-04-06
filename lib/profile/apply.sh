@@ -361,12 +361,10 @@ _profile_apply_mise() {
             # Single source: target should be a symlink to the profile file
             local expected_link="${mise_files[1]}"
             if [[ -L "$target" ]]; then
-                local current_link
-                current_link=$(readlink "$target")
-                if [[ "$current_link" != "$expected_link" ]]; then
+                if ! _profile_symlink_matches "$target" "$expected_link"; then
                     prompt_reason="symlink points to unexpected target"
                     echo "Warning: $target is a symlink to an unexpected location."
-                    echo "  Current:  $current_link"
+                    echo "  Current:  $(readlink "$target")"
                     echo "  Expected: $expected_link"
                     needs_prompt=true
                 fi
@@ -424,7 +422,7 @@ _profile_apply_mise() {
     # --- Apply ---
 
     if [[ ${#mise_files[@]} -eq 1 ]]; then
-        ln -sf "${mise_files[1]}" "$target"
+        _profile_ln_s "${mise_files[1]}" "$target"
         echo "Applying mise config: $label"
 
         if command -v mise &>/dev/null; then
