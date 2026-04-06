@@ -1,299 +1,308 @@
 {
-  "$schema": "https://json.schemastore.org/claude-code-settings.json",
-  "cleanupPeriodDays": 365,
-  "env": {
-    "DISABLE_TELEMETRY": "1",
-    "DISABLE_ERROR_REPORTING": "1",
-    "BASH_DEFAULT_TIMEOUT_MS": "420000",
-    "BASH_MAX_TIMEOUT_MS": "420000",
-    "READ_ONCE_MODE": "deny",
-    "READ_ONCE_DIFF": "1",
-    "CLAUDE_CODE_ATTRIBUTION_HEADER": "false",
-    "ENABLE_TOOL_SEARCH": "false"
-  },
-  "permissions": {
-    "allow": [
-      "Edit",
-      "Write",
-      "WebSearch",
-      "WebFetch",
-      "Bash(git:*)",
-      "Bash(tdeck:*)",
-      "Bash(gh:*)",
-      "Bash(ls:*)",
-      "Bash(wc:*)",
-      "Bash(touch:*)",
-      "Bash(grep:*)",
-      "Bash(shasum:*)",
-      "Bash(xxd:*)",
-      "Bash(ioreg:*)",
-      "Bash(command:*)",
-      "Bash(export:*)",
-      "Bash(printf:*)",
-      "Bash(mdfind:*)",
-      "Bash(docker:*)",
-      "Bash(defaults read:*)",
-      "Bash(shellcheck:*)",
-      "Bash(code-insiders:*)",
-      "Bash(mise:*)",
-      "Bash(zig:*)",
-      "Bash(desloppify:*)",
-      "Bash(profile switch:*)",
-      "Read(//Users/skooch/**)",
-      "Glob(//Users/skooch/**)",
-      "Grep(//Users/skooch/**)",
-      "Read(//opt/homebrew/**)",
-      "Read(//tmp/**)",
-      "Edit(//tmp/**)",
-      "Write(//tmp/**)",
-      "Read(//private/etc/**)",
-      "Bash(python3 -c:*)",
-      "Bash(python3 -:*)",
-      "Bash(.venv/bin/python:*)",
-      "Bash(.venv/bin/python3:*)",
-      "Bash(node -e:*)",
-      "Bash(node --eval:*)",
-      "Bash(bun -e:*)",
-      "Bash(npx:*)",
-      "Bash(bunx:*)",
-      "Bash(pnpm:*)",
-      "Bash(bun:*)",
-      "Bash(node:*)",
-      "Bash(python3:*)",
-      "Bash(rm:*)",
-      "Bash(cp:*)",
-      "Bash(ln:*)",
-      "Bash(mv:*)",
-      "Bash(cargo:*)",
-      "Bash(espflash:*)",
-      "Bash(cd:*)",
-      "Bash(echo:*)",
-      "Bash(cat:*)",
-      "Bash(head:*)",
-      "Bash(tail:*)",
-      "Bash(mkdir:*)",
-      "Bash(find:*)",
-      "Bash(which:*)",
-      "Bash(type:*)",
-      "Bash(env:*)",
-      "Bash(sort:*)",
-      "Bash(uniq:*)",
-      "Bash(cut:*)",
-      "Bash(tr:*)",
-      "Bash(sed:*)",
-      "Bash(awk:*)",
-      "Bash(jq:*)",
-      "Bash(uv:*)",
-      "Bash(test:*)",
-      "Bash([:*)",
-      "Bash(true:*)",
-      "Bash(false:*)",
-      "Bash(xtensa-esp32s3-elf*:*)",
-      "Bash(timeout:*)",
-      "Bash(defmt-print:*)",
-      "Bash(sips:*)",
-      "Bash(ninja:*)",
-      "Bash(lefthook:*)",
-      "Bash(mypy:*)",
-      "Bash(ruff:*)",
-      "Bash(mise:*)",
-      "mcp__ide__getDiagnostics"
-    ],
-    "deny": [
-      "Read(~/.ssh/**)",
-      "Read(~/.gnupg/**)",
-      "Read(~/.aws/**)",
-      "Read(~/.azure/**)",
-      "Read(~/.config/gh/**)",
-      "Read(~/.config/gcloud/**)",
-      "Read(~/.git-credentials)",
-      "Read(~/.docker/config.json)",
-      "Read(~/.kube/**)",
-      "Read(~/.npmrc)",
-      "Read(~/.npm/**)",
-      "Read(~/.netrc)",
-      "Read(~/.pypirc)",
-      "Read(~/.gem/credentials)",
-      "Read(~/Library/Keychains/**)",
-      "Read(**/*credential*)",
-      "Read(**/*secret*)",
-      "Read(**/*.pem)",
-      "Read(**/*.key)",
-      "Read(~/Library/CloudStorage/**)",
-      "Read(~/Library/Mobile Documents/**)",
-      "Read(~/Dropbox/**)",
-      "Read(~/Google Drive/**)",
-      "Read(~/OneDrive/**)",
-      "Read(~/Box/**)",
-      "Edit(~/Library/CloudStorage/**)",
-      "Edit(~/Library/Mobile Documents/**)",
-      "Edit(~/Dropbox/**)",
-      "Edit(~/Google Drive/**)",
-      "Edit(~/OneDrive/**)",
-      "Edit(~/Box/**)",
-      "Write(~/Library/CloudStorage/**)",
-      "Write(~/Library/Mobile Documents/**)",
-      "Write(~/Dropbox/**)",
-      "Write(~/Google Drive/**)",
-      "Write(~/OneDrive/**)",
-      "Write(~/Box/**)",
-      "Edit(~/.bashrc)",
-      "Edit(~/.zshrc)",
-      "Edit(~/.ssh/**)"
-    ],
-    "ask": [
-      "Bash(sh -c:*)",
-      "Bash(sh -:*)",
-      "Bash(bash -c:*)",
-      "Bash(bash -:*)",
-      "Bash(zsh -c:*)",
-      "Bash(zsh -:*)",
-      "Bash(source:*)",
-      "Bash(*| sh*)",
-      "Bash(*| bash*)",
-      "Bash(*| zsh*)",
-      "Bash(*|sh*)",
-      "Bash(*|bash*)",
-      "Bash(*|zsh*)",
-      "Bash(rm -rf:*)",
-      "Bash(rm -fr:*)",
-      "Bash(rm -rf *)",
-      "Bash(rm -fr *)",
-      "Bash(rm -r:*)",
-      "Bash(rm -R:*)",
-      "Bash(git push --force:*)",
-      "Bash(git push --force*)",
-      "Bash(git push *--force*)",
-      "Bash(git push -f:*)",
-      "Bash(git push *-f *)",
-      "Bash(git reset --hard:*)",
-      "Bash(git reset --hard*)",
-      "Bash(git clean -f:*)",
-      "Bash(git clean -fd:*)",
-      "Bash(git clean *-f*)",
-      "Bash(git checkout -- .:*)",
-      "Bash(curl:*)",
-      "Bash(wget:*)",
-      "Bash(mkfs:*)",
-      "Bash(dd:*)",
-      "Bash(xargs:*)",
-      "Edit(.git/hooks/**)",
-      "Write(.git/hooks/**)",
-      "Edit(.env*)",
-      "Write(.env*)",
-      "Read(.env)",
-      "Read(.env.*)",
-      "Read(**/.env)",
-      "Read(**/.env.*)",
-      "Bash(sudo:*)",
-      "Bash(eval:*)",
-      "Bash(chmod:*)",
-      "Bash(brew install:*)",
-      "Bash(brew uninstall:*)",
-      "Bash(brew upgrade:*)",
-      "Bash(pip install:*)",
-      "Bash(pip uninstall:*)",
-      "Bash(npm install:*)",
-      "Bash(npm publish:*)",
-      "Bash(zsh:*)",
-      "Bash(sh:*)",
-      "Bash(brew:*)"
-    ],
-    "additionalDirectories": [
-      "/tmp"
-    ]
-  },
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "jq -r '(.prompt // \"working\")[0:50]' | { read -r msg; printf '\\033]0;Claude: %s\\007' \"$msg\" >/dev/tty; echo '{\"suppressOutput\":true}'; }",
-            "timeout": 5
-          }
+    "$schema": "https://json.schemastore.org/claude-code-settings.json",
+    "cleanupPeriodDays": 365,
+    "env": {
+        "DISABLE_TELEMETRY": "1",
+        "DISABLE_ERROR_REPORTING": "1",
+        "BASH_DEFAULT_TIMEOUT_MS": "420000",
+        "BASH_MAX_TIMEOUT_MS": "420000",
+        "READ_ONCE_MODE": "deny",
+        "READ_ONCE_DIFF": "1",
+        "CLAUDE_CODE_ATTRIBUTION_HEADER": "false",
+        "ENABLE_TOOL_SEARCH": "false"
+    },
+    "permissions": {
+        "allow": [
+            "Edit",
+            "Write",
+            "WebSearch",
+            "WebFetch",
+            "Bash(git:*)",
+            "Bash(tdeck:*)",
+            "Bash(gh:*)",
+            "Bash(ls:*)",
+            "Bash(wc:*)",
+            "Bash(touch:*)",
+            "Bash(grep:*)",
+            "Bash(shasum:*)",
+            "Bash(xxd:*)",
+            "Bash(ioreg:*)",
+            "Bash(command:*)",
+            "Bash(export:*)",
+            "Bash(printf:*)",
+            "Bash(mdfind:*)",
+            "Bash(docker:*)",
+            "Bash(defaults read:*)",
+            "Bash(shellcheck:*)",
+            "Bash(code-insiders:*)",
+            "Bash(mise:*)",
+            "Bash(zig:*)",
+            "Bash(desloppify:*)",
+            "Bash(profile switch:*)",
+            "Read(//Users/skooch/**)",
+            "Glob(//Users/skooch/**)",
+            "Grep(//Users/skooch/**)",
+            "Read(//opt/homebrew/**)",
+            "Read(//tmp/**)",
+            "Edit(//tmp/**)",
+            "Write(//tmp/**)",
+            "Read(//private/etc/**)",
+            "Bash(python3 -c:*)",
+            "Bash(python3 -:*)",
+            "Bash(.venv/bin/python:*)",
+            "Bash(.venv/bin/python3:*)",
+            "Bash(node -e:*)",
+            "Bash(node --eval:*)",
+            "Bash(bun -e:*)",
+            "Bash(npx:*)",
+            "Bash(bunx:*)",
+            "Bash(pnpm:*)",
+            "Bash(bun:*)",
+            "Bash(node:*)",
+            "Bash(python3:*)",
+            "Bash(rm:*)",
+            "Bash(cp:*)",
+            "Bash(ln:*)",
+            "Bash(mv:*)",
+            "Bash(cargo:*)",
+            "Bash(espflash:*)",
+            "Bash(cd:*)",
+            "Bash(echo:*)",
+            "Bash(cat:*)",
+            "Bash(head:*)",
+            "Bash(tail:*)",
+            "Bash(mkdir:*)",
+            "Bash(find:*)",
+            "Bash(which:*)",
+            "Bash(type:*)",
+            "Bash(env:*)",
+            "Bash(sort:*)",
+            "Bash(uniq:*)",
+            "Bash(cut:*)",
+            "Bash(tr:*)",
+            "Bash(sed:*)",
+            "Bash(awk:*)",
+            "Bash(jq:*)",
+            "Bash(uv:*)",
+            "Bash(test:*)",
+            "Bash([:*)",
+            "Bash(true:*)",
+            "Bash(false:*)",
+            "Bash(xtensa-esp32s3-elf*:*)",
+            "Bash(timeout:*)",
+            "Bash(defmt-print:*)",
+            "Bash(sips:*)",
+            "Bash(ninja:*)",
+            "Bash(lefthook:*)",
+            "Bash(mypy:*)",
+            "Bash(ruff:*)",
+            "Bash(mise:*)",
+            "mcp__ide__getDiagnostics"
+        ],
+        "deny": [
+            "Read(~/.ssh/**)",
+            "Read(~/.gnupg/**)",
+            "Read(~/.aws/**)",
+            "Read(~/.azure/**)",
+            "Read(~/.config/gh/**)",
+            "Read(~/.config/gcloud/**)",
+            "Read(~/.git-credentials)",
+            "Read(~/.docker/config.json)",
+            "Read(~/.kube/**)",
+            "Read(~/.npmrc)",
+            "Read(~/.npm/**)",
+            "Read(~/.netrc)",
+            "Read(~/.pypirc)",
+            "Read(~/.gem/credentials)",
+            "Read(~/Library/Keychains/**)",
+            "Read(**/*credential*)",
+            "Read(**/*secret*)",
+            "Read(**/*.pem)",
+            "Read(**/*.key)",
+            "Read(~/Library/CloudStorage/**)",
+            "Read(~/Library/Mobile Documents/**)",
+            "Read(~/Dropbox/**)",
+            "Read(~/Google Drive/**)",
+            "Read(~/OneDrive/**)",
+            "Read(~/Box/**)",
+            "Edit(~/Library/CloudStorage/**)",
+            "Edit(~/Library/Mobile Documents/**)",
+            "Edit(~/Dropbox/**)",
+            "Edit(~/Google Drive/**)",
+            "Edit(~/OneDrive/**)",
+            "Edit(~/Box/**)",
+            "Write(~/Library/CloudStorage/**)",
+            "Write(~/Library/Mobile Documents/**)",
+            "Write(~/Dropbox/**)",
+            "Write(~/Google Drive/**)",
+            "Write(~/OneDrive/**)",
+            "Write(~/Box/**)",
+            "Edit(~/.bashrc)",
+            "Edit(~/.zshrc)",
+            "Edit(~/.ssh/**)"
+        ],
+        "ask": [
+            "Bash(sh -c:*)",
+            "Bash(sh -:*)",
+            "Bash(bash -c:*)",
+            "Bash(bash -:*)",
+            "Bash(zsh -c:*)",
+            "Bash(zsh -:*)",
+            "Bash(source:*)",
+            "Bash(*| sh*)",
+            "Bash(*| bash*)",
+            "Bash(*| zsh*)",
+            "Bash(*|sh*)",
+            "Bash(*|bash*)",
+            "Bash(*|zsh*)",
+            "Bash(rm -rf:*)",
+            "Bash(rm -fr:*)",
+            "Bash(rm -rf *)",
+            "Bash(rm -fr *)",
+            "Bash(rm -r:*)",
+            "Bash(rm -R:*)",
+            "Bash(git push --force:*)",
+            "Bash(git push --force*)",
+            "Bash(git push *--force*)",
+            "Bash(git push -f:*)",
+            "Bash(git push *-f *)",
+            "Bash(git reset --hard:*)",
+            "Bash(git reset --hard*)",
+            "Bash(git clean -f:*)",
+            "Bash(git clean -fd:*)",
+            "Bash(git clean *-f*)",
+            "Bash(git checkout -- .:*)",
+            "Bash(curl:*)",
+            "Bash(wget:*)",
+            "Bash(mkfs:*)",
+            "Bash(dd:*)",
+            "Bash(xargs:*)",
+            "Edit(.git/hooks/**)",
+            "Write(.git/hooks/**)",
+            "Edit(.env*)",
+            "Write(.env*)",
+            "Read(.env)",
+            "Read(.env.*)",
+            "Read(**/.env)",
+            "Read(**/.env.*)",
+            "Bash(sudo:*)",
+            "Bash(eval:*)",
+            "Bash(chmod:*)",
+            "Bash(brew install:*)",
+            "Bash(brew uninstall:*)",
+            "Bash(brew upgrade:*)",
+            "Bash(pip install:*)",
+            "Bash(pip uninstall:*)",
+            "Bash(npm install:*)",
+            "Bash(npm publish:*)",
+            "Bash(zsh:*)",
+            "Bash(sh:*)",
+            "Bash(brew:*)"
+        ],
+        "additionalDirectories": [
+            "/tmp"
         ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "printf '\\033]0;Claude (idle)\\007' >/dev/tty; echo '{\"suppressOutput\":true}'",
-            "timeout": 5
-          }
+    },
+    "hooks": {
+        "UserPromptSubmit": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "jq -r '(.prompt // \"working\")[0:50]' | { read -r msg; printf '\\033]0;Claude: %s\\007' \"$msg\" >/dev/tty; echo '{\"suppressOutput\":true}'; }",
+                        "timeout": 5
+                    }
+                ]
+            }
+        ],
+        "Stop": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "printf '\\033]0;Claude (idle)\\007' >/dev/tty; echo '{\"suppressOutput\":true}'",
+                        "timeout": 5
+                    }
+                ]
+            }
+        ],
+        "SubagentStart": [
+            {
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "~/.claude/hooks/subagent-opus-enforcer.sh",
+                        "statusMessage": "Logging subagent spawn..."
+                    }
+                ]
+            }
+        ],
+        "PreToolUse": [
+            {
+                "matcher": "Bash",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "~/.claude/hooks/bash-command-checker.sh",
+                        "statusMessage": "Checking bash command..."
+                    }
+                ]
+            },
+            {
+                "matcher": "Read",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "~/.claude/read-once/hook.sh",
+                        "statusMessage": "Checking read cache..."
+                    }
+                ]
+            },
+            {
+                "matcher": "Grep|Glob|Read|Search",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "~/.claude/hooks/cbm-code-discovery-gate"
+                    }
+                ]
+            }
         ]
-      }
-    ],
-    "SubagentStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/subagent-opus-enforcer.sh",
-            "statusMessage": "Logging subagent spawn..."
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/bash-command-checker.sh",
-            "statusMessage": "Checking bash command..."
-          }
-        ]
-      },
-      {
-        "matcher": "Read",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/read-once/hook.sh",
-            "statusMessage": "Checking read cache..."
-          }
-        ]
-      }
-    ]
-  },
-  "statusLine": {
-    "type": "command",
-    "command": "~/.claude/statusline.sh"
-  },
-  "enabledPlugins": {
-    "frontend-design@claude-plugins-official": false,
-    "context7@claude-plugins-official": false,
-    "superpowers@claude-plugins-official": false,
-    "feature-dev@claude-plugins-official": false,
-    "code-simplifier@claude-plugins-official": false,
-    "ralph-loop@claude-plugins-official": false,
-    "playwright@claude-plugins-official": false,
-    "typescript-lsp@claude-plugins-official": false,
-    "commit-commands@claude-plugins-official": false,
-    "security-guidance@claude-plugins-official": false,
-    "claude-md-management@claude-plugins-official": true,
-    "claude-code-setup@claude-plugins-official": true,
-    "greptile@claude-plugins-official": false,
-    "hookify@claude-plugins-official": true,
-    "skill-creator@claude-plugins-official": true,
-    "qodo-skills@claude-plugins-official": false,
-    "swift-lsp@claude-plugins-official": false,
-    "kotlin-lsp@claude-plugins-official": false,
-    "rust-analyzer-lsp@claude-plugins-official": true,
-    "clangd-lsp@claude-plugins-official": true
-  },
-  "extraKnownMarketplaces": {
-    "claude-code-plugins": {
-      "source": {
-        "source": "github",
-        "repo": "anthropics/claude-code"
-      }
-    }
-  },
-  "alwaysThinkingEnabled": true,
-  "effortLevel": "medium"
+    },
+    "statusLine": {
+        "type": "command",
+        "command": "~/.claude/statusline.sh"
+    },
+    "enabledPlugins": {
+        "frontend-design@claude-plugins-official": false,
+        "context7@claude-plugins-official": false,
+        "superpowers@claude-plugins-official": false,
+        "feature-dev@claude-plugins-official": false,
+        "code-simplifier@claude-plugins-official": false,
+        "ralph-loop@claude-plugins-official": false,
+        "playwright@claude-plugins-official": false,
+        "typescript-lsp@claude-plugins-official": false,
+        "commit-commands@claude-plugins-official": false,
+        "security-guidance@claude-plugins-official": false,
+        "claude-md-management@claude-plugins-official": true,
+        "claude-code-setup@claude-plugins-official": true,
+        "greptile@claude-plugins-official": false,
+        "hookify@claude-plugins-official": true,
+        "skill-creator@claude-plugins-official": true,
+        "qodo-skills@claude-plugins-official": false,
+        "swift-lsp@claude-plugins-official": false,
+        "kotlin-lsp@claude-plugins-official": false,
+        "rust-analyzer-lsp@claude-plugins-official": true,
+        "clangd-lsp@claude-plugins-official": true
+    },
+    "extraKnownMarketplaces": {
+        "claude-code-plugins": {
+            "source": {
+                "source": "github",
+                "repo": "anthropics/claude-code"
+            }
+        }
+    },
+    "alwaysThinkingEnabled": true,
+    "effortLevel": "medium"
 }

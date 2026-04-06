@@ -66,3 +66,6 @@ fi
 # zprof - uncomment matching line in .zshenv to use
 # zprof
 export PATH="/Users/skooch/.bun/bin:$PATH"
+
+# Added by codebase-memory-mcp install
+export PATH="/Users/skooch/.local/bin:$PATH"

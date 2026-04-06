@@ -63,3 +63,4 @@ if OS.mac?
     cask "visual-studio-code@insiders"
 end
 brew "poppler"
+brew "tmux"
