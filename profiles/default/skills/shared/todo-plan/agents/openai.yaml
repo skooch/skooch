@@ -1,0 +1,4 @@
+interface:
+  display_name: "Todo Plan"
+  short_description: "Break down tasks into tracked execution plans"
+  default_prompt: "Break this task into a tracked execution plan with concrete phases, file mapping, and progress logging. If a systemic-fix diagnosis already exists, skip discovery and go straight to task breakdown."
