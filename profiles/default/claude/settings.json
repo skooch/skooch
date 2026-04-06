@@ -127,7 +127,7 @@
             "mcp__tdeck__tdeck_gdb_step",
             "mcp__tdeck__tdeck_gen_theme",
             "mcp__tdeck__tdeck_hil",
-            "mcp__tdeck__tdeck_kill",
+            "mcp__tdeck__tdeck_stop",
             "mcp__tdeck__tdeck_mcp_logs",
             "mcp__tdeck__tdeck_mcp_recent",
             "mcp__tdeck__tdeck_memory",
