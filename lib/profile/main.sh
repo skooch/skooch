@@ -177,6 +177,7 @@ profile() {
             _profile_apply_tmux "$active_set"
             _profile_apply_mise "$active_set"
             _profile_apply_brew "$active_set"
+            _profile_apply_git_cache
             echo "$active_set" > "$PROFILE_ACTIVE_FILE"
 
             # Record managed files

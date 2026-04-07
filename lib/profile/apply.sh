@@ -497,3 +497,15 @@ _profile_apply_tmux() {
     cp "$source" "$target"
     echo "Applying tmux config: $source_profile"
 }
+
+# --- Git cache ---
+
+_profile_apply_git_cache() {
+    if ! command -v npm >/dev/null 2>&1; then
+        echo "Git cache: npm not found, skipping (install node via mise first)"
+        return 0
+    fi
+
+    echo "Setting up git cache..."
+    "$DOTFILES_DIR/lib/git-cache/setup.sh" setup
+}
