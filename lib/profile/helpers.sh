@@ -58,10 +58,24 @@ _profile_relpath() {
     echo "${result:-.}"
 }
 
+_profile_is_temp_path() {
+    # Return 0 if the path is under a known temporary directory.
+    local abs="${1:a}"
+    case "$abs" in
+        /var/folders/*/T/*|/tmp/*|/private/tmp/*) return 0 ;;
+    esac
+    [[ -n "${TMPDIR:-}" && "$abs" == "${TMPDIR:a}"/* ]] && return 0
+    return 1
+}
+
 _profile_ln_s() {
     # Create a relative file symlink (ln -sf equivalent).
     # Usage: _profile_ln_s <source_absolute> <target>
     local source="$1" target="$2"
+    if _profile_is_temp_path "$source" && ! _profile_is_temp_path "$target"; then
+        echo "Warning: refusing to symlink to temp path: $source" >&2
+        return 1
+    fi
     local rel
     rel=$(_profile_relpath "$source" "$(dirname "$target")")
     ln -sf "$rel" "$target"
@@ -71,6 +85,10 @@ _profile_ln_sn() {
     # Create a relative directory symlink (ln -sfn equivalent).
     # Usage: _profile_ln_sn <source_absolute> <target>
     local source="$1" target="$2"
+    if _profile_is_temp_path "$source" && ! _profile_is_temp_path "$target"; then
+        echo "Warning: refusing to symlink to temp path: $source" >&2
+        return 1
+    fi
     local rel
     rel=$(_profile_relpath "$source" "$(dirname "$target")")
     ln -sfn "$rel" "$target"
