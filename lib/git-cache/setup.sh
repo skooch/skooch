@@ -35,12 +35,27 @@ require_npm() {
     fi
 }
 
+write_upstream_gitconfig() {
+    local cfg="$install_prefix/upstream.gitconfig"
+    local gh_bin
+    gh_bin=$(command -v gh 2>/dev/null || true)
+    if [[ -n "$gh_bin" ]]; then
+        cat > "$cfg" <<EOF
+[credential]
+	helper = !${gh_bin} auth git-credential
+EOF
+    else
+        echo "warning: gh CLI not found; upstream.gitconfig will have no credential helper" >&2
+        : > "$cfg"
+    fi
+}
+
 install_package() {
     require_npm
     mkdir -p "$install_prefix"
     npm install --prefix "$install_prefix" git-cache-http-server
     command -v node > "$install_prefix/node-path"
-    : > "$install_prefix/upstream.gitconfig"
+    write_upstream_gitconfig
 }
 
 remove_legacy_git_include_refs() {

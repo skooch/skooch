@@ -23,5 +23,7 @@
 	required = true
 	clean = git-lfs clean -- %f
 	smudge = git-lfs smudge -- %f
+[credential "http://127.0.0.1:1234"]
+	helper = !~/projects/skooch/lib/git-cache/credential-helper.sh
 [alias]
 	cleanup = "!git branch --merged | grep  -v '\\*\\|master\\|develop\\|main' | xargs -n 1 -r git branch -d"
