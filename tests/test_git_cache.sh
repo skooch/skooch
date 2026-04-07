@@ -121,4 +121,63 @@ chmod +x "$fake_bin/git"
 args=$(PATH="$fake_bin:$PATH" git push origin main)
 assert_eq $'push\norigin\nmain' "$args"
 
+# --- Credential helper tests ---
+
+_CRED_HELPER="$_GIT_CACHE_LIB_DIR/credential-helper.sh"
+
+_TEST_NAME="credential helper responds for 127.0.0.1:1234"
+cred_out=$(printf 'protocol=http\nhost=127.0.0.1:1234\n\n' | GIT_CACHE_PORT=1234 zsh "$_CRED_HELPER" get 2>/dev/null)
+assert_contains "$cred_out" "host=github.com"
+assert_contains "$cred_out" "protocol=https"
+
+_TEST_NAME="credential helper ignores other hosts"
+cred_out=$(printf 'protocol=http\nhost=evil.com:1234\n\n' | GIT_CACHE_PORT=1234 zsh "$_CRED_HELPER" get 2>/dev/null)
+assert_eq "" "$cred_out"
+
+_TEST_NAME="credential helper ignores other ports"
+cred_out=$(printf 'protocol=http\nhost=127.0.0.1:9999\n\n' | GIT_CACHE_PORT=1234 zsh "$_CRED_HELPER" get 2>/dev/null)
+assert_eq "" "$cred_out"
+
+_TEST_NAME="credential helper ignores store action"
+cred_out=$(printf 'protocol=http\nhost=127.0.0.1:1234\n\n' | GIT_CACHE_PORT=1234 zsh "$_CRED_HELPER" store 2>/dev/null)
+assert_eq "" "$cred_out"
+
+_TEST_NAME="credential helper ignores erase action"
+cred_out=$(printf 'protocol=http\nhost=127.0.0.1:1234\n\n' | GIT_CACHE_PORT=1234 zsh "$_CRED_HELPER" erase 2>/dev/null)
+assert_eq "" "$cred_out"
+
+_TEST_NAME="credential helper never echoes input host in output"
+cred_out=$(printf 'protocol=http\nhost=127.0.0.1:1234\n\n' | GIT_CACHE_PORT=1234 zsh "$_CRED_HELPER" get 2>/dev/null)
+assert_not_contains "$cred_out" "host=127.0.0.1"
+
+_TEST_NAME="credential helper respects custom GIT_CACHE_PORT"
+cred_out=$(printf 'protocol=http\nhost=127.0.0.1:5678\n\n' | GIT_CACHE_PORT=5678 zsh "$_CRED_HELPER" get 2>/dev/null)
+assert_contains "$cred_out" "host=github.com"
+
+_TEST_NAME="credential helper rejects custom port when env mismatches"
+cred_out=$(printf 'protocol=http\nhost=127.0.0.1:5678\n\n' | GIT_CACHE_PORT=1234 zsh "$_CRED_HELPER" get 2>/dev/null)
+assert_eq "" "$cred_out"
+
+# --- setup.sh upstream.gitconfig tests ---
+
+_TEST_NAME="setup writes credential helper into upstream.gitconfig"
+fake_install="$TEST_HOME/opt/git-cache-test"
+mkdir -p "$fake_install"
+# Source just the function, dont run install_package
+upstream_cfg="$fake_install/upstream.gitconfig"
+GIT_CACHE_INSTALL_PREFIX="$fake_install" zsh -c '
+    source "'"$_GIT_CACHE_LIB_DIR"'/setup.sh" <<< "" 2>/dev/null || true
+' 2>/dev/null || true
+# Test the function directly via inline eval
+GIT_CACHE_INSTALL_PREFIX="$fake_install" zsh -c '
+    install_prefix="'"$fake_install"'"
+    source /dev/stdin <<FUNC
+'"$(sed -n '/^write_upstream_gitconfig/,/^}/p' "$_GIT_CACHE_LIB_DIR/setup.sh")"'
+FUNC
+    write_upstream_gitconfig
+'
+assert_file_exists "$upstream_cfg"
+assert_contains "$(cat "$upstream_cfg")" "credential"
+assert_contains "$(cat "$upstream_cfg")" "gh auth git-credential"
+
 _test_summary
