@@ -277,6 +277,81 @@ rm -rf "$TEST_HOME/.codex/skills/layout-check" "$TEST_HOME/.claude/skills/layout
 _profile_sync_skills "default" > /dev/null 2>&1
 assert_symlink "$TEST_HOME/.claude/skills/layout-check" "$PROFILES_DIR/default/skills/shared/layout-check"
 
+# --- Reverse skill sync (orphan ingestion) ---
+
+_TEST_NAME="sync_skills ingests orphan skill from claude"
+rm -rf "$PROFILES_DIR/default/skills/shared/orphan-skill"
+mkdir -p "$TEST_HOME/.claude/skills/orphan-skill"
+cat > "$TEST_HOME/.claude/skills/orphan-skill/SKILL.md" <<'SKILL'
+---
+name: orphan-skill
+description: >
+  A test orphan skill for reverse sync
+---
+# Orphan Skill
+SKILL
+rm -rf "$TEST_HOME/.codex/skills/orphan-skill"
+_profile_sync_skills "default" > /dev/null 2>&1
+if [[ -d "$PROFILES_DIR/default/skills/shared/orphan-skill" ]]; then
+    pass
+else
+    fail "orphan skill was not ingested into profiles"
+fi
+
+_TEST_NAME="sync_skills scaffolds openai.yaml for ingested orphan"
+if [[ -f "$PROFILES_DIR/default/skills/shared/orphan-skill/agents/openai.yaml" ]]; then
+    pass
+else
+    fail "agents/openai.yaml was not scaffolded"
+fi
+
+_TEST_NAME="sync_skills replaces orphan with symlink after ingestion"
+assert_symlink "$TEST_HOME/.claude/skills/orphan-skill" "$PROFILES_DIR/default/skills/shared/orphan-skill"
+
+_TEST_NAME="sync_skills routes ingested orphan to codex too"
+assert_symlink "$TEST_HOME/.codex/skills/orphan-skill" "$PROFILES_DIR/default/skills/shared/orphan-skill"
+
+_TEST_NAME="sync_skills skips orphan without SKILL.md"
+rm -rf "$PROFILES_DIR/default/skills/shared/junk-dir"
+mkdir -p "$TEST_HOME/.claude/skills/junk-dir"
+echo "not a skill" > "$TEST_HOME/.claude/skills/junk-dir/README.md"
+_profile_sync_skills "default" > /dev/null 2>&1
+if [[ ! -d "$PROFILES_DIR/default/skills/shared/junk-dir" ]]; then
+    pass
+else
+    fail "junk dir without SKILL.md should not be ingested"
+fi
+rm -rf "$TEST_HOME/.claude/skills/junk-dir"
+
+_TEST_NAME="sync_skills skips orphan that already exists in profiles"
+mkdir -p "$PROFILES_DIR/default/skills/shared/existing-skill"
+echo "# existing" > "$PROFILES_DIR/default/skills/shared/existing-skill/SKILL.md"
+mkdir -p "$TEST_HOME/.claude/skills/existing-skill"
+echo "# local copy" > "$TEST_HOME/.claude/skills/existing-skill/SKILL.md"
+local existing_before=$(<"$PROFILES_DIR/default/skills/shared/existing-skill/SKILL.md")
+_profile_sync_skills "default" > /dev/null 2>&1
+local existing_after=$(<"$PROFILES_DIR/default/skills/shared/existing-skill/SKILL.md")
+if [[ "$existing_before" == "$existing_after" ]]; then
+    pass
+else
+    fail "existing profile skill should not be overwritten by orphan"
+fi
+
+_TEST_NAME="apply_skills does not ingest orphans"
+rm -rf "$PROFILES_DIR/default/skills/shared/apply-orphan"
+mkdir -p "$TEST_HOME/.claude/skills/apply-orphan"
+echo -e "---\nname: apply-orphan\n---\n# test" > "$TEST_HOME/.claude/skills/apply-orphan/SKILL.md"
+_profile_apply_skills "default" > /dev/null 2>&1
+if [[ ! -d "$PROFILES_DIR/default/skills/shared/apply-orphan" ]]; then
+    pass
+else
+    fail "apply mode should not ingest orphans"
+fi
+rm -rf "$TEST_HOME/.claude/skills/apply-orphan"
+
+# Clean up reverse sync test artifacts
+rm -rf "$PROFILES_DIR/default/skills/shared/orphan-skill" "$PROFILES_DIR/default/skills/shared/existing-skill"
+
 _TEST_NAME="sync_codex restores AGENTS bridge"
 echo "# Instructions" > "$PROFILES_DIR/default/claude/CLAUDE.md"
 _profile_apply_claude "default" > /dev/null 2>&1
