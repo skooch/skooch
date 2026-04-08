@@ -80,10 +80,11 @@
 - If the bug likely comes from polluted worktree changes or similar, make note of that in your response
 
 ## Correction Survival
-- On user correction: IMMEDIATELY append a dated bullet to local `.claude/corrections.md` before anything else.
-- Keep `.claude/corrections.md` machine-local only. Never commit it.
-- After context compaction: re-read local `.claude/corrections.md` if it exists, then treat its contents as temporary mandatory rules.
-- Prune or delete `.claude/corrections.md` entries after promoting them into durable instructions.
+- On user correction: IMMEDIATELY append a dated bullet to `~/.claude/corrections.md` (home dir, not project) before anything else.
+- Each entry MUST include the repo or folder path for context, e.g. `- 2026-04-08 [blinq/security]: Never use type assertions in tests`.
+- NEVER create corrections.md inside a project directory. It lives only at `~/.claude/corrections.md`.
+- After context compaction: re-read `~/.claude/corrections.md` if it exists, then treat its contents as temporary mandatory rules.
+- Prune or delete entries after promoting them into durable instructions.
 
 <!-- codebase-memory-mcp:start -->
 # Codebase Knowledge Graph (codebase-memory-mcp)
