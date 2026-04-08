@@ -498,6 +498,18 @@ _profile_apply_tmux() {
     echo "Applying tmux config: $source_profile"
 }
 
+# --- codebase-memory-mcp ---
+
+_profile_apply_cbm() {
+    if ! command -v codebase-memory-mcp &>/dev/null; then
+        echo "codebase-memory-mcp: not installed, skipping"
+        return 0
+    fi
+
+    echo "Configuring codebase-memory-mcp..."
+    codebase-memory-mcp install -y 2>&1 | sed 's/^/  /'
+}
+
 # --- Git cache ---
 
 _profile_apply_git_cache() {
