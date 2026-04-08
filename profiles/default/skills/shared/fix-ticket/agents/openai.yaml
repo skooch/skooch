@@ -1,0 +1,4 @@
+interface:
+  display_name: "Fix Ticket"
+  short_description: "Implement Linear tickets end-to-end"
+  default_prompt: "Use $fix-ticket to implement this Linear ticket: fetch details, create branch, implement, test, push, and create PR."
