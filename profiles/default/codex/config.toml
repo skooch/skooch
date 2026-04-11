@@ -256,7 +256,7 @@ approval_mode = "approve"
 approval_mode = "approve"
 
 [mcp_servers.codebase-memory-mcp.tools.delete_project]
-approval_mode = "prompt"
+approval_mode = "approve"
 
 [mcp_servers.codebase-memory-mcp.tools.index_status]
 approval_mode = "approve"
