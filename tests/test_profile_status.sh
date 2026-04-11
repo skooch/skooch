@@ -58,6 +58,23 @@ local checkpoint_output=$(profile checkpoint 2>/dev/null)
 assert_contains "$checkpoint_output" "Checkpoint updated"
 assert_file_exists "$PROFILE_CHECKPOINT_FILE"
 
+_TEST_NAME="profile checkpoint blocks unsafe remote state"
+local remote_block_log=$(mktemp)
+(
+    _profile_check_remote() {
+        _PROFILE_REMOTE_STATE="behind"
+        _PROFILE_REMOTE_MESSAGE="Dotfiles repo is 1 commit(s) behind upstream."
+        return 0
+    }
+    profile checkpoint
+) >"$remote_block_log" 2>&1
+local remote_block_rc=$?
+local remote_block_output=$(cat "$remote_block_log")
+rm -f "$remote_block_log"
+assert_eq "1" "$remote_block_rc"
+assert_contains "$remote_block_output" "Remote: Dotfiles repo is 1 commit(s) behind upstream."
+assert_contains "$remote_block_output" "Pull or reconcile upstream changes before running 'profile checkpoint'."
+
 _TEST_NAME="profile status distinguishes stale checkpoint from reconcile work"
 ln -sf "$PROFILES_DIR/default/codex/config.toml" "$TEST_HOME/.codex/config.toml"
 echo 'model = "gpt-5.4-mini"' > "$PROFILES_DIR/default/codex/config.toml"
@@ -98,6 +115,21 @@ assert_contains "$safe_output" "Safe sync actions: 1"
 assert_contains "$safe_output" "VSCode settings (MockCode): profile changes can be applied automatically"
 assert_contains "$safe_output" "Run 'profile sync' to apply the safe changes above."
 
+_TEST_NAME="profile checkpoint blocks unresolved managed drift"
+local checkpoint_drift_output
+checkpoint_drift_output=$(profile checkpoint 2>/dev/null)
+local checkpoint_drift_rc=$?
+assert_eq "1" "$checkpoint_drift_rc"
+assert_contains "$checkpoint_drift_output" "Checkpoint would bless unresolved managed drift."
+assert_contains "$checkpoint_drift_output" "Run 'profile sync' to apply or record the changes above before checkpointing."
+
+cat > "$PROFILES_DIR/default/codex/config.toml" << 'EOF'
+model = "gpt-5.4"
+
+[features]
+codex_hooks = true
+EOF
+
 _TEST_NAME="profile status detects drift on union-managed and derived symlink targets"
 echo "# Claude instructions" > "$PROFILES_DIR/default/claude/CLAUDE.md"
 _profile_vscode_instances() {
@@ -130,7 +162,7 @@ cat > "$TEST_HOME/mock-code" << 'EOF'
 #!/bin/zsh
 case "$1" in
     --list-extensions)
-        printf '%s\n' ext.default ext.extra
+        printf '%s\n' ext.default
         ;;
 esac
 EOF
@@ -138,8 +170,22 @@ chmod +x "$TEST_HOME/mock-code"
 _profile_vscode_instances() {
     echo "MockCode|$TEST_HOME/.config/Code/User|$TEST_HOME/mock-code"
 }
+cat > "$PROFILES_DIR/default/vscode/settings.json" << 'EOF'
+{"editor.fontSize": 14}
+EOF
+rm -rf "$TEST_HOME/.codex/AGENTS.md"
+rm -f "$TEST_HOME/.codex/hooks/permission_bridge.py"
 _test_apply_baseline
 profile checkpoint >/dev/null 2>&1
+cat > "$TEST_HOME/mock-code" << 'EOF'
+#!/bin/zsh
+case "$1" in
+    --list-extensions)
+        printf '%s\n' ext.default ext.extra
+        ;;
+esac
+EOF
+chmod +x "$TEST_HOME/mock-code"
 local review_output=$(profile status 2>/dev/null)
 assert_contains "$review_output" "Checkpoint: current"
 assert_contains "$review_output" "Conflicts requiring review: 1"

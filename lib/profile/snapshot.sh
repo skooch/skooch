@@ -553,7 +553,7 @@ _profile_check_drift() {
 
     local display="${active// /, }"
     echo "Profile(s) '$display' changed since the last checkpoint, but live targets already match."
-    echo "Run 'profile checkpoint' to acknowledge the current canonical state."
+    echo "Run 'profile status' to review remote state before checkpointing."
 }
 
 # --- Remote check ---

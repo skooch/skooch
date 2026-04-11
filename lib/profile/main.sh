@@ -45,7 +45,11 @@ _profile_status() {
 
     if [[ "$checkpoint_state" == "stale" && $_PROFILE_RECONCILE_SAFE_COUNT -eq 0 && $_PROFILE_RECONCILE_BLOCKED_COUNT -eq 0 && $_PROFILE_RECONCILE_CONFLICT_COUNT -eq 0 ]]; then
         echo "Managed targets already match the canonical profile state."
-        echo "Run 'profile checkpoint' to acknowledge the new baseline."
+        if [[ "$_PROFILE_REMOTE_STATE" == "behind" || "$_PROFILE_REMOTE_STATE" == "diverged" || "$_PROFILE_REMOTE_STATE" == "stale" || "$_PROFILE_REMOTE_STATE" == "refresh_failed" || "$_PROFILE_REMOTE_STATE" == "unknown" ]]; then
+            echo "Resolve the remote state above before running 'profile checkpoint'."
+        else
+            echo "Run 'profile checkpoint' to acknowledge the new baseline."
+        fi
         return 0
     fi
 
@@ -75,6 +79,42 @@ _profile_checkpoint() {
     local active=$(_profile_active)
     if [[ -z "$active" ]]; then
         echo "No active profile. Run 'profile use <name>' first."
+        return 1
+    fi
+
+    _profile_check_remote true || return 1
+    case "$_PROFILE_REMOTE_STATE" in
+        current|ahead|no_upstream|unavailable)
+            ;;
+        behind|diverged)
+            echo "Remote: $_PROFILE_REMOTE_MESSAGE"
+            echo "Pull or reconcile upstream changes before running 'profile checkpoint'."
+            return 1
+            ;;
+        stale|refresh_failed|unknown)
+            echo "Remote: $_PROFILE_REMOTE_MESSAGE"
+            echo "Refresh the dotfiles repo before running 'profile checkpoint'."
+            return 1
+            ;;
+    esac
+
+    _profile_collect_reconcile_status "$active"
+    if (( _PROFILE_RECONCILE_SAFE_COUNT > 0 || _PROFILE_RECONCILE_BLOCKED_COUNT > 0 || _PROFILE_RECONCILE_CONFLICT_COUNT > 0 )); then
+        echo "Checkpoint would bless unresolved managed drift."
+        (( _PROFILE_RECONCILE_SAFE_COUNT > 0 )) && echo "Safe sync actions: $_PROFILE_RECONCILE_SAFE_COUNT"
+        (( _PROFILE_RECONCILE_BLOCKED_COUNT > 0 )) && echo "Blocked sync-back items: $_PROFILE_RECONCILE_BLOCKED_COUNT"
+        (( _PROFILE_RECONCILE_CONFLICT_COUNT > 0 )) && echo "Conflicts requiring review: $_PROFILE_RECONCILE_CONFLICT_COUNT"
+
+        local line=""
+        for line in "${_PROFILE_RECONCILE_LINES[@]}"; do
+            echo "  - $line"
+        done
+
+        if (( _PROFILE_RECONCILE_CONFLICT_COUNT > 0 || _PROFILE_RECONCILE_BLOCKED_COUNT > 0 )); then
+            echo "Run 'profile sync' only after reviewing the items above."
+        else
+            echo "Run 'profile sync' to apply or record the changes above before checkpointing."
+        fi
         return 1
     fi
 

@@ -166,6 +166,6 @@ ln -sf "$PROFILES_DIR/default/codex/config.toml" "$TEST_HOME/.codex/config.toml"
 echo 'model = "gpt-5.4-mini"' > "$PROFILES_DIR/default/codex/config.toml"
 local checkpoint_output=$(_profile_check_drift 2>/dev/null)
 assert_contains "$checkpoint_output" "changed since the last checkpoint"
-assert_contains "$checkpoint_output" "profile checkpoint"
+assert_contains "$checkpoint_output" "profile status"
 
 _test_summary
