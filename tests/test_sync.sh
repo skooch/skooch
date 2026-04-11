@@ -587,6 +587,45 @@ fi
 _TEST_NAME="profile sync reports stale managed link pruning"
 assert_contains "$prune_output" "Removed stale managed link: ~/.codex/hooks/permission_bridge.py"
 
+_TEST_NAME="profile use surfaces blocked stale managed cleanup"
+HOME="$TEST_HOME"
+_profile_apply_cbm() {
+    return 0
+}
+_profile_apply_git_cache() {
+    return 0
+}
+_profile_vscode_instances() {
+    return 0
+}
+echo "default" > "$PROFILE_ACTIVE_FILE"
+echo "# Claude instructions" > "$PROFILES_DIR/default/claude/CLAUDE.md"
+echo '#!/usr/bin/env python3' > "$PROFILES_DIR/default/codex/hooks/permission_bridge.py"
+_profile_apply_claude "default" >/dev/null 2>&1
+_profile_apply_codex "default" >/dev/null 2>&1
+_profile_apply_mise "default" >/dev/null 2>&1
+_test_write_managed "default"
+_profile_take_snapshot "default"
+local use_checkpoint_before=$(cat "$PROFILE_CHECKPOINT_FILE")
+rm -f "$PROFILES_DIR/default/codex/hooks/permission_bridge.py"
+rm -f "$TEST_HOME/.codex/hooks/permission_bridge.py"
+mkdir -p "$TEST_HOME/.codex/hooks/permission_bridge.py"
+echo "blocked" > "$TEST_HOME/.codex/hooks/permission_bridge.py/file.txt"
+local use_tmpout=$(mktemp)
+profile use default > "$use_tmpout" 2>&1
+local use_rc=$?
+local use_output=$(cat "$use_tmpout")
+rm -f "$use_tmpout"
+assert_eq "2" "$use_rc"
+
+_TEST_NAME="profile use reports blocked stale managed cleanup"
+assert_contains "$use_output" "Stale managed target requires review: ~/.codex/hooks/permission_bridge.py"
+assert_contains "$use_output" "Checkpoint not updated because profile switch still requires review."
+
+_TEST_NAME="profile use does not update checkpoint when stale cleanup is blocked"
+local use_checkpoint_after=$(cat "$PROFILE_CHECKPOINT_FILE")
+assert_eq "$use_checkpoint_before" "$use_checkpoint_after"
+
 # Restore default
 _PROFILE_INPUT=/dev/stdin
 

@@ -235,7 +235,10 @@ profile() {
             _profile_apply_cbm
             _profile_apply_git_cache
             echo "$active_set" > "$PROFILE_ACTIVE_FILE"
-            _profile_prune_stale_managed_targets "$active_set" >/dev/null 2>&1 || true
+            local use_result=0
+            _profile_prune_stale_managed_targets "$active_set"
+            local prune_result=$?
+            (( prune_result > use_result )) && use_result=$prune_result
 
             # Record managed files
             local -a managed=()
@@ -244,9 +247,16 @@ profile() {
             done < <(_profile_managed_paths_for_record "$active_set")
             _profile_write_managed "${managed[@]}"
 
+            local display="${active_set// /, }"
+            if (( use_result >= 2 )); then
+                echo ""
+                echo "Active profiles: $display"
+                echo "Checkpoint not updated because profile switch still requires review."
+                return 2
+            fi
+
             echo "Taking snapshot..."
             _profile_take_snapshot "$active_set"
-            local display="${active_set// /, }"
             echo "Active profiles: $display"
             _profile_offer_commit_push
             ;;
