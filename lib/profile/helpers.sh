@@ -436,11 +436,61 @@ _profile_collect_union_dir_sources() {
     done
 }
 
+_profile_dir_is_empty() {
+    local target_dir="$1"
+    [[ -d "$target_dir" && ! -L "$target_dir" ]] || return 1
+
+    local -a entries=(
+        "$target_dir"/*(N)
+        "$target_dir"/.[!.]*(N)
+        "$target_dir"/..?*(N)
+    )
+    (( ${#entries[@]} == 0 ))
+}
+
+_profile_link_target_state() {
+    local target_path="$1" expected_source="${2:-}"
+
+    if [[ -n "$expected_source" ]] && _profile_symlink_matches "$target_path" "$expected_source"; then
+        echo "in_sync"
+        return 0
+    fi
+
+    if [[ -d "$target_path" && ! -L "$target_path" ]]; then
+        if _profile_dir_is_empty "$target_path"; then
+            echo "replaceable_directory"
+        else
+            echo "blocked_directory"
+        fi
+        return 0
+    fi
+
+    if [[ -e "$target_path" || -L "$target_path" ]]; then
+        echo "replaceable_target"
+    else
+        echo "missing_target"
+    fi
+}
+
+_profile_prepare_link_target() {
+    local target_path="$1"
+
+    if [[ -d "$target_path" && ! -L "$target_path" ]]; then
+        if ! rmdir "$target_path" 2>/dev/null; then
+            return 2
+        fi
+    fi
+
+    return 0
+}
+
 _profile_link_last_wins_paths() {
     local profiles="$1" domain="$2" target_root="$3" mode="${4:-apply}"
     shift 4
 
     local relative_path=""
+    local changed=false
+    local blocked=false
     for relative_path in "$@"; do
         local source=$(_profile_resolve_last_wins_source "$profiles" "$domain" "$relative_path")
         [[ -z "$source" ]] && continue
@@ -450,16 +500,32 @@ _profile_link_last_wins_paths() {
         if [[ "$mode" == "sync" ]] && _profile_symlink_matches "$target_file" "$source"; then
             echo "  $relative_path: in sync (symlinked)"
         else
+            if ! _profile_prepare_link_target "$target_file"; then
+                echo "  $relative_path: skipped conflicting directory"
+                blocked=true
+                continue
+            fi
             _profile_ln_s "$source" "$target_file"
             echo "  $relative_path: symlinked"
+            changed=true
         fi
     done
+
+    if [[ "$blocked" == true ]]; then
+        return 2
+    fi
+    if [[ "$changed" == true ]]; then
+        return 1
+    fi
+    return 0
 }
 
 _profile_link_union_file_collection() {
     local profiles="$1" domain="$2" relative_dir="$3" glob_pattern="$4" target_root="$5" mode="${6:-apply}" label="$7"
     local -a linked_names=()
+    local -a skipped_names=()
     local collection_changed=false
+    local collection_blocked=false
     local basename="" source_file=""
 
     while IFS=$'\t' read -r basename source_file; do
@@ -470,11 +536,16 @@ _profile_link_union_file_collection() {
         if [[ "$mode" == "sync" ]] && _profile_symlink_matches "$target_file" "$source_file"; then
             continue
         fi
+        if ! _profile_prepare_link_target "$target_file"; then
+            skipped_names+=("$basename")
+            collection_blocked=true
+            continue
+        fi
         _profile_ln_s "$source_file" "$target_file"
         collection_changed=true
     done < <(_profile_collect_union_file_sources "$profiles" "$domain" "$relative_dir" "$glob_pattern")
 
-    [[ ${#linked_names[@]} -eq 0 ]] && return 0
+    [[ ${#linked_names[@]} -eq 0 && ${#skipped_names[@]} -eq 0 ]] && return 0
     if [[ "$mode" == "sync" ]]; then
         if [[ "$collection_changed" == true ]]; then
             echo "  $label: updated (${(j:, :)linked_names})"
@@ -484,6 +555,16 @@ _profile_link_union_file_collection() {
     else
         echo "  $label: ${(j:, :)linked_names}"
     fi
+    if [[ ${#skipped_names[@]} -gt 0 ]]; then
+        echo "  $label: skipped conflicting directories (${(j:, :)skipped_names})"
+    fi
+    if [[ "$collection_blocked" == true ]]; then
+        return 2
+    fi
+    if [[ "$collection_changed" == true ]]; then
+        return 1
+    fi
+    return 0
 }
 
 _profile_link_union_dir_collection() {
@@ -537,15 +618,14 @@ _profile_ensure_derived_symlink() {
         return 0
     fi
 
-    if [[ -d "$target_path" && ! -L "$target_path" ]]; then
-        if ! rmdir "$target_path" 2>/dev/null; then
-            echo "  $label: skipped conflicting directory"
-            return 0
-        fi
+    if ! _profile_prepare_link_target "$target_path"; then
+        echo "  $label: skipped conflicting directory"
+        return 2
     fi
 
     _profile_ln_sn "$source_path" "$target_path"
     echo "  $label: symlinked"
+    return 1
 }
 
 # Resolve "last profile wins" source for a claude path.
@@ -736,6 +816,44 @@ _profile_write_managed() {
     # Args: list of absolute paths that were written by profile switch
     mkdir -p "$PROFILE_STATE_DIR"
     printf '%s\n' "$@" > "$PROFILE_MANAGED_FILE"
+}
+
+_profile_stale_managed_paths() {
+    local profiles="$1"
+    [[ -f "$PROFILE_MANAGED_FILE" ]] || return 0
+
+    local expected_paths
+    expected_paths=$(_profile_target_paths "$profiles")
+
+    local managed_path=""
+    while IFS= read -r managed_path; do
+        [[ -n "$managed_path" ]] || continue
+        if [[ -n "$expected_paths" ]] && printf '%s\n' "$expected_paths" | grep -qFx -- "$managed_path"; then
+            continue
+        fi
+        echo "$managed_path"
+    done < "$PROFILE_MANAGED_FILE"
+}
+
+_profile_tracked_target_paths() {
+    local profiles="$1"
+    {
+        _profile_target_paths "$profiles"
+        _profile_stale_managed_paths "$profiles"
+    } | sed '/^$/d' | sort -u
+}
+
+_profile_managed_paths_for_record() {
+    local profiles="$1"
+    local stale_path=""
+    {
+        _profile_target_paths "$profiles"
+        while IFS= read -r stale_path; do
+            [[ -n "$stale_path" ]] || continue
+            [[ -e "$stale_path" || -L "$stale_path" ]] || continue
+            printf '%s\n' "$stale_path"
+        done < <(_profile_stale_managed_paths "$profiles")
+    } | sed '/^$/d' | sort -u
 }
 
 # --- Collect target paths that a switch would write ---

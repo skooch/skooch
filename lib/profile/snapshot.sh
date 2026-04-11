@@ -25,7 +25,7 @@ _profile_take_snapshot() {
             [[ -L "$target_path" ]] && real_path=$(_profile_resolve_link_target "$target_path")
             printf '%s\t%s\n' "$target_path" "$(_platform_md5 "$real_path")" >> "$snap_local"
         fi
-    done < <(_profile_target_paths "$profiles" | sort -u)
+    done < <(_profile_tracked_target_paths "$profiles" | sort -u)
 }
 
 _profile_checkpoint_hash() {
@@ -63,7 +63,7 @@ _profile_compute_hash() {
                 hash+="missing"
             fi
         fi
-    done < <(_profile_target_paths "$profiles" | sort -u)
+    done < <(_profile_tracked_target_paths "$profiles" | sort -u)
     echo "$hash"
 }
 
@@ -115,6 +115,28 @@ _profile_record_reconcile_safe() {
     _PROFILE_RECONCILE_LINES+=("$label: $detail")
 }
 
+_profile_record_reconcile_blocked() {
+    local label="$1" detail="$2"
+    (( _PROFILE_RECONCILE_BLOCKED_COUNT++ )) || true
+    _PROFILE_RECONCILE_LINES+=("$label: $detail")
+}
+
+_profile_record_link_reconcile_state() {
+    local label="$1" target_path="$2" expected_source="$3" safe_detail="$4" blocked_detail="$5"
+    local link_state=$(_profile_link_target_state "$target_path" "$expected_source")
+
+    case "$link_state" in
+        in_sync)
+            ;;
+        blocked_directory)
+            _profile_record_reconcile_blocked "$label" "$blocked_detail"
+            ;;
+        *)
+            _profile_record_reconcile_safe "$label" "$safe_detail"
+            ;;
+    esac
+}
+
 _profile_scan_structured_profile_target() {
     local label="$1" kind="$2" profiles="$3" domain="$4" relative_path="$5" target_root="$6" format="$7"
     local -a source_files=()
@@ -164,8 +186,12 @@ _profile_scan_union_file_collection_target() {
     while IFS=$'\t' read -r basename source_file; do
         [[ -n "$basename" && -n "$source_file" ]] || continue
         local target_file="$target_root/$relative_dir/$basename"
-        _profile_symlink_matches "$target_file" "$source_file" && continue
-        _profile_record_reconcile_safe "$label ($basename)" "profile links can be applied automatically (union collection)"
+        _profile_record_link_reconcile_state \
+            "$label ($basename)" \
+            "$target_file" \
+            "$source_file" \
+            "profile links can be applied automatically (union collection)" \
+            "conflicting directory blocks automatic link repair"
     done < <(_profile_collect_union_file_sources "$profiles" "$domain" "$relative_dir" "$glob_pattern")
 }
 
@@ -216,8 +242,12 @@ _profile_scan_skills_targets() {
         local target_agent=""
         for target_agent in "${targets[@]}"; do
             local target_dir="${agent_roots[$target_agent]}/skills/$skill_name"
-            _profile_symlink_matches "$target_dir" "$source_dir" && continue
-            _profile_record_reconcile_safe "Skills ($target_agent:$skill_name)" "profile links can be applied automatically (union collection)"
+            _profile_record_link_reconcile_state \
+                "Skills ($target_agent:$skill_name)" \
+                "$target_dir" \
+                "$source_dir" \
+                "profile links can be applied automatically (union collection)" \
+                "conflicting directory blocks automatic link repair"
         done
     done
 }
@@ -225,8 +255,56 @@ _profile_scan_skills_targets() {
 _profile_scan_derived_symlink_target() {
     local label="$1" source_path="$2" target_path="$3"
     [[ ! -e "$source_path" && ! -L "$source_path" ]] && return 0
-    _profile_symlink_matches "$target_path" "$source_path" && return 0
-    _profile_record_reconcile_safe "$label" "derived symlink can be restored automatically"
+    _profile_record_link_reconcile_state \
+        "$label" \
+        "$target_path" \
+        "$source_path" \
+        "derived symlink can be restored automatically" \
+        "conflicting directory blocks automatic link repair"
+}
+
+_profile_display_managed_path() {
+    local managed_path="$1"
+    if [[ "$managed_path" == "$HOME/"* ]]; then
+        echo "${managed_path/#$HOME/~}"
+    else
+        echo "$managed_path"
+    fi
+}
+
+_profile_scan_stale_managed_targets() {
+    local profiles="$1"
+    local stale_path=""
+
+    while IFS= read -r stale_path; do
+        [[ -n "$stale_path" ]] || continue
+
+        if [[ -L "$stale_path" ]]; then
+            _profile_record_reconcile_safe \
+                "Stale managed target ($(_profile_display_managed_path "$stale_path"))" \
+                "obsolete managed symlink can be removed automatically"
+            continue
+        fi
+
+        if [[ -d "$stale_path" && ! -L "$stale_path" ]]; then
+            if _profile_dir_is_empty "$stale_path"; then
+                _profile_record_reconcile_safe \
+                    "Stale managed target ($(_profile_display_managed_path "$stale_path"))" \
+                    "obsolete empty managed directory can be removed automatically"
+            else
+                _profile_record_reconcile_blocked \
+                    "Stale managed target ($(_profile_display_managed_path "$stale_path"))" \
+                    "managed target is no longer expected but a local directory still exists"
+            fi
+            continue
+        fi
+
+        if [[ -e "$stale_path" ]]; then
+            _profile_record_reconcile_blocked \
+                "Stale managed target ($(_profile_display_managed_path "$stale_path"))" \
+                "managed target is no longer expected but a local file still exists"
+        fi
+    done < <(_profile_stale_managed_paths "$profiles")
 }
 
 _profile_scan_brew_state() {
@@ -354,6 +432,7 @@ _profile_collect_reconcile_status() {
     _profile_scan_union_file_collection_target "Codex agents" "$profiles" "codex" "agents" "*.toml" "$HOME/.codex"
     _profile_scan_skills_targets "$profiles"
     _profile_scan_derived_symlink_target "AGENTS.md bridge" "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md"
+    _profile_scan_stale_managed_targets "$profiles"
     _profile_scan_brew_state "$profiles"
     _profile_scan_vscode_extensions_state "$profiles"
     _profile_scan_mise_tools_state "$profiles"

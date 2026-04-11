@@ -18,6 +18,42 @@ _profile_sync_merge_status() {
     fi
 }
 
+_profile_prune_stale_managed_targets() {
+    local profiles="$1"
+    local overall=0
+    local stale_path=""
+
+    while IFS= read -r stale_path; do
+        [[ -n "$stale_path" ]] || continue
+
+        if [[ -L "$stale_path" ]]; then
+            rm -f "$stale_path"
+            echo "  Removed stale managed link: $(_profile_display_managed_path "$stale_path")"
+            overall=$(_profile_sync_merge_status "$overall" 1)
+            continue
+        fi
+
+        if [[ -d "$stale_path" && ! -L "$stale_path" ]]; then
+            if _profile_dir_is_empty "$stale_path"; then
+                rmdir "$stale_path"
+                echo "  Removed stale managed directory: $(_profile_display_managed_path "$stale_path")"
+                overall=$(_profile_sync_merge_status "$overall" 1)
+            else
+                echo "  Stale managed target requires review: $(_profile_display_managed_path "$stale_path")"
+                overall=$(_profile_sync_merge_status "$overall" 2)
+            fi
+            continue
+        fi
+
+        if [[ -e "$stale_path" ]]; then
+            echo "  Stale managed target requires review: $(_profile_display_managed_path "$stale_path")"
+            overall=$(_profile_sync_merge_status "$overall" 2)
+        fi
+    done < <(_profile_stale_managed_paths "$profiles")
+
+    return "$overall"
+}
+
 _profile_analyze_config_sync() {
     local policy="$1" local_file="$2" expected_file="$3"
     shift 3
@@ -867,8 +903,11 @@ _profile_sync_claude() {
         "Claude" "$profiles" "claude" "settings.json" "$HOME/.claude" "json"
     overall=$(_profile_sync_merge_status "$overall" "$?")
     _profile_claude_link_files "$profiles" sync
+    overall=$(_profile_sync_merge_status "$overall" "$?")
     _profile_link_union_file_collection "$profiles" "claude" "hooks" "*.sh" "$HOME/.claude" "sync" "Hooks"
+    overall=$(_profile_sync_merge_status "$overall" "$?")
     _profile_link_union_file_collection "$profiles" "claude" "commands" "*.md" "$HOME/.claude" "sync" "Commands"
+    overall=$(_profile_sync_merge_status "$overall" "$?")
     return "$overall"
 }
 
@@ -895,8 +934,11 @@ _profile_sync_codex() {
     fi
 
     _profile_link_union_file_collection "$profiles" "codex" "hooks" "*" "$HOME/.codex" "sync" "Hooks"
+    overall=$(_profile_sync_merge_status "$overall" "$?")
     _profile_link_union_file_collection "$profiles" "codex" "agents" "*.toml" "$HOME/.codex" "sync" "Agents"
+    overall=$(_profile_sync_merge_status "$overall" "$?")
     _profile_ensure_derived_symlink "AGENTS.md" "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md" "sync"
+    overall=$(_profile_sync_merge_status "$overall" "$?")
     return "$overall"
 }
 
@@ -1000,7 +1042,9 @@ _profile_skills_link() {
     )
     local -a all_agents=(${(k)agent_roots})
     local -a linked_skills=()
+    local -a skipped_skills=()
     local collection_changed=false
+    local collection_blocked=false
 
     # Migrate: if any agent skills dir is a symlink (old derived-symlink model), replace with real dir
     local agent_name=""
@@ -1067,11 +1111,11 @@ _profile_skills_link() {
             if [[ "$mode" == "sync" ]] && _profile_symlink_matches "$target_dir" "$source_dir"; then
                 continue
             fi
-            if [[ -d "$target_dir" && ! -L "$target_dir" ]]; then
-                if ! rmdir "$target_dir" 2>/dev/null; then
-                    echo "  Skills: skipped $skill_name -> $target_agent (conflicting directory)"
-                    continue
-                fi
+            if ! _profile_prepare_link_target "$target_dir"; then
+                echo "  Skills: skipped $skill_name -> $target_agent (conflicting directory)"
+                skipped_skills+=("$skill_name:$target_agent")
+                collection_blocked=true
+                continue
             fi
             _profile_ln_sn "$source_dir" "$target_dir"
             collection_changed=true
@@ -1091,12 +1135,22 @@ _profile_skills_link() {
     else
         echo "  Skills: ${(j:, :)linked_skills}"
     fi
+    if [[ ${#skipped_skills[@]} -gt 0 ]]; then
+        echo "  Skills: skipped conflicting directories (${(j:, :)skipped_skills})"
+    fi
+    if [[ "$collection_blocked" == true ]]; then
+        return 2
+    fi
+    if [[ "$collection_changed" == true ]]; then
+        return 1
+    fi
+    return 0
 }
 
 _profile_sync_skills() {
     _profile_ingest_orphan_skills
     _profile_skills_link "$1" "sync"
-    return 0
+    return $?
 }
 
 _profile_apply_skills() {

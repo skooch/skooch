@@ -464,8 +464,20 @@ mise() {
 _profile_vscode_instances() {
     return 0
 }
+
+_test_write_managed() {
+    local profiles="$1"
+    local -a managed=()
+    local managed_path=""
+    while IFS= read -r managed_path; do
+        [[ -n "$managed_path" ]] && managed+=("$managed_path")
+    done < <(_profile_managed_paths_for_record "$profiles")
+    _profile_write_managed "${managed[@]}"
+}
+
 echo "testprofile" > "$PROFILE_ACTIVE_FILE"
 _profile_apply_codex "testprofile" >/dev/null 2>&1
+_test_write_managed "testprofile"
 _profile_take_snapshot "testprofile"
 local checkpoint_before=$(cat "$PROFILE_CHECKPOINT_FILE")
 cat > "$PROFILES_DIR/default/codex/config.toml" << 'EOF'
@@ -498,6 +510,82 @@ assert_eq "$checkpoint_before" "$checkpoint_after"
 _TEST_NAME="profile sync reports skipped checkpoint on unresolved review"
 assert_contains "$sync_output" "Checkpoint not updated"
 _PROFILE_INPUT=/dev/stdin
+
+_TEST_NAME="profile sync does not checkpoint blocked derived symlink repairs"
+HOME="$TEST_HOME"
+brew() {
+    case "$1" in
+        leaves)
+            echo "git"
+            ;;
+        list)
+            [[ "$2" == "--cask" ]] && return 0
+            ;;
+    esac
+    return 0
+}
+mise() {
+    case "$1" in
+        ls)
+            echo '{"node":["22.0.0"]}'
+            ;;
+    esac
+    return 0
+}
+_profile_vscode_instances() {
+    return 0
+}
+echo "default" > "$PROFILE_ACTIVE_FILE"
+echo "# Claude instructions" > "$PROFILES_DIR/default/claude/CLAUDE.md"
+_profile_apply_claude "default" >/dev/null 2>&1
+_profile_apply_codex "default" >/dev/null 2>&1
+_profile_apply_mise "default" >/dev/null 2>&1
+_test_write_managed "default"
+_profile_take_snapshot "default"
+local checkpoint_before_blocked=$(cat "$PROFILE_CHECKPOINT_FILE")
+rm -f "$TEST_HOME/.codex/AGENTS.md"
+mkdir -p "$TEST_HOME/.codex/AGENTS.md"
+echo "blocked" > "$TEST_HOME/.codex/AGENTS.md/file.txt"
+local blocked_tmpout=$(mktemp)
+profile sync > "$blocked_tmpout" 2>&1
+local blocked_rc=$?
+local blocked_sync_output=$(cat "$blocked_tmpout")
+rm -f "$blocked_tmpout"
+assert_eq "2" "$blocked_rc"
+
+_TEST_NAME="profile sync keeps checkpoint unchanged when derived symlink repair is blocked"
+local checkpoint_after_blocked=$(cat "$PROFILE_CHECKPOINT_FILE")
+assert_eq "$checkpoint_before_blocked" "$checkpoint_after_blocked"
+
+_TEST_NAME="profile sync reports blocked derived symlink repair"
+assert_contains "$blocked_sync_output" "AGENTS.md: skipped conflicting directory"
+assert_contains "$blocked_sync_output" "Checkpoint not updated"
+
+_TEST_NAME="profile sync prunes stale managed links after profile source removal"
+HOME="$TEST_HOME"
+rm -rf "$TEST_HOME/.codex/AGENTS.md"
+echo "default" > "$PROFILE_ACTIVE_FILE"
+_profile_apply_codex "default" >/dev/null 2>&1
+_profile_apply_mise "default" >/dev/null 2>&1
+_test_write_managed "default"
+_profile_take_snapshot "default"
+rm -f "$PROFILES_DIR/default/codex/hooks/permission_bridge.py"
+local prune_tmpout=$(mktemp)
+profile sync > "$prune_tmpout" 2>&1
+local prune_rc=$?
+local prune_output=$(cat "$prune_tmpout")
+rm -f "$prune_tmpout"
+assert_eq "1" "$prune_rc"
+
+_TEST_NAME="profile sync removes stale managed hook symlink"
+if [[ -e "$TEST_HOME/.codex/hooks/permission_bridge.py" || -L "$TEST_HOME/.codex/hooks/permission_bridge.py" ]]; then
+    fail "stale hook symlink should be removed"
+else
+    pass
+fi
+
+_TEST_NAME="profile sync reports stale managed link pruning"
+assert_contains "$prune_output" "Removed stale managed link: ~/.codex/hooks/permission_bridge.py"
 
 # Restore default
 _PROFILE_INPUT=/dev/stdin

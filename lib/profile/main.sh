@@ -235,12 +235,13 @@ profile() {
             _profile_apply_cbm
             _profile_apply_git_cache
             echo "$active_set" > "$PROFILE_ACTIVE_FILE"
+            _profile_prune_stale_managed_targets "$active_set" >/dev/null 2>&1 || true
 
             # Record managed files
             local -a managed=()
             while IFS= read -r managed_path; do
                 [[ -n "$managed_path" ]] && managed+=("$managed_path")
-            done < <(_profile_target_paths "$active_set")
+            done < <(_profile_managed_paths_for_record "$active_set")
             _profile_write_managed "${managed[@]}"
 
             echo "Taking snapshot..."
@@ -315,11 +316,19 @@ profile() {
             _profile_sync_tmux "$active"
             domain_result=$?
             (( domain_result > sync_result )) && sync_result=$domain_result
+            _profile_prune_stale_managed_targets "$active"
+            domain_result=$?
+            (( domain_result > sync_result )) && sync_result=$domain_result
             if (( sync_result >= 2 )); then
                 echo ""
                 echo "Checkpoint not updated because sync still requires review."
                 return 2
             fi
+            local -a managed=()
+            while IFS= read -r managed_path; do
+                [[ -n "$managed_path" ]] && managed+=("$managed_path")
+            done < <(_profile_managed_paths_for_record "$active")
+            _profile_write_managed "${managed[@]}"
             echo ""
             echo "Taking snapshot..."
             _profile_take_snapshot "$active"

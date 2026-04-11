@@ -38,6 +38,12 @@ _test_apply_baseline() {
     _profile_apply_codex "default" >/dev/null 2>&1
     _profile_apply_mise "default" >/dev/null 2>&1
     _profile_apply_git "default" >/dev/null 2>&1
+    local -a managed=()
+    local managed_path=""
+    while IFS= read -r managed_path; do
+        [[ -n "$managed_path" ]] && managed+=("$managed_path")
+    done < <(_profile_managed_paths_for_record "default")
+    _profile_write_managed "${managed[@]}"
 }
 
 _test_apply_baseline
@@ -108,6 +114,17 @@ assert_contains "$link_drift_output" "Codex hooks (permission_bridge.py)"
 assert_contains "$link_drift_output" "AGENTS.md bridge"
 assert_not_contains "$link_drift_output" "Everything is in sync."
 
+_TEST_NAME="profile status reports blocked link repair for conflicting managed directories"
+echo "# Claude instructions" > "$PROFILES_DIR/default/claude/CLAUDE.md"
+_test_apply_baseline
+profile checkpoint >/dev/null 2>&1
+rm -f "$TEST_HOME/.codex/AGENTS.md"
+mkdir -p "$TEST_HOME/.codex/AGENTS.md"
+echo "blocked" > "$TEST_HOME/.codex/AGENTS.md/file.txt"
+local blocked_output=$(profile status 2>/dev/null)
+assert_contains "$blocked_output" "AGENTS.md bridge: conflicting directory blocks automatic link repair"
+assert_not_contains "$blocked_output" "Run 'profile sync' to apply the safe changes above."
+
 _TEST_NAME="profile status detects current-checkpoint extension drift"
 cat > "$TEST_HOME/mock-code" << 'EOF'
 #!/bin/zsh
@@ -128,5 +145,16 @@ assert_contains "$review_output" "Checkpoint: current"
 assert_contains "$review_output" "Conflicts requiring review: 1"
 assert_contains "$review_output" "VSCode extensions (MockCode)"
 assert_not_contains "$review_output" "Everything is in sync."
+
+_TEST_NAME="profile status reports stale managed links after profile source removal"
+_profile_vscode_instances() {
+    return 0
+}
+_test_apply_baseline
+profile checkpoint >/dev/null 2>&1
+rm -f "$PROFILES_DIR/default/codex/hooks/permission_bridge.py"
+local stale_managed_output=$(profile status 2>/dev/null)
+assert_contains "$stale_managed_output" "Stale managed target (~/.codex/hooks/permission_bridge.py)"
+assert_not_contains "$stale_managed_output" "Everything is in sync."
 
 _test_summary
