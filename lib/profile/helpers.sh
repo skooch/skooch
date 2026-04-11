@@ -18,6 +18,73 @@ _CODEX_LAST_WINS_PATHS=(
     rules/default.rules
 )
 
+# --- Managed path policy helpers ---
+
+_profile_config_policy() {
+    local kind="$1" source_count="${2:-1}"
+
+    case "$kind" in
+        apply_only)
+            echo "apply_only"
+            ;;
+        union_collection)
+            echo "union_collection"
+            ;;
+        structured_canonical)
+            if (( source_count > 1 )); then
+                echo "merged_output_no_sync_back"
+            else
+                echo "canonical_symlink"
+            fi
+            ;;
+        structured_copy)
+            if (( source_count > 1 )); then
+                echo "merged_output_no_sync_back"
+            else
+                echo "single_owner_sync_back"
+            fi
+            ;;
+        last_wins|single_owner)
+            echo "single_owner_sync_back"
+            ;;
+        *)
+            echo "single_owner_sync_back"
+            ;;
+    esac
+}
+
+_profile_policy_sync_back_allowed() {
+    local policy="$1"
+    case "$policy" in
+        canonical_symlink|single_owner_sync_back) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+_profile_policy_is_multi_profile_compatible() {
+    local policy="$1"
+    case "$policy" in
+        canonical_symlink|single_owner_sync_back|merged_output_no_sync_back|union_collection|apply_only)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+_profile_policy_description() {
+    local policy="$1"
+    case "$policy" in
+        canonical_symlink) echo "canonical symlink" ;;
+        single_owner_sync_back) echo "single-owner sync-back" ;;
+        merged_output_no_sync_back) echo "merged multi-profile output" ;;
+        union_collection) echo "union collection" ;;
+        apply_only) echo "apply-only" ;;
+        *) echo "$policy" ;;
+    esac
+}
+
 # --- Relative symlink helpers ---
 
 _profile_relpath() {
@@ -94,6 +161,21 @@ _profile_ln_sn() {
     ln -sfn "$rel" "$target"
 }
 
+_profile_resolve_link_target() {
+    local link_path="$1"
+    [[ -L "$link_path" ]] || return 1
+
+    local link_target
+    link_target=$(readlink "$link_path")
+    [[ -n "$link_target" ]] || return 1
+
+    if [[ "$link_target" != /* ]]; then
+        link_target="$(dirname "$link_path")/$link_target"
+    fi
+
+    echo "${link_target:a}"
+}
+
 _profile_symlink_matches() {
     # Check whether symlink at $1 ultimately points to the same file as $2.
     # Handles both absolute and relative symlink targets.
@@ -102,13 +184,7 @@ _profile_symlink_matches() {
     [[ -L "$symlink" ]] || return 1
 
     local link_target
-    link_target=$(readlink "$symlink")
-
-    # Resolve link target to normalized absolute path
-    if [[ "$link_target" != /* ]]; then
-        link_target="$(dirname "$symlink")/$link_target"
-    fi
-    link_target="${link_target:a}"
+    link_target=$(_profile_resolve_link_target "$symlink") || return 1
 
     # Resolve expected source to normalized absolute path
     local expected_abs="${expected_source:a}"
@@ -300,7 +376,9 @@ _profile_sync_structured_profile_config() {
             _profile_ln_s "${source_files[1]}" "$target_file"
             echo "  $label: symlinked -> ${source_files[1]:t}"
         else
-            _profile_sync_config "$label" "$target_file" "${source_files[1]}" "${source_files[1]}"
+            _profile_sync_config_policy \
+                "$(_profile_config_policy structured_canonical 1)" \
+                "$label" "$target_file" "${source_files[1]}" "${source_files[1]}"
             return $?
         fi
         return 0
@@ -312,7 +390,9 @@ _profile_sync_structured_profile_config() {
         rm -f "$expected_file"
         return 1
     }
-    _profile_sync_config "$label" "$target_file" "$expected_file" "${source_files[@]}"
+    _profile_sync_config_policy \
+        "$(_profile_config_policy structured_canonical ${#source_files[@]})" \
+        "$label" "$target_file" "$expected_file" "${source_files[@]}"
     local result=$?
     rm -f "$expected_file"
     return $result
@@ -951,6 +1031,19 @@ _profile_sync_skip_contains() {
     return 1
 }
 
+_profile_sync_skip_contains_any() {
+    local item="$1"
+    shift
+
+    local scope=""
+    for scope in "$@"; do
+        [[ -n "$scope" ]] || continue
+        _profile_sync_skip_contains "$scope" "$item" && return 0
+    done
+
+    return 1
+}
+
 _profile_sync_skip_remember() {
     local scope="$1" item="$2"
     _profile_sync_skip_contains "$scope" "$item" && return 0
@@ -976,6 +1069,19 @@ _profile_sync_skip_forget() {
     mv "$tmpfile" "$PROFILE_SYNC_SKIPS_FILE"
 }
 
+_profile_prompt_read() {
+    local answer=""
+    local input_path="${_PROFILE_INPUT:-/dev/tty}"
+
+    if [[ "$input_path" == "/dev/stdin" ]]; then
+        read -r answer || return 1
+    else
+        read -r answer <"$input_path" || return 1
+    fi
+
+    echo "$answer"
+}
+
 _profile_prompt_item() {
     local scope="" label="" direction=""
     if [[ $# -ge 3 ]]; then
@@ -992,7 +1098,7 @@ _profile_prompt_item() {
         while true; do
             printf "    [I]nstall / [R]emove from profile / [S]kip? [I] " >&2
             local answer
-            read -r answer
+            answer=$(_profile_prompt_read) || { echo "skip"; return; }
             case "${answer:-I}" in
                 [iI]) echo "install"; return ;;
                 [rR]) echo "remove"; return ;;
@@ -1009,7 +1115,7 @@ _profile_prompt_item() {
         while true; do
             printf "    [A]dd to profile / [U]ninstall / [S]kip? [A] " >&2
             local answer
-            read -r answer
+            answer=$(_profile_prompt_read) || { echo "skip"; return; }
             case "${answer:-A}" in
                 [aA])
                     [[ -n "$scope" ]] && _profile_sync_skip_forget "$scope" "$label"

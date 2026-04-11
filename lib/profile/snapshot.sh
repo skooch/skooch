@@ -109,6 +109,12 @@ _profile_record_reconcile_review() {
     _PROFILE_RECONCILE_LINES+=("$label: $detail")
 }
 
+_profile_record_reconcile_safe() {
+    local label="$1" detail="$2"
+    (( _PROFILE_RECONCILE_SAFE_COUNT++ )) || true
+    _PROFILE_RECONCILE_LINES+=("$label: $detail")
+}
+
 _profile_scan_structured_profile_target() {
     local label="$1" kind="$2" profiles="$3" domain="$4" relative_path="$5" target_root="$6" format="$7"
     local -a source_files=()
@@ -149,6 +155,78 @@ _profile_scan_last_wins_target() {
     local policy=$(_profile_config_policy last_wins 1)
     _profile_analyze_config_sync "$policy" "$target_file" "$source" "$source"
     _profile_record_reconcile_state "$label" "$policy"
+}
+
+_profile_scan_union_file_collection_target() {
+    local label="$1" profiles="$2" domain="$3" relative_dir="$4" glob_pattern="$5" target_root="$6"
+    local basename="" source_file=""
+
+    while IFS=$'\t' read -r basename source_file; do
+        [[ -n "$basename" && -n "$source_file" ]] || continue
+        local target_file="$target_root/$relative_dir/$basename"
+        _profile_symlink_matches "$target_file" "$source_file" && continue
+        _profile_record_reconcile_safe "$label ($basename)" "profile links can be applied automatically (union collection)"
+    done < <(_profile_collect_union_file_sources "$profiles" "$domain" "$relative_dir" "$glob_pattern")
+}
+
+_profile_scan_skills_targets() {
+    local profiles="$1"
+    local -A agent_roots=(
+        [claude]="$HOME/.claude"
+        [codex]="$HOME/.codex"
+    )
+    local -a all_agents=(${(k)agent_roots})
+    local -A audience_sources=()
+    local -a profile_list=(default)
+    local profile_name=""
+    for profile_name in ${=profiles}; do
+        [[ "$profile_name" == "default" ]] && continue
+        profile_list+=("$profile_name")
+    done
+
+    for profile_name in "${profile_list[@]}"; do
+        local skills_dir="$PROFILES_DIR/$profile_name/skills"
+        [[ -d "$skills_dir" ]] || continue
+        local audience_dir=""
+        for audience_dir in "$skills_dir"/*(N/); do
+            local audience="${audience_dir:t}"
+            local skill_dir=""
+            for skill_dir in "$audience_dir"/*(N/); do
+                local skill_name="${skill_dir:t}"
+                [[ "$skill_name" == .system ]] && continue
+                audience_sources["$audience/$skill_name"]="$skill_dir"
+            done
+        done
+    done
+
+    local key=""
+    for key in ${(ok)audience_sources}; do
+        local audience="${key%%/*}"
+        local skill_name="${key#*/}"
+        local source_dir="${audience_sources[$key]}"
+        local -a targets=()
+        if [[ "$audience" == "shared" ]]; then
+            targets=("${all_agents[@]}")
+        elif (( ${+agent_roots[$audience]} )); then
+            targets=("$audience")
+        else
+            continue
+        fi
+
+        local target_agent=""
+        for target_agent in "${targets[@]}"; do
+            local target_dir="${agent_roots[$target_agent]}/skills/$skill_name"
+            _profile_symlink_matches "$target_dir" "$source_dir" && continue
+            _profile_record_reconcile_safe "Skills ($target_agent:$skill_name)" "profile links can be applied automatically (union collection)"
+        done
+    done
+}
+
+_profile_scan_derived_symlink_target() {
+    local label="$1" source_path="$2" target_path="$3"
+    [[ ! -e "$source_path" && ! -L "$source_path" ]] && return 0
+    _profile_symlink_matches "$target_path" "$source_path" && return 0
+    _profile_record_reconcile_safe "$label" "derived symlink can be restored automatically"
 }
 
 _profile_scan_brew_state() {
@@ -213,7 +291,7 @@ _profile_scan_vscode_extensions_state() {
         local ext=""
         for ext in ${(f)to_add}; do
             [[ -z "$ext" ]] && continue
-            _profile_sync_skip_contains "vscode" "$ext" && continue
+            _profile_sync_skip_contains_any "$ext" "vscode:$inst_label" "vscode" && continue
             review_to_add+="$ext"$'\n'
         done
 
@@ -270,6 +348,12 @@ _profile_collect_reconcile_status() {
 
     _profile_scan_last_wins_target "Codex rules" "$profiles" "codex" "rules/default.rules" "$HOME/.codex/rules/default.rules"
     _profile_scan_last_wins_target "Tmux" "$profiles" "tmux" "tmux.conf" "$HOME/.tmux.conf"
+    _profile_scan_union_file_collection_target "Claude hooks" "$profiles" "claude" "hooks" "*.sh" "$HOME/.claude"
+    _profile_scan_union_file_collection_target "Claude commands" "$profiles" "claude" "commands" "*.md" "$HOME/.claude"
+    _profile_scan_union_file_collection_target "Codex hooks" "$profiles" "codex" "hooks" "*" "$HOME/.codex"
+    _profile_scan_union_file_collection_target "Codex agents" "$profiles" "codex" "agents" "*.toml" "$HOME/.codex"
+    _profile_scan_skills_targets "$profiles"
+    _profile_scan_derived_symlink_target "AGENTS.md bridge" "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md"
     _profile_scan_brew_state "$profiles"
     _profile_scan_vscode_extensions_state "$profiles"
     _profile_scan_mise_tools_state "$profiles"

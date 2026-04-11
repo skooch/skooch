@@ -109,6 +109,7 @@ local output=$(_profile_sync_vscode "default" </dev/null 2>&1)
 local content=$(cat "$extfile")
 assert_not_contains "$content" "ext.extra"
 assert_contains "$output" "No changes"
+_profile_sync_skip_forget "vscode:MockCode" "ext.extra"
 _profile_sync_skip_forget "vscode" "ext.extra"
 
 _TEST_NAME="sync_vscode per-item: in sync prints message"
@@ -122,6 +123,53 @@ printf 'ext.one\n' > "$extfile"
 printf 'ext.one\next.extra\n' > "$MOCK_EXTENSIONS_FILE"
 local output=$(printf 'u\n' | _profile_sync_vscode "default" 2>&1)
 assert_contains "$output" "Uninstalled ext.extra"
+
+_TEST_NAME="sync_vscode multi-install installs only on missing instance"
+local multi_dir_a="$TEST_HOME/.config/Code A/User"
+local multi_dir_b="$TEST_HOME/.config/Code B/User"
+mkdir -p "$multi_dir_a" "$multi_dir_b"
+local multi_ext_a="$TEST_HOME/mock_extensions_a.txt"
+local multi_ext_b="$TEST_HOME/mock_extensions_b.txt"
+local multi_install_a="$TEST_HOME/mock_install_a.log"
+local multi_install_b="$TEST_HOME/mock_install_b.log"
+printf 'ext.shared\n' > "$multi_ext_a"
+: > "$multi_ext_b"
+: > "$multi_install_a"
+: > "$multi_install_b"
+local multi_cli_a="$TEST_HOME/mock-code-a"
+local multi_cli_b="$TEST_HOME/mock-code-b"
+cat > "$multi_cli_a" << EOF
+#!/bin/zsh
+case "\$1" in
+    --list-extensions) cat "$multi_ext_a" 2>/dev/null ;;
+    --install-extension) echo "\$2" >> "$multi_install_a"; echo "MOCK_INSTALL_A: \$2" ;;
+    --uninstall-extension) echo "MOCK_UNINSTALL_A: \$2" ;;
+esac
+EOF
+cat > "$multi_cli_b" << EOF
+#!/bin/zsh
+case "\$1" in
+    --list-extensions) cat "$multi_ext_b" 2>/dev/null ;;
+    --install-extension) echo "\$2" >> "$multi_install_b"; echo "MOCK_INSTALL_B: \$2" ;;
+    --uninstall-extension) echo "MOCK_UNINSTALL_B: \$2" ;;
+esac
+EOF
+chmod +x "$multi_cli_a" "$multi_cli_b"
+_profile_vscode_instances() {
+    echo "MockCodeA|$multi_dir_a|$multi_cli_a"
+    echo "MockCodeB|$multi_dir_b|$multi_cli_b"
+}
+printf 'ext.shared\n' > "$extfile"
+local multi_input=$(mktemp)
+printf 'i\n' > "$multi_input"
+_PROFILE_INPUT="$multi_input"
+local output=$(_profile_sync_vscode "default" 2>&1)
+rm -f "$multi_input"
+_PROFILE_INPUT=/dev/stdin
+local install_a_log=$(cat "$multi_install_a")
+local install_b_log=$(cat "$multi_install_b")
+assert_not_contains "$install_a_log" "ext.shared"
+assert_contains "$install_b_log" "ext.shared"
 
 # --- Mise per-item sync tests ---
 

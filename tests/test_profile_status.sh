@@ -92,6 +92,22 @@ assert_contains "$safe_output" "Safe sync actions: 1"
 assert_contains "$safe_output" "VSCode settings (MockCode): profile changes can be applied automatically"
 assert_contains "$safe_output" "Run 'profile sync' to apply the safe changes above."
 
+_TEST_NAME="profile status detects drift on union-managed and derived symlink targets"
+echo "# Claude instructions" > "$PROFILES_DIR/default/claude/CLAUDE.md"
+_profile_vscode_instances() {
+    return 0
+}
+_test_apply_baseline
+profile checkpoint >/dev/null 2>&1
+rm -f "$TEST_HOME/.codex/hooks/permission_bridge.py" "$TEST_HOME/.codex/AGENTS.md"
+echo "tampered hook" > "$TEST_HOME/.codex/hooks/permission_bridge.py"
+echo "tampered agents" > "$TEST_HOME/.codex/AGENTS.md"
+local link_drift_output=$(profile status 2>/dev/null)
+assert_contains "$link_drift_output" "Checkpoint: stale"
+assert_contains "$link_drift_output" "Codex hooks (permission_bridge.py)"
+assert_contains "$link_drift_output" "AGENTS.md bridge"
+assert_not_contains "$link_drift_output" "Everything is in sync."
+
 _TEST_NAME="profile status detects current-checkpoint extension drift"
 cat > "$TEST_HOME/mock-code" << 'EOF'
 #!/bin/zsh

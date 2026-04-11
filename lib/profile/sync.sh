@@ -419,12 +419,11 @@ _profile_sync_vscode() {
     local profiles="$1"
     local default_dir="$PROFILES_DIR/default/vscode"
     local overall=0
+    local -a instance_rows=("${(@f)$(_profile_vscode_instances)}")
 
     # --- Extensions (per-item sync) ---
     local default_ext="$default_dir/extensions.txt"
-    local instances=$(_profile_vscode_instances)
-
-    if [[ -n "$instances" ]]; then
+    if [[ ${#instance_rows[@]} -gt 0 ]]; then
         local -a ext_files=()
         [[ -f "$default_ext" ]] && ext_files+=("$default_ext")
         for p in ${=profiles}; do
@@ -437,107 +436,100 @@ _profile_sync_vscode() {
             local sourced=$(_profile_read_extensions_sourced "${ext_files[@]}")
             local expected=$(echo "$sourced" | cut -f1 | sort -u)
 
-            local -a all_installed=()
-            while IFS='|' read -r _label _dir cli; do
-                [[ -z "$_label" ]] && continue
-                while IFS= read -r ext; do
-                    [[ -n "$ext" ]] && all_installed+=("$ext")
-                done < <("$cli" --list-extensions 2>/dev/null)
-            done <<< "$instances"
-            local installed=$(printf '%s\n' "${all_installed[@]}" | sort -u)
+            local instance_row=""
+            for instance_row in "${instance_rows[@]}"; do
+                local parts=(${(s:|:)instance_row})
+                local inst_label="${parts[1]:-}"
+                local vscode_user_dir="${parts[2]:-}"
+                local cli="${parts[3]:-}"
+                [[ -z "$inst_label" || -z "$cli" ]] && continue
 
-            local to_install=$(comm -23 <(echo "$expected") <(echo "$installed") | grep -v '^$')
-            local to_add=$(comm -23 <(echo "$installed") <(echo "$expected") | grep -v '^$')
+                local installed=$("$cli" --list-extensions 2>/dev/null | sort -u)
+                local to_install=$(comm -23 <(echo "$expected") <(echo "$installed") | grep -v '^$')
+                local to_add=$(comm -23 <(echo "$installed") <(echo "$expected") | grep -v '^$')
 
-            if [[ -n "$to_install" || -n "$to_add" ]]; then
-                echo "  VSCode extension changes:"
+                if [[ -n "$to_install" || -n "$to_add" ]]; then
+                    echo "  VSCode extension changes ($inst_label):"
 
-                local -a exts_to_install=()
-                local -a exts_to_remove=()
-                local -a exts_to_add=()
-                local -a exts_to_uninstall=()
-                local had_action=false
-                local needs_review=false
+                    local -a exts_to_install=()
+                    local -a exts_to_remove=()
+                    local -a exts_to_add=()
+                    local -a exts_to_uninstall=()
+                    local had_action=false
+                    local needs_review=false
+                    local scope="vscode:$inst_label"
 
-                if [[ -n "$to_install" ]]; then
-                    for ext in ${(f)to_install}; do
-                        [[ -z "$ext" ]] && continue
-                        local action=$(_profile_prompt_item "$ext" "not_installed")
-                        case "$action" in
-                            install)   exts_to_install+=("$ext"); had_action=true ;;
-                            remove)    exts_to_remove+=("$ext"); had_action=true ;;
-                            skip)      needs_review=true ;;
-                        esac
-                    done
-                fi
-
-                if [[ -n "$to_add" ]]; then
-                    for ext in ${(f)to_add}; do
-                        [[ -z "$ext" ]] && continue
-                        local action=$(_profile_prompt_item "vscode" "$ext" "not_in_profile")
-                        case "$action" in
-                            add)       exts_to_add+=("$ext"); had_action=true ;;
-                            uninstall) exts_to_uninstall+=("$ext"); had_action=true ;;
-                            skip)      ;;
-                        esac
-                    done
-                fi
-
-                if [[ "$had_action" == false ]]; then
-                    if [[ "$needs_review" == true ]]; then
-                        echo "  Review still required."
-                        overall=$(_profile_sync_merge_status "$overall" 2)
-                    else
-                        echo "  No changes applied."
+                    if [[ -n "$to_install" ]]; then
+                        for ext in ${(f)to_install}; do
+                            [[ -z "$ext" ]] && continue
+                            local action=$(_profile_prompt_item "$ext ($inst_label)" "not_installed")
+                            case "$action" in
+                                install)   exts_to_install+=("$ext"); had_action=true ;;
+                                remove)    exts_to_remove+=("$ext"); had_action=true ;;
+                                skip)      needs_review=true ;;
+                            esac
+                        done
                     fi
-                else
-                    # Install
-                    if [[ ${#exts_to_install[@]} -gt 0 ]]; then
-                        while IFS='|' read -r _label _dir cli; do
-                            [[ -z "$_label" ]] && continue
+
+                    if [[ -n "$to_add" ]]; then
+                        for ext in ${(f)to_add}; do
+                            [[ -z "$ext" ]] && continue
+                            _profile_sync_skip_contains_any "$ext" "$scope" "vscode" && continue
+                            local action=$(_profile_prompt_item "$scope" "$ext" "not_in_profile")
+                            case "$action" in
+                                add)       exts_to_add+=("$ext"); had_action=true ;;
+                                uninstall) exts_to_uninstall+=("$ext"); had_action=true ;;
+                                skip)      ;;
+                            esac
+                        done
+                    fi
+
+                    if [[ "$had_action" == false ]]; then
+                        if [[ "$needs_review" == true ]]; then
+                            echo "  Review still required."
+                            overall=$(_profile_sync_merge_status "$overall" 2)
+                        else
+                            echo "  No changes applied."
+                        fi
+                    else
+                        if [[ ${#exts_to_install[@]} -gt 0 ]]; then
                             for ext in "${exts_to_install[@]}"; do
                                 "$cli" --install-extension "$ext" --force 2>/dev/null
                             done
-                        done <<< "$instances"
-                    fi
+                        fi
 
-                    # Remove from profile
-                    for ext in "${exts_to_remove[@]}"; do
-                        echo "$sourced" | while IFS=$'\t' read -r entry file; do
-                            [[ "$entry" == "$ext" && -n "$file" ]] && _profile_remove_line "$file" "^${ext}$"
+                        for ext in "${exts_to_remove[@]}"; do
+                            echo "$sourced" | while IFS=$'\t' read -r entry file; do
+                                [[ "$entry" == "$ext" && -n "$file" ]] && _profile_remove_line "$file" "^${ext}$"
+                            done
+                            echo "  Removed $ext from profile"
                         done
-                        echo "  Removed $ext from profile"
-                    done
 
-                    # Add to profile
-                    if [[ ${#exts_to_add[@]} -gt 0 ]]; then
-                        local target_profile=$(_profile_pick_target "$profiles" "extensions")
-                        local target_ext="$PROFILES_DIR/$target_profile/vscode/extensions.txt"
-                        [[ "$target_profile" == "default" || ! -d "$(dirname "$target_ext")" ]] && target_ext="$default_ext"
-                        for ext in "${exts_to_add[@]}"; do
-                            echo "$ext" >> "$target_ext"
-                        done
-                    fi
+                        if [[ ${#exts_to_add[@]} -gt 0 ]]; then
+                            local target_profile=$(_profile_pick_target "$profiles" "extensions")
+                            local target_ext="$PROFILES_DIR/$target_profile/vscode/extensions.txt"
+                            [[ "$target_profile" == "default" || ! -d "$(dirname "$target_ext")" ]] && target_ext="$default_ext"
+                            for ext in "${exts_to_add[@]}"; do
+                                echo "$ext" >> "$target_ext"
+                            done
+                        fi
 
-                    # Uninstall
-                    for ext in "${exts_to_uninstall[@]}"; do
-                        while IFS='|' read -r _label _dir cli; do
-                            [[ -z "$_label" ]] && continue
+                        for ext in "${exts_to_uninstall[@]}"; do
                             "$cli" --uninstall-extension "$ext" 2>/dev/null || true
-                        done <<< "$instances"
-                        echo "  Uninstalled $ext"
-                    done
+                            echo "  Uninstalled $ext"
+                        done
 
-                    if [[ "$needs_review" == true ]]; then
-                        echo "  Review still required."
-                        overall=$(_profile_sync_merge_status "$overall" 2)
-                    else
-                        overall=$(_profile_sync_merge_status "$overall" 1)
+                        if [[ "$needs_review" == true ]]; then
+                            echo "  Review still required."
+                            overall=$(_profile_sync_merge_status "$overall" 2)
+                        else
+                            overall=$(_profile_sync_merge_status "$overall" 1)
+                        fi
                     fi
+                else
+                    echo "  VSCode extensions ($inst_label): in sync"
                 fi
-            else
-                echo "  VSCode extensions: in sync"
-            fi
+            done
         fi
     fi
 
@@ -557,13 +549,17 @@ _profile_sync_vscode() {
         else
             jq -s 'reduce .[] as $item ({}; . * $item)' "${settings_files[@]}" > "$expected"
         fi
-        while IFS='|' read -r inst_label vscode_user_dir _cli; do
+        local instance_row=""
+        for instance_row in "${instance_rows[@]}"; do
+            local parts=(${(s:|:)instance_row})
+            local inst_label="${parts[1]:-}"
+            local vscode_user_dir="${parts[2]:-}"
             [[ -z "$inst_label" ]] && continue
             _profile_sync_config_policy \
                 "$(_profile_config_policy structured_copy ${#settings_files[@]})" \
                 "VSCode settings ($inst_label)" "$vscode_user_dir/settings.json" "$expected" "${settings_files[@]}"
             overall=$(_profile_sync_merge_status "$overall" "$?")
-        done <<< "$instances"
+        done
         rm -f "$expected"
     fi
 
@@ -577,13 +573,17 @@ _profile_sync_vscode() {
     if [[ -n "$kb_source" ]]; then
         local kb_expected=$(mktemp)
         cp "$kb_source" "$kb_expected"
-        while IFS='|' read -r inst_label vscode_user_dir _cli; do
+        local instance_row=""
+        for instance_row in "${instance_rows[@]}"; do
+            local parts=(${(s:|:)instance_row})
+            local inst_label="${parts[1]:-}"
+            local vscode_user_dir="${parts[2]:-}"
             [[ -z "$inst_label" ]] && continue
             _profile_sync_config_policy \
                 "$(_profile_config_policy last_wins 1)" \
                 "VSCode keybindings ($inst_label)" "$vscode_user_dir/keybindings.json" "$kb_expected" "$kb_source"
             overall=$(_profile_sync_merge_status "$overall" "$?")
-        done <<< "$instances"
+        done
         rm -f "$kb_expected"
     fi
 
