@@ -2,122 +2,252 @@
 
 # --- Three-way sync helper ---
 
+_PROFILE_SYNC_STATE=""
+_PROFILE_SYNC_EXPECTED_HASH=""
+_PROFILE_SYNC_LOCAL_HASH=""
+_PROFILE_SYNC_SNAP_HASH=""
+_PROFILE_SYNC_PROFILE_CHANGED=false
+_PROFILE_SYNC_LOCAL_CHANGED=false
+
+_profile_sync_merge_status() {
+    local current="${1:-0}" next="${2:-0}"
+    if (( next > current )); then
+        echo "$next"
+    else
+        echo "$current"
+    fi
+}
+
+_profile_analyze_config_sync() {
+    local policy="$1" local_file="$2" expected_file="$3"
+    shift 3
+    local -a profile_sources=("$@")
+
+    _PROFILE_SYNC_STATE=""
+    _PROFILE_SYNC_EXPECTED_HASH=$(_platform_md5 "$expected_file")
+    _PROFILE_SYNC_LOCAL_HASH=""
+    _PROFILE_SYNC_SNAP_HASH=$(_profile_local_snap_hash "$local_file")
+    _PROFILE_SYNC_PROFILE_CHANGED=false
+    _PROFILE_SYNC_LOCAL_CHANGED=false
+
+    if [[ -f "$local_file" ]]; then
+        local real="$local_file"
+        [[ -L "$local_file" ]] && real=$(_profile_resolve_link_target "$local_file")
+        _PROFILE_SYNC_LOCAL_HASH=$(_platform_md5 "$real")
+    fi
+
+    if [[ "$_PROFILE_SYNC_LOCAL_HASH" == "$_PROFILE_SYNC_EXPECTED_HASH" ]]; then
+        _PROFILE_SYNC_STATE="in_sync"
+        return 0
+    fi
+
+    if [[ ! -e "$local_file" && ! -L "$local_file" ]]; then
+        _PROFILE_SYNC_STATE="missing_local"
+        return 0
+    fi
+
+    if [[ -z "$_PROFILE_SYNC_SNAP_HASH" ]]; then
+        _PROFILE_SYNC_PROFILE_CHANGED=true
+    else
+        [[ "$_PROFILE_SYNC_EXPECTED_HASH" != "$_PROFILE_SYNC_SNAP_HASH" ]] && _PROFILE_SYNC_PROFILE_CHANGED=true
+        [[ "$_PROFILE_SYNC_LOCAL_HASH" != "$_PROFILE_SYNC_SNAP_HASH" ]] && _PROFILE_SYNC_LOCAL_CHANGED=true
+    fi
+
+    if [[ "$policy" == "merged_output_no_sync_back" ]]; then
+        if [[ "$_PROFILE_SYNC_PROFILE_CHANGED" == true && "$_PROFILE_SYNC_LOCAL_CHANGED" == false ]]; then
+            _PROFILE_SYNC_STATE="profile_to_local"
+        elif [[ "$_PROFILE_SYNC_PROFILE_CHANGED" == false && "$_PROFILE_SYNC_LOCAL_CHANGED" == true ]]; then
+            _PROFILE_SYNC_STATE="blocked_local_output"
+        elif [[ "$_PROFILE_SYNC_PROFILE_CHANGED" == true && "$_PROFILE_SYNC_LOCAL_CHANGED" == true ]]; then
+            _PROFILE_SYNC_STATE="blocked_conflict"
+        else
+            _PROFILE_SYNC_STATE="in_sync"
+        fi
+        return 0
+    fi
+
+    if [[ "$_PROFILE_SYNC_PROFILE_CHANGED" == true && "$_PROFILE_SYNC_LOCAL_CHANGED" == false ]]; then
+        _PROFILE_SYNC_STATE="profile_to_local"
+    elif [[ "$_PROFILE_SYNC_PROFILE_CHANGED" == false && "$_PROFILE_SYNC_LOCAL_CHANGED" == true ]]; then
+        _PROFILE_SYNC_STATE="local_to_profile"
+    elif [[ "$_PROFILE_SYNC_PROFILE_CHANGED" == true && "$_PROFILE_SYNC_LOCAL_CHANGED" == true ]]; then
+        _PROFILE_SYNC_STATE="conflict"
+    else
+        _PROFILE_SYNC_STATE="in_sync"
+    fi
+}
+
+_profile_apply_sync_target() {
+    local policy="$1" local_file="$2" expected_file="$3" canonical_source="${4:-}"
+
+    if [[ "$policy" == "canonical_symlink" && -n "$canonical_source" ]]; then
+        mkdir -p "$(dirname "$local_file")"
+        _profile_ln_s "$canonical_source" "$local_file"
+        return 0
+    fi
+
+    _profile_replace_file "$expected_file" "$local_file"
+}
+
+_profile_sync_local_to_owner() {
+    local policy="$1" local_file="$2" owner_source="$3"
+
+    cp "$local_file" "$owner_source"
+    if [[ "$policy" == "canonical_symlink" ]]; then
+        _profile_ln_s "$owner_source" "$local_file"
+    fi
+}
+
+# Syncs a config file bidirectionally between profile sources and local target.
+# Uses snapshot to detect which side changed. Newer change wins on conflict.
+# Returns 0 if no changes, 1 if changes were applied, 2 if user action is still required.
+_profile_sync_config_policy() {
+    local policy="$1" label="$2" local_file="$3" expected_file="$4"
+    shift 4
+    local -a profile_sources=("$@")
+
+    local diff_cmd="diff"
+    diff --color /dev/null /dev/null 2>/dev/null && diff_cmd="diff --color"
+
+    _profile_analyze_config_sync "$policy" "$local_file" "$expected_file" "${profile_sources[@]}"
+
+    case "$_PROFILE_SYNC_STATE" in
+        in_sync)
+            return 0
+            ;;
+        missing_local)
+            _profile_apply_sync_target "$policy" "$local_file" "$expected_file" "${profile_sources[1]:-}"
+            echo "  $label: created"
+            return 1
+            ;;
+        profile_to_local)
+            echo "  $label: profile -> local (auto)"
+            { $diff_cmd "$local_file" "$expected_file" 2>/dev/null || true; } | head -30
+            _profile_apply_sync_target "$policy" "$local_file" "$expected_file" "${profile_sources[1]:-}"
+            return 1
+            ;;
+        local_to_profile)
+            if [[ ${#profile_sources[@]} -eq 1 ]]; then
+                echo "  $label: local -> profile (auto)"
+                { $diff_cmd "$expected_file" "$local_file" 2>/dev/null || true; } | head -30
+                _profile_sync_local_to_owner "$policy" "$local_file" "${profile_sources[1]}"
+                echo "  Profile updated"
+                return 1
+            fi
+            echo "  $label: local changes detected, but ownership is ambiguous:"
+            printf '    %s\n' "${profile_sources[@]}"
+            return 2
+            ;;
+        blocked_local_output)
+            echo "  $label: local changes detected on a merged multi-profile output"
+            echo "  Edit the owning profile sources directly, then run 'profile checkpoint' after review."
+            return 2
+            ;;
+        blocked_conflict)
+            echo "  $label: CONFLICT — merged profile output changed and local output was also edited"
+            { $diff_cmd "$local_file" "$expected_file" 2>/dev/null || true; } | head -60
+            echo ""
+            echo "    1) Apply merged profile version"
+            echo "    2) Open local output in \$EDITOR"
+            echo "    3) Skip for now"
+            printf "  Choice [3]: "
+            local choice answer=""
+            if answer=$(_profile_prompt_read); then
+                choice="${answer:-3}"
+            else
+                choice="3"
+            fi
+            case "$choice" in
+                1)
+                    _profile_apply_sync_target "$policy" "$local_file" "$expected_file" "${profile_sources[1]:-}"
+                    echo "  Applied merged profile version"
+                    return 1
+                    ;;
+                2)
+                    ${EDITOR:-vim} "$local_file"
+                    echo "  Edited locally"
+                    return 2
+                    ;;
+                *)
+                    echo "  Skipped"
+                    return 2
+                    ;;
+            esac
+            ;;
+        conflict)
+            echo "  $label: CONFLICT — both sides changed"
+            { $diff_cmd "$local_file" "$expected_file" 2>/dev/null || true; } | head -60
+            echo ""
+
+            _sync_mtime() {
+                local mtime
+                if [[ "$IS_MACOS" == true ]]; then
+                    mtime=$(/usr/bin/stat -f %m "$1" 2>/dev/null)
+                else
+                    mtime=$(stat -c %Y "$1" 2>/dev/null)
+                fi
+                [[ "$mtime" =~ ^[0-9]+$ ]] && echo "$mtime" || echo 0
+            }
+            local local_mtime=$(_sync_mtime "$local_file")
+            local src_mtime=0
+            local src=""
+            for src in "${profile_sources[@]}"; do
+                local t=$(_sync_mtime "$src")
+                [[ $t -gt $src_mtime ]] && src_mtime=$t
+            done
+
+            local default_choice=1
+            [[ $src_mtime -gt $local_mtime ]] && default_choice=2
+
+            local tag_local="" tag_profile=""
+            [[ $local_mtime -ge $src_mtime ]] && tag_local=" (newer)"
+            [[ $src_mtime -gt $local_mtime ]] && tag_profile=" (newer)"
+
+            echo "    1) Keep local$tag_local"
+            echo "    2) Apply profile$tag_profile"
+            echo "    3) Open in \$EDITOR"
+            printf "  Choice [%d]: " "$default_choice"
+            local choice answer=""
+            if answer=$(_profile_prompt_read); then
+                choice="${answer:-$default_choice}"
+            else
+                choice="3"
+            fi
+
+            case "$choice" in
+                1)
+                    if [[ ${#profile_sources[@]} -eq 1 ]]; then
+                        _profile_sync_local_to_owner "$policy" "$local_file" "${profile_sources[1]}"
+                        echo "  Kept local, updated profile"
+                        return 1
+                    fi
+                    echo "  Kept local (update profile sources manually)"
+                    return 2
+                    ;;
+                2)
+                    _profile_apply_sync_target "$policy" "$local_file" "$expected_file" "${profile_sources[1]:-}"
+                    echo "  Applied profile version"
+                    return 1
+                    ;;
+                3)
+                    ${EDITOR:-vim} "$local_file"
+                    echo "  Edited locally"
+                    return 2
+                    ;;
+            esac
+            ;;
+    esac
+
+    return 0
+}
+
 # Syncs a config file bidirectionally between profile sources and local target.
 # Uses snapshot to detect which side changed. Newer change wins on conflict.
 # Returns 0 if no changes, 1 if changes were applied.
 _profile_sync_config() {
     local label="$1" local_file="$2" expected_file="$3"
     shift 3
-    local -a profile_sources=("$@")
-
-    local diff_cmd="diff"
-    diff --color /dev/null /dev/null 2>/dev/null && diff_cmd="diff --color"
-
-    local expected_hash=$(_platform_md5 "$expected_file")
-    local local_hash=""
-    if [[ -f "$local_file" ]]; then
-        local real="$local_file"
-        [[ -L "$local_file" ]] && real=$(readlink "$local_file")
-        local_hash=$(_platform_md5 "$real")
-    fi
-
-    # Already in sync
-    [[ "$local_hash" == "$expected_hash" ]] && return 0
-
-    # No local file yet — just apply
-    if [[ ! -f "$local_file" ]]; then
-        _profile_replace_file "$expected_file" "$local_file"
-        echo "  $label: created"
-        return 1
-    fi
-
-    local snap_hash=$(_profile_local_snap_hash "$local_file")
-    local profile_changed=false local_changed=false
-
-    if [[ -z "$snap_hash" ]]; then
-        # No snapshot yet — default to profile->local (like first use)
-        profile_changed=true
-    else
-        [[ "$expected_hash" != "$snap_hash" ]] && profile_changed=true
-        [[ "$local_hash" != "$snap_hash" ]] && local_changed=true
-    fi
-
-    if [[ "$profile_changed" == true && "$local_changed" == false ]]; then
-        echo "  $label: profile -> local"
-        { $diff_cmd "$local_file" "$expected_file" 2>/dev/null || true; } | head -50
-        printf "  Apply? [Y/n] "
-        local answer; read -r answer <"${_PROFILE_INPUT:-/dev/tty}"
-        [[ "$answer" == [nN]* ]] && return 0
-        _profile_replace_file "$expected_file" "$local_file"
-        return 1
-
-    elif [[ "$profile_changed" == false && "$local_changed" == true ]]; then
-        echo "  $label: local -> profile"
-        { $diff_cmd "$expected_file" "$local_file" 2>/dev/null || true; } | head -50
-        if [[ ${#profile_sources[@]} -eq 1 ]]; then
-            printf "  Update profile? [Y/n] "
-            local answer; read -r answer <"${_PROFILE_INPUT:-/dev/tty}"
-            [[ "$answer" == [nN]* ]] && return 0
-            cp "$local_file" "${profile_sources[1]}"
-            echo "  Profile updated"
-        else
-            echo "  Multiple profile sources — edit directly:"
-            printf '    %s\n' "${profile_sources[@]}"
-        fi
-        return 1
-
-    elif [[ "$profile_changed" == true && "$local_changed" == true ]]; then
-        echo "  $label: CONFLICT — both sides changed"
-        { $diff_cmd "$local_file" "$expected_file" 2>/dev/null || true; } | head -60
-        echo ""
-
-        # Determine newer by mtime (handle both GNU and BSD stat)
-        _sync_mtime() {
-            local mtime
-            if [[ "$IS_MACOS" == true ]]; then
-                mtime=$(/usr/bin/stat -f %m "$1" 2>/dev/null)
-            else
-                mtime=$(stat -c %Y "$1" 2>/dev/null)
-            fi
-            [[ "$mtime" =~ ^[0-9]+$ ]] && echo "$mtime" || echo 0
-        }
-        local local_mtime=$(_sync_mtime "$local_file")
-        local src_mtime=0
-        for src in "${profile_sources[@]}"; do
-            local t=$(_sync_mtime "$src")
-            [[ $t -gt $src_mtime ]] && src_mtime=$t
-        done
-
-        local default_choice=1
-        [[ $src_mtime -gt $local_mtime ]] && default_choice=2
-
-        local tag_local="" tag_profile=""
-        [[ $local_mtime -ge $src_mtime ]] && tag_local=" (newer)"
-        [[ $src_mtime -gt $local_mtime ]] && tag_profile=" (newer)"
-
-        echo "    1) Keep local$tag_local"
-        echo "    2) Apply profile$tag_profile"
-        echo "    3) Open in \$EDITOR"
-        printf "  Choice [%d]: " "$default_choice"
-        local choice; read -r choice <"${_PROFILE_INPUT:-/dev/tty}"
-        choice="${choice:-$default_choice}"
-
-        case "$choice" in
-            1)
-                if [[ ${#profile_sources[@]} -eq 1 ]]; then
-                    cp "$local_file" "${profile_sources[1]}"
-                    echo "  Kept local, updated profile"
-                else
-                    echo "  Kept local (update profile sources manually)"
-                fi
-                ;;
-            2) _profile_replace_file "$expected_file" "$local_file"; echo "  Applied profile version" ;;
-            3) ${EDITOR:-vim} "$local_file"; echo "  Edited locally" ;;
-        esac
-        return 1
-    fi
-
-    return 0
+    _profile_sync_config_policy "single_owner_sync_back" "$label" "$local_file" "$expected_file" "$@"
 }
 
 # --- Update helpers ---
@@ -195,6 +325,7 @@ _profile_sync_brew() {
     local -a items_to_add=()
     local -a items_to_uninstall=()
     local had_action=false
+    local needs_review=false
 
     if [[ -n "$to_install" ]]; then
         for pkg in ${(f)to_install}; do
@@ -203,7 +334,7 @@ _profile_sync_brew() {
             case "$action" in
                 install)   items_to_install+=("$pkg"); had_action=true ;;
                 remove)    items_to_remove+=("$pkg"); had_action=true ;;
-                skip)      ;;
+                skip)      needs_review=true ;;
             esac
         done
     fi
@@ -221,6 +352,10 @@ _profile_sync_brew() {
     fi
 
     if [[ "$had_action" == false ]]; then
+        if [[ "$needs_review" == true ]]; then
+            echo "  Review still required."
+            return 2
+        fi
         echo "  No changes applied."
         return 0
     fi
@@ -271,11 +406,19 @@ _profile_sync_brew() {
     if [[ ${#items_to_install[@]} -gt 0 || ${#items_to_uninstall[@]} -gt 0 ]]; then
         _profile_post_brew
     fi
+
+    if [[ "$needs_review" == true ]]; then
+        echo "  Review still required."
+        return 2
+    fi
+
+    return 1
 }
 
 _profile_sync_vscode() {
     local profiles="$1"
     local default_dir="$PROFILES_DIR/default/vscode"
+    local overall=0
 
     # --- Extensions (per-item sync) ---
     local default_ext="$default_dir/extensions.txt"
@@ -314,6 +457,7 @@ _profile_sync_vscode() {
                 local -a exts_to_add=()
                 local -a exts_to_uninstall=()
                 local had_action=false
+                local needs_review=false
 
                 if [[ -n "$to_install" ]]; then
                     for ext in ${(f)to_install}; do
@@ -322,7 +466,7 @@ _profile_sync_vscode() {
                         case "$action" in
                             install)   exts_to_install+=("$ext"); had_action=true ;;
                             remove)    exts_to_remove+=("$ext"); had_action=true ;;
-                            skip)      ;;
+                            skip)      needs_review=true ;;
                         esac
                     done
                 fi
@@ -340,7 +484,12 @@ _profile_sync_vscode() {
                 fi
 
                 if [[ "$had_action" == false ]]; then
-                    echo "  No changes applied."
+                    if [[ "$needs_review" == true ]]; then
+                        echo "  Review still required."
+                        overall=$(_profile_sync_merge_status "$overall" 2)
+                    else
+                        echo "  No changes applied."
+                    fi
                 else
                     # Install
                     if [[ ${#exts_to_install[@]} -gt 0 ]]; then
@@ -378,6 +527,13 @@ _profile_sync_vscode() {
                         done <<< "$instances"
                         echo "  Uninstalled $ext"
                     done
+
+                    if [[ "$needs_review" == true ]]; then
+                        echo "  Review still required."
+                        overall=$(_profile_sync_merge_status "$overall" 2)
+                    else
+                        overall=$(_profile_sync_merge_status "$overall" 1)
+                    fi
                 fi
             else
                 echo "  VSCode extensions: in sync"
@@ -403,7 +559,10 @@ _profile_sync_vscode() {
         fi
         while IFS='|' read -r inst_label vscode_user_dir _cli; do
             [[ -z "$inst_label" ]] && continue
-            _profile_sync_config "VSCode settings ($inst_label)" "$vscode_user_dir/settings.json" "$expected" "${settings_files[@]}"
+            _profile_sync_config_policy \
+                "$(_profile_config_policy structured_copy ${#settings_files[@]})" \
+                "VSCode settings ($inst_label)" "$vscode_user_dir/settings.json" "$expected" "${settings_files[@]}"
+            overall=$(_profile_sync_merge_status "$overall" "$?")
         done <<< "$instances"
         rm -f "$expected"
     fi
@@ -420,15 +579,21 @@ _profile_sync_vscode() {
         cp "$kb_source" "$kb_expected"
         while IFS='|' read -r inst_label vscode_user_dir _cli; do
             [[ -z "$inst_label" ]] && continue
-            _profile_sync_config "VSCode keybindings ($inst_label)" "$vscode_user_dir/keybindings.json" "$kb_expected" "$kb_source"
+            _profile_sync_config_policy \
+                "$(_profile_config_policy last_wins 1)" \
+                "VSCode keybindings ($inst_label)" "$vscode_user_dir/keybindings.json" "$kb_expected" "$kb_source"
+            overall=$(_profile_sync_merge_status "$overall" "$?")
         done <<< "$instances"
         rm -f "$kb_expected"
     fi
+
+    return "$overall"
 }
 
 _profile_sync_mise() {
     local profiles="$1"
     local target="$HOME/.config/mise/config.toml"
+    local overall=0
 
     local -a mise_files=()
     [[ -f "$PROFILES_DIR/default/mise/config.toml" ]] && mise_files+=("$PROFILES_DIR/default/mise/config.toml")
@@ -461,6 +626,7 @@ _profile_sync_mise() {
         local -a tools_to_add=()
         local -a tools_to_uninstall=()
         local had_action=false
+        local needs_review=false
 
         if [[ -n "$to_install" ]]; then
             for tool in ${(f)to_install}; do
@@ -469,7 +635,7 @@ _profile_sync_mise() {
                 case "$action" in
                     install)   tools_to_install+=("$tool"); had_action=true ;;
                     remove)    tools_to_remove+=("$tool"); had_action=true ;;
-                    skip)      ;;
+                    skip)      needs_review=true ;;
                 esac
             done
         fi
@@ -487,7 +653,12 @@ _profile_sync_mise() {
         fi
 
         if [[ "$had_action" == false ]]; then
-            echo "  No changes applied."
+            if [[ "$needs_review" == true ]]; then
+                echo "  Review still required."
+                overall=$(_profile_sync_merge_status "$overall" 2)
+            else
+                echo "  No changes applied."
+            fi
         else
             tools_changed=true
 
@@ -521,6 +692,13 @@ _profile_sync_mise() {
                 mise uninstall "$tool" 2>/dev/null || true
                 echo "  Uninstalled $tool"
             done
+
+            if [[ "$needs_review" == true ]]; then
+                echo "  Review still required."
+                overall=$(_profile_sync_merge_status "$overall" 2)
+            else
+                overall=$(_profile_sync_merge_status "$overall" 1)
+            fi
         fi
     else
         echo "  Mise tools: in sync"
@@ -539,7 +717,10 @@ _profile_sync_mise() {
             _profile_ln_s "$source_file" "$target"
             echo "  Mise config: symlinked -> ${source_file:t}"
         else
-            _profile_sync_config "Mise config" "$target" "$source_file" "$source_file"
+            _profile_sync_config_policy \
+                "$(_profile_config_policy structured_canonical 1)" \
+                "Mise config" "$target" "$source_file" "$source_file"
+            overall=$(_profile_sync_merge_status "$overall" "$?")
 
             if [[ "$(_platform_md5 "$target")" == "$(_platform_md5 "$source_file")" ]]; then
                 _profile_ln_s "$source_file" "$target"
@@ -553,7 +734,7 @@ _profile_sync_mise() {
             echo "  Running mise install..."
             mise install
         fi
-        return 0
+        return "$overall"
     fi
 
     # --- Pass 2: Non-tools sections (three-way merge) ---
@@ -620,8 +801,11 @@ _profile_sync_mise() {
         done
 
         mkdir -p "$(dirname "$target")"
-        _profile_sync_config "Mise settings" "$target_rest" "$expected_rest" "${rest_sources[@]}"
+        _profile_sync_config_policy \
+            "$(_profile_config_policy structured_copy ${#rest_sources[@]})" \
+            "Mise settings" "$target_rest" "$expected_rest" "${rest_sources[@]}"
         local result=$?
+        overall=$(_profile_sync_merge_status "$overall" "$result")
 
         if [[ $result -ne 0 ]]; then
             for (( idx=1; idx <= ${#mise_files[@]}; idx++ )); do
@@ -670,38 +854,50 @@ _profile_sync_mise() {
         echo "  Running mise install..."
         mise install
     fi
+
+    return "$overall"
 }
 
 _profile_sync_claude() {
     local profiles="$1"
+    local overall=0
 
     mkdir -p "$HOME/.claude"
     _profile_sync_structured_profile_config \
         "Claude" "$profiles" "claude" "settings.json" "$HOME/.claude" "json"
+    overall=$(_profile_sync_merge_status "$overall" "$?")
     _profile_claude_link_files "$profiles" sync
     _profile_link_union_file_collection "$profiles" "claude" "hooks" "*.sh" "$HOME/.claude" "sync" "Hooks"
     _profile_link_union_file_collection "$profiles" "claude" "commands" "*.md" "$HOME/.claude" "sync" "Commands"
+    return "$overall"
 }
 
 _profile_sync_codex() {
     local profiles="$1"
+    local overall=0
 
     mkdir -p "$HOME/.codex"
 
     _profile_sync_structured_profile_config \
         "Codex config" "$profiles" "codex" "config.toml" "$HOME/.codex" "toml"
+    overall=$(_profile_sync_merge_status "$overall" "$?")
     _profile_sync_structured_profile_config \
         "Codex hooks" "$profiles" "codex" "hooks.json" "$HOME/.codex" "json"
+    overall=$(_profile_sync_merge_status "$overall" "$?")
 
     local rules_source=$(_profile_codex_resolve_source "$profiles" "rules/default.rules")
     if [[ -n "$rules_source" ]]; then
         mkdir -p "$HOME/.codex/rules"
-        _profile_sync_config "Codex rules" "$HOME/.codex/rules/default.rules" "$rules_source" "$rules_source"
+        _profile_sync_config_policy \
+            "$(_profile_config_policy last_wins 1)" \
+            "Codex rules" "$HOME/.codex/rules/default.rules" "$rules_source" "$rules_source"
+        overall=$(_profile_sync_merge_status "$overall" "$?")
     fi
 
     _profile_link_union_file_collection "$profiles" "codex" "hooks" "*" "$HOME/.codex" "sync" "Hooks"
     _profile_link_union_file_collection "$profiles" "codex" "agents" "*.toml" "$HOME/.codex" "sync" "Agents"
     _profile_ensure_derived_symlink "AGENTS.md" "$HOME/.claude/CLAUDE.md" "$HOME/.codex/AGENTS.md" "sync"
+    return "$overall"
 }
 
 # --- Skills (cross-agent routing) ---
@@ -900,6 +1096,7 @@ _profile_skills_link() {
 _profile_sync_skills() {
     _profile_ingest_orphan_skills
     _profile_skills_link "$1" "sync"
+    return 0
 }
 
 _profile_apply_skills() {
@@ -919,7 +1116,10 @@ _profile_sync_tmux() {
     done
     [[ -z "$source" ]] && return 0
 
-    _profile_sync_config "Tmux" "$target" "$source" "$source"
+    _profile_sync_config_policy \
+        "$(_profile_config_policy last_wins 1)" \
+        "Tmux" "$target" "$source" "$source"
+    return $?
 }
 
 _profile_sync_iterm() {
@@ -947,6 +1147,10 @@ _profile_sync_iterm() {
             "${iterm_files[@]}" > "$expected"
     fi
 
-    _profile_sync_config "iTerm" "$target" "$expected" "${iterm_files[@]}"
+    _profile_sync_config_policy \
+        "$(_profile_config_policy structured_copy ${#iterm_files[@]})" \
+        "iTerm" "$target" "$expected" "${iterm_files[@]}"
+    local result=$?
     rm -f "$expected"
+    return $result
 }

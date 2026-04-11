@@ -33,10 +33,10 @@ local content=$(cat "$brewfile")
 assert_not_contains "$content" "wget"
 assert_contains "$content" "git"
 
-_TEST_NAME="sync_brew per-item: skip-all prints no changes"
+_TEST_NAME="sync_brew per-item: skip-all leaves review pending"
 printf 'brew "git"\nbrew "jq"\nbrew "wget"\n' > "$brewfile"
 local output=$(printf 's\ns\n' | _profile_sync_brew "default" 2>&1)
-assert_contains "$output" "No changes"
+assert_contains "$output" "Review still required"
 
 _TEST_NAME="sync_brew per-item: remembered local skip suppresses later add prompt"
 printf 'brew "git"\nbrew "jq"\n' > "$brewfile"
@@ -93,13 +93,13 @@ local content=$(cat "$extfile")
 assert_not_contains "$content" "ext.two"
 assert_contains "$content" "ext.one"
 
-_TEST_NAME="sync_vscode per-item: skip leaves extensions.txt unchanged"
+_TEST_NAME="sync_vscode per-item: skip leaves extensions review pending"
 printf 'ext.one\next.two\next.three\n' > "$extfile"
 printf 'ext.one\next.three\n' > "$MOCK_EXTENSIONS_FILE"
 local output=$(printf 's\n' | _profile_sync_vscode "default" 2>&1)
 local content=$(cat "$extfile")
 assert_contains "$content" "ext.two"
-assert_contains "$output" "No changes"
+assert_contains "$output" "Review still required"
 
 _TEST_NAME="sync_vscode per-item: remembered local skip suppresses later add prompt"
 printf 'ext.one\n' > "$extfile"

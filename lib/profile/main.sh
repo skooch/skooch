@@ -12,21 +12,76 @@ _profile_status() {
     local display="${active// /, }"
     echo "Active profiles: $display"
 
-    if [[ ! -f "$PROFILE_SNAPSHOT_FILE" ]]; then
-        echo "No snapshot found. Run 'profile use $active' to create one."
+    if [[ ! -f "$PROFILE_CHECKPOINT_FILE" ]]; then
+        echo "No checkpoint found. Run 'profile use $active' or 'profile checkpoint' to create one."
         return 0
     fi
 
-    local current_hash
-    current_hash=$(_profile_compute_hash "$active")
-    local stored_hash=$(cat "$PROFILE_SNAPSHOT_FILE" 2>/dev/null)
+    _profile_check_remote true >/dev/null 2>&1 || true
+    case "$_PROFILE_REMOTE_STATE" in
+        current|ahead)
+            echo "Remote: $_PROFILE_REMOTE_MESSAGE"
+            ;;
+        no_upstream|unavailable)
+            echo "Remote: $_PROFILE_REMOTE_MESSAGE"
+            ;;
+        behind|diverged|stale|refresh_failed|unknown)
+            echo "Remote: $_PROFILE_REMOTE_MESSAGE"
+            ;;
+    esac
 
-    if [[ "$current_hash" == "$stored_hash" ]]; then
-        echo "Everything is in sync."
-    else
-        echo "Profile files have changed since last switch."
-        echo "Run 'profile sync' to reconcile changes."
+    local checkpoint_state="current"
+    if _profile_checkpoint_stale "$active"; then
+        checkpoint_state="stale"
     fi
+    echo "Checkpoint: $checkpoint_state"
+
+    _profile_collect_reconcile_status "$active"
+
+    if [[ "$checkpoint_state" == "current" && $_PROFILE_RECONCILE_SAFE_COUNT -eq 0 && $_PROFILE_RECONCILE_BLOCKED_COUNT -eq 0 && $_PROFILE_RECONCILE_CONFLICT_COUNT -eq 0 ]]; then
+        echo "Everything is in sync."
+        return 0
+    fi
+
+    if [[ "$checkpoint_state" == "stale" && $_PROFILE_RECONCILE_SAFE_COUNT -eq 0 && $_PROFILE_RECONCILE_BLOCKED_COUNT -eq 0 && $_PROFILE_RECONCILE_CONFLICT_COUNT -eq 0 ]]; then
+        echo "Managed targets already match the canonical profile state."
+        echo "Run 'profile checkpoint' to acknowledge the new baseline."
+        return 0
+    fi
+
+    if [[ "$checkpoint_state" == "current" ]]; then
+        echo "Managed state drift was detected outside the checkpointed file hash."
+    fi
+
+    (( _PROFILE_RECONCILE_SAFE_COUNT > 0 )) && echo "Safe sync actions: $_PROFILE_RECONCILE_SAFE_COUNT"
+    (( _PROFILE_RECONCILE_BLOCKED_COUNT > 0 )) && echo "Blocked sync-back items: $_PROFILE_RECONCILE_BLOCKED_COUNT"
+    (( _PROFILE_RECONCILE_CONFLICT_COUNT > 0 )) && echo "Conflicts requiring review: $_PROFILE_RECONCILE_CONFLICT_COUNT"
+
+    local line=""
+    for line in "${_PROFILE_RECONCILE_LINES[@]}"; do
+        echo "  - $line"
+    done
+
+    if [[ "$_PROFILE_REMOTE_STATE" == "behind" || "$_PROFILE_REMOTE_STATE" == "diverged" || "$_PROFILE_REMOTE_STATE" == "stale" || "$_PROFILE_REMOTE_STATE" == "refresh_failed" || "$_PROFILE_REMOTE_STATE" == "unknown" ]]; then
+        echo "Resolve the remote state above before running 'profile sync'."
+    elif (( _PROFILE_RECONCILE_CONFLICT_COUNT > 0 || _PROFILE_RECONCILE_BLOCKED_COUNT > 0 )); then
+        echo "Run 'profile sync' only after reviewing the items above."
+    else
+        echo "Run 'profile sync' to apply the safe changes above."
+    fi
+}
+
+_profile_checkpoint() {
+    local active=$(_profile_active)
+    if [[ -z "$active" ]]; then
+        echo "No active profile. Run 'profile use <name>' first."
+        return 1
+    fi
+
+    echo "Taking checkpoint..."
+    _profile_take_snapshot "$active"
+    local display="${active// /, }"
+    echo "Checkpoint updated for: $display"
 }
 
 # --- Host mapping ---
@@ -231,22 +286,50 @@ profile() {
                 echo "No active profile. Run 'profile use <name>' first."
                 return 1
             fi
+            _profile_sync_preflight || return 1
             _profile_ensure_links
+            local sync_result=0
+            local domain_result=0
             _profile_sync_brew "$active"
+            domain_result=$?
+            (( domain_result > sync_result )) && sync_result=$domain_result
             _profile_sync_vscode "$active"
+            domain_result=$?
+            (( domain_result > sync_result )) && sync_result=$domain_result
             _profile_apply_git "$active"
             _profile_sync_mise "$active"
+            domain_result=$?
+            (( domain_result > sync_result )) && sync_result=$domain_result
             _profile_sync_claude "$active"
+            domain_result=$?
+            (( domain_result > sync_result )) && sync_result=$domain_result
             _profile_sync_codex "$active"
+            domain_result=$?
+            (( domain_result > sync_result )) && sync_result=$domain_result
             _profile_sync_skills "$active"
+            domain_result=$?
+            (( domain_result > sync_result )) && sync_result=$domain_result
             _profile_sync_iterm "$active"
+            domain_result=$?
+            (( domain_result > sync_result )) && sync_result=$domain_result
             _profile_sync_tmux "$active"
+            domain_result=$?
+            (( domain_result > sync_result )) && sync_result=$domain_result
+            if (( sync_result >= 2 )); then
+                echo ""
+                echo "Checkpoint not updated because sync still requires review."
+                return 2
+            fi
             echo ""
             echo "Taking snapshot..."
             _profile_take_snapshot "$active"
             local display="${active// /, }"
             echo "Profiles synced: $display"
             _profile_offer_commit_push
+            return $sync_result
+            ;;
+        checkpoint|cp)
+            _profile_checkpoint
             ;;
         status|st)
             _profile_status
@@ -266,7 +349,8 @@ profile() {
             echo "  use [name] [name2 ...]     (s)   Apply profiles (brew + vscode + iterm + git + mise + claude + codex + tmux); default alone if no args"
             echo "  diff [name] [name2 ...]    (d)   Preview what use would change"
             echo "  sync                       (sy)  Bidirectional sync — detects which direction changed and reconciles"
-            echo "  status                     (st)  Show active profiles and drift"
+            echo "  checkpoint                 (cp)  Acknowledge the current managed state without reconciling changes"
+            echo "  status                     (st)  Show active profiles, checkpoint state, and reconcile guidance"
             echo "  cache                            Manage the local Git cache (on, off, status, clear)"
             echo "  register                         Save machine ID + active profiles to hosts.json"
             echo "  hosts                            Show all host mappings"

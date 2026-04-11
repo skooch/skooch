@@ -116,6 +116,29 @@ local src_content=$(cat "$source_f")
 assert_contains "$src_content" "my_local"
 rm -f "$expected_f"
 
+# --- Conflict without input must fail safe ---
+
+_TEST_NAME="sync_config conflict without input returns review-required"
+local files=($(sync_setup))
+local local_f="${files[1]}" expected_f="${files[2]}" source_f="${files[3]}"
+echo '{"version": 10}' > "$source_f"
+cp "$source_f" "$expected_f"
+echo '{"version": 20, "local_edit": true}' > "$local_f"
+local empty_input=$(mktemp)
+local conflict_output=$(mktemp)
+_PROFILE_INPUT="$empty_input"
+_profile_sync_config "test" "$local_f" "$expected_f" "$source_f" > "$conflict_output" 2>&1
+local rc=$?
+rm -f "$empty_input"
+assert_eq "2" "$rc"
+rm -f "$conflict_output"
+
+_TEST_NAME="sync_config conflict without input leaves profile source unchanged"
+local src_content=$(cat "$source_f")
+assert_not_contains "$src_content" "local_edit"
+rm -f "$expected_f"
+_PROFILE_INPUT=/dev/stdin
+
 # --- Return values ---
 
 _TEST_NAME="sync_config returns 0 when already in sync"
@@ -411,6 +434,70 @@ _TEST_NAME="sync_config profile->local applied correctly inside while-read loop"
 local local_content=$(cat "$local_f")
 assert_contains "$local_content" '"version": 50'
 rm -f "$expected_f"
+
+# --- profile sync must not checkpoint unresolved work ---
+
+_TEST_NAME="profile sync keeps checkpoint stale when review is still required"
+HOME="$TEST_HOME"
+brew() {
+    case "$1" in
+        leaves)
+            echo "git"
+            ;;
+        list)
+            [[ "$2" == "--cask" ]] && return 0
+            ;;
+    esac
+    return 0
+}
+mise() {
+    case "$1" in
+        ls)
+            echo '{"node":["22.0.0"],"python":["3.12.0"]}'
+            ;;
+        install|uninstall)
+            return 0
+            ;;
+    esac
+    return 0
+}
+_profile_vscode_instances() {
+    return 0
+}
+echo "testprofile" > "$PROFILE_ACTIVE_FILE"
+_profile_apply_codex "testprofile" >/dev/null 2>&1
+_profile_take_snapshot "testprofile"
+local checkpoint_before=$(cat "$PROFILE_CHECKPOINT_FILE")
+cat > "$PROFILES_DIR/default/codex/config.toml" << 'EOF'
+model = "gpt-5.4-mini"
+
+[features]
+codex_hooks = true
+EOF
+cat > "$TEST_HOME/.codex/config.toml" << 'EOF'
+model = "gpt-5.4"
+
+[features]
+codex_hooks = true
+local_override = true
+EOF
+local empty_input=$(mktemp)
+local sync_tmpout=$(mktemp)
+_PROFILE_INPUT="$empty_input"
+profile sync > "$sync_tmpout" 2>&1
+local sync_rc=$?
+local sync_output=$(cat "$sync_tmpout")
+rm -f "$empty_input"
+rm -f "$sync_tmpout"
+assert_eq "2" "$sync_rc"
+
+_TEST_NAME="profile sync does not update checkpoint when review is still required"
+local checkpoint_after=$(cat "$PROFILE_CHECKPOINT_FILE")
+assert_eq "$checkpoint_before" "$checkpoint_after"
+
+_TEST_NAME="profile sync reports skipped checkpoint on unresolved review"
+assert_contains "$sync_output" "Checkpoint not updated"
+_PROFILE_INPUT=/dev/stdin
 
 # Restore default
 _PROFILE_INPUT=/dev/stdin
