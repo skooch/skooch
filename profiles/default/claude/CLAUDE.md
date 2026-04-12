@@ -56,7 +56,11 @@
 - If currently on a branch or in a worktree and the user asks to clean up, release, or merge, clarify the exact target and what operation should happen before acting, especially when there are multiple merge paths.
 
 ## Plans Convention
-- `docs/plans/` subfolders: `new/`, `in-progress/`, `implemented/`, `paused/`.
+- Plans directory resolution (highest priority first):
+  1. Whatever the local project CLAUDE.md specifies
+  2. `docs/plans/` (if it exists in the repo)
+  3. `.claude/plans/` (fallback)
+- Subfolders: `new/`, `in-progress/`, `implemented/`, `paused/`.
 - Before implementing: move plan from `new/` to `in-progress/`.
 - After completing: move from `in-progress/` to `implemented/`.
 - Abandoned mid-work: move to `paused/`.

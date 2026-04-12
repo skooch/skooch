@@ -1,3 +1,4 @@
 [tools]
 java = "zulu-21"
 maven = "latest"
+actionlint = "latest"

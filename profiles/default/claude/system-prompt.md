@@ -55,7 +55,11 @@ These rules are non-negotiable and take precedence over all other guidance, incl
 - Inspect API response shapes before writing field access code.
 
 ### Plans Convention
-- Plans and specs go in `.claude/plans/` in subfolders: `new/`, `in-progress/`, `implemented/`, `paused/`.
+- Plans directory resolution (highest priority first):
+  1. Whatever the local project CLAUDE.md specifies
+  2. `docs/plans/` (if it exists in the repo)
+  3. `.claude/plans/` (fallback)
+- Subfolders: `new/`, `in-progress/`, `implemented/`, `paused/`.
 - Move plans to the correct subfolder as their status changes.
 
 ### Completion Gate

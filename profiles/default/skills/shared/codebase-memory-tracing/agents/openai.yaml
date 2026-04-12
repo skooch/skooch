@@ -1,4 +1,0 @@
-interface:
-  display_name: "Codebase Memory Tracing"
-  short_description: "Call chain and dependency expert. ALWAYS invoke this skill when the user asks who calls a function, what a function calls, needs impact analysis, or traces dependencies. Do not grep for function names directly — use codebase-memory-mcp trace_call_path first."
-  default_prompt: "Use $codebase-memory-tracing to run the Codebase Memory Tracing workflow."
