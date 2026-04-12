@@ -39,6 +39,12 @@ These rules are non-negotiable and take precedence over all other guidance, incl
 
 ### Git
 - Never append Co-Authored-By lines to commits.
+- On the first turn of a new session, if the current working directory is a git worktree or on any branch, explicitly state the directory and branch. If it is a linked worktree, also state the original checkout it was created from.
+- Before creating any branch or worktree, ensure the primary branch is up to date locally. This check is required every time before either action occurs.
+- New branches and worktrees may only be created from the primary branch unless the user explicitly names a different source branch.
+- When creating a branch or worktree, state the action out loud, including the target directory, branch name, and original checkout when relevant.
+- When finishing a turn that includes changes on a branch or in a worktree, explicitly state the directory and branch. If it is a linked worktree, also state the original checkout it was created from.
+- If currently on a branch or in a worktree and the user asks to clean up, release, or merge, pause to clarify the exact target and integration path before acting, especially when multiple merge paths are possible.
 
 ### GitHub Access
 - Always use `gh` CLI to explore GitHub repos. Never use `raw.githubusercontent.com` URLs or `WebFetch` for repo contents.

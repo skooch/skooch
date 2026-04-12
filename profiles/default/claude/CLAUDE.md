@@ -13,6 +13,10 @@
 ## Worktree Setup (mandatory sequence)
 - **Never use `EnterWorktree` or `isolation: "worktree"`**
 - Worktrees MUST be peers in `../worktrees/<name>`. Cargo bug: nested worktrees inherit `.cargo/config.toml` twice.
+- On the first turn of a new session, if the current working directory is a git worktree or on any branch, explicitly state the directory and branch. If it is a linked worktree, also state the original checkout it was created from.
+- Before creating any branch or worktree, ensure the primary branch is up to date locally. Do this every time before either action occurs.
+- Worktrees and branches may only be created from the primary branch unless the user explicitly names a different source branch.
+- When creating a worktree or branch, state the action out loud, including the new worktree directory, branch name, and original checkout when relevant.
 - Procedure: `git worktree add ../worktrees/<name> -b <branch>` → dispatch subagent with cwd at worktree.
 - Dotfiles git wrapper auto-handles: submodule bootstrap, cargo target isolation, safe removal.
 - Without the wrapper (`/usr/bin/git`), handle submodule/target isolation manually.
@@ -48,9 +52,11 @@
 - Keep commits atomic: one concern, one commit.
 - After each coherent chunk of work, commit before starting the next chunk.
 - If 2 substantive turns with code changes pass without a commit, stop and either commit or explain why not.
+- When finishing a turn that includes changes on a branch or in a worktree, explicitly state the directory and branch. If it is a linked worktree, also state the original checkout it was created from.
+- If currently on a branch or in a worktree and the user asks to clean up, release, or merge, clarify the exact target and what operation should happen before acting, especially when there are multiple merge paths.
 
 ## Plans Convention
-- `.claude/plans/` subfolders: `new/`, `in-progress/`, `implemented/`, `paused/`.
+- `docs/plans/` subfolders: `new/`, `in-progress/`, `implemented/`, `paused/`.
 - Before implementing: move plan from `new/` to `in-progress/`.
 - After completing: move from `in-progress/` to `implemented/`.
 - Abandoned mid-work: move to `paused/`.
