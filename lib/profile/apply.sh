@@ -432,6 +432,10 @@ _profile_apply_mise() {
         return 0
     fi
 
+    # Remove any existing symlink so the merge writes a real file,
+    # not through the symlink into the profile source.
+    [[ -L "$target" ]] && rm -f "$target"
+
     _profile_mise_merge "$target" "${mise_files[@]}"
 
     echo "Applying mise config: $label"
