@@ -783,8 +783,8 @@ _profile_snapshot_files() {
     for relative_path in "${_CODEX_LAST_WINS_PATHS[@]}"; do
         echo "$dir/codex/$relative_path"
     done
-    # Claude hooks (*.sh scripts only)
-    for f in "$dir"/claude/hooks/*.sh(N); do
+    # Claude hooks (all scripts)
+    for f in "$dir"/claude/hooks/*(N-.); do
         echo "$f"
     done
     # Skills (audience-routed: skills/{shared,claude,codex,...}/<skill>/SKILL.md)
@@ -906,11 +906,11 @@ _profile_target_paths() {
         [[ -n "$source" ]] && paths+=("$HOME/.claude/$relative_path")
     done
 
-    # Claude hooks (union of *.sh scripts across profiles)
+    # Claude hooks (union of all scripts across profiles)
     local basename="" source_file=""
     while IFS=$'\t' read -r basename source_file; do
         [[ -n "$basename" ]] && paths+=("$HOME/.claude/hooks/$basename")
-    done < <(_profile_collect_union_file_sources "$profiles" "claude" "hooks" "*.sh")
+    done < <(_profile_collect_union_file_sources "$profiles" "claude" "hooks" "*")
 
     # Skills (audience-routed across agents)
     local -A _tp_agent_roots=([claude]="$HOME/.claude" [codex]="$HOME/.codex")

@@ -324,7 +324,7 @@ _profile_diff() {
     if _profile_diff_last_wins_paths "$profiles" "claude" "$HOME/.claude" "claude" "$diff_cmd" "${_CLAUDE_LAST_WINS_PATHS[@]}"; then
         has_diff=true
     fi
-    if _profile_diff_union_file_collection "$profiles" "claude" "hooks" "*.sh" "$HOME/.claude" "claude/hooks" "$diff_cmd"; then
+    if _profile_diff_union_file_collection "$profiles" "claude" "hooks" "*" "$HOME/.claude" "claude/hooks" "$diff_cmd"; then
         has_diff=true
     fi
     if _profile_diff_union_file_collection "$profiles" "claude" "commands" "*.md" "$HOME/.claude" "claude/commands" "$diff_cmd"; then

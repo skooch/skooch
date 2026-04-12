@@ -426,7 +426,7 @@ _profile_collect_reconcile_status() {
 
     _profile_scan_last_wins_target "Codex rules" "$profiles" "codex" "rules/default.rules" "$HOME/.codex/rules/default.rules"
     _profile_scan_last_wins_target "Tmux" "$profiles" "tmux" "tmux.conf" "$HOME/.tmux.conf"
-    _profile_scan_union_file_collection_target "Claude hooks" "$profiles" "claude" "hooks" "*.sh" "$HOME/.claude"
+    _profile_scan_union_file_collection_target "Claude hooks" "$profiles" "claude" "hooks" "*" "$HOME/.claude"
     _profile_scan_union_file_collection_target "Claude commands" "$profiles" "claude" "commands" "*.md" "$HOME/.claude"
     _profile_scan_union_file_collection_target "Codex hooks" "$profiles" "codex" "hooks" "*" "$HOME/.codex"
     _profile_scan_union_file_collection_target "Codex agents" "$profiles" "codex" "agents" "*.toml" "$HOME/.codex"

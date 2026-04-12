@@ -904,7 +904,7 @@ _profile_sync_claude() {
     overall=$(_profile_sync_merge_status "$overall" "$?")
     _profile_claude_link_files "$profiles" sync
     overall=$(_profile_sync_merge_status "$overall" "$?")
-    _profile_link_union_file_collection "$profiles" "claude" "hooks" "*.sh" "$HOME/.claude" "sync" "Hooks"
+    _profile_link_union_file_collection "$profiles" "claude" "hooks" "*" "$HOME/.claude" "sync" "Hooks"
     overall=$(_profile_sync_merge_status "$overall" "$?")
     _profile_link_union_file_collection "$profiles" "claude" "commands" "*.md" "$HOME/.claude" "sync" "Commands"
     overall=$(_profile_sync_merge_status "$overall" "$?")

@@ -456,7 +456,7 @@ _profile_apply_claude() {
         "Claude Code settings" "$profiles" "claude" "settings.json" "$HOME/.claude" "json"
 
     _profile_claude_link_files "$profiles"
-    _profile_link_union_file_collection "$profiles" "claude" "hooks" "*.sh" "$HOME/.claude" "apply" "Hooks"
+    _profile_link_union_file_collection "$profiles" "claude" "hooks" "*" "$HOME/.claude" "apply" "Hooks"
     _profile_link_union_file_collection "$profiles" "claude" "commands" "*.md" "$HOME/.claude" "apply" "Commands"
 }
 
