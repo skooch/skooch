@@ -944,6 +944,74 @@ _profile_sync_codex() {
 
 # --- Skills (cross-agent routing) ---
 
+# Ingest a single orphan skill directory into profiles/default/skills/shared/.
+# Moves the directory, scaffolds agents/openai.yaml, and creates a symlink back.
+# Usage: _profile_ingest_single_skill <skill_dir> [agent_name]
+# Returns 0 on success, 1 if skipped.
+_profile_ingest_single_skill() {
+    local skill_dir="$1"
+    local agent_name="${2:-unknown}"
+    local skill_name="${skill_dir:t}"
+
+    # Validate: must be a real directory with SKILL.md
+    [[ -d "$skill_dir" && ! -L "$skill_dir" ]] || return 1
+    [[ "$skill_name" == .system ]] && return 1
+    [[ -f "$skill_dir/SKILL.md" ]] || return 1
+
+    # Already exists in a profile — do not overwrite
+    local profile_dir=""
+    for profile_dir in "$PROFILES_DIR"/*(N/); do
+        if [[ -d "$profile_dir/skills/shared/$skill_name" || -d "$profile_dir/skills/claude/$skill_name" || -d "$profile_dir/skills/codex/$skill_name" ]]; then
+            return 1
+        fi
+    done
+
+    # Ingest: move to profiles/default/skills/shared/
+    local target="$PROFILES_DIR/default/skills/shared/$skill_name"
+    mkdir -p "$PROFILES_DIR/default/skills/shared"
+    mv "$skill_dir" "$target"
+
+    # Scaffold agents/openai.yaml if missing
+    if [[ ! -f "$target/agents/openai.yaml" ]]; then
+        local display_name="" short_desc=""
+        # Extract from SKILL.md frontmatter
+        if head -1 "$target/SKILL.md" | grep -q '^---'; then
+            display_name=$(sed -n '/^---$/,/^---$/{ /^name:/{ s/^name:[[:space:]]*//; p; q; } }' "$target/SKILL.md")
+            short_desc=$(sed -n '/^---$/,/^---$/{
+                /^description:/{
+                    s/^description:[[:space:]]*>\{0,1\}[[:space:]]*//
+                    /./{ p; q; }
+                    n
+                    s/^[[:space:]]*//
+                    p; q
+                }
+            }' "$target/SKILL.md")
+        fi
+        # Fallback to skill name
+        [[ -z "$display_name" ]] && display_name="$skill_name"
+        [[ -z "$short_desc" ]] && short_desc="$skill_name skill"
+        # Titlecase the display name (foo-bar -> Foo Bar)
+        display_name="${display_name//-/ }"
+        display_name="${(C)display_name}"
+
+        mkdir -p "$target/agents"
+        cat > "$target/agents/openai.yaml" <<YAML
+interface:
+  display_name: "$display_name"
+  short_description: "$short_desc"
+  default_prompt: "Use \$$skill_name to run the $display_name workflow."
+YAML
+    fi
+
+    # Symlink back so the agent can still find it at the original location
+    local parent_dir="${skill_dir:h}"
+    mkdir -p "$parent_dir"
+    _profile_ln_sn "$target" "$skill_dir"
+
+    echo "  Skills: ingested $skill_name from $agent_name -> shared"
+    return 0
+}
+
 # Ingest orphan skills: non-symlink directories in agent skill roots that are not
 # yet tracked by any profile. Moves them into profiles/default/skills/shared/ and
 # scaffolds agents/openai.yaml so all agents can use them.
@@ -965,70 +1033,15 @@ _profile_ingest_orphan_skills() {
             local skill_name="${entry:t}"
             [[ "$skill_name" == .system ]] && continue
 
-            # Must have a SKILL.md to be a real skill
-            if [[ ! -f "$entry/SKILL.md" ]]; then
-                echo "  Skills: skipped orphan $skill_name in $agent_name (no SKILL.md)"
-                continue
-            fi
-
             # Already claimed by another agent root this pass
             if (( ${+seen_orphans[$skill_name]} )); then
                 echo "  Skills: skipped orphan $skill_name in $agent_name (already ingested from ${seen_orphans[$skill_name]})"
                 continue
             fi
 
-            # Already exists in a profile — do not overwrite
-            local exists_in_profile=false
-            local profile_dir=""
-            for profile_dir in "$PROFILES_DIR"/*(N/); do
-                if [[ -d "$profile_dir/skills/shared/$skill_name" || -d "$profile_dir/skills/claude/$skill_name" || -d "$profile_dir/skills/codex/$skill_name" ]]; then
-                    exists_in_profile=true
-                    break
-                fi
-            done
-            if [[ "$exists_in_profile" == true ]]; then
-                continue
+            if _profile_ingest_single_skill "$entry" "$agent_name"; then
+                seen_orphans[$skill_name]="$agent_name"
             fi
-
-            # Ingest: move to profiles/default/skills/shared/
-            local target="$PROFILES_DIR/default/skills/shared/$skill_name"
-            mkdir -p "$PROFILES_DIR/default/skills/shared"
-            mv "$entry" "$target"
-
-            # Scaffold agents/openai.yaml if missing
-            if [[ ! -f "$target/agents/openai.yaml" ]]; then
-                local display_name="" short_desc=""
-                # Extract from SKILL.md frontmatter
-                if head -1 "$target/SKILL.md" | grep -q '^---'; then
-                    display_name=$(sed -n '/^---$/,/^---$/{ /^name:/{ s/^name:[[:space:]]*//; p; q; } }' "$target/SKILL.md")
-                    short_desc=$(sed -n '/^---$/,/^---$/{
-                        /^description:/{
-                            s/^description:[[:space:]]*>\{0,1\}[[:space:]]*//
-                            /./{ p; q; }
-                            n
-                            s/^[[:space:]]*//
-                            p; q
-                        }
-                    }' "$target/SKILL.md")
-                fi
-                # Fallback to skill name
-                [[ -z "$display_name" ]] && display_name="$skill_name"
-                [[ -z "$short_desc" ]] && short_desc="$skill_name skill"
-                # Titlecase the display name (foo-bar -> Foo Bar)
-                display_name="${display_name//-/ }"
-                display_name="${(C)display_name}"
-
-                mkdir -p "$target/agents"
-                cat > "$target/agents/openai.yaml" <<YAML
-interface:
-  display_name: "$display_name"
-  short_description: "$short_desc"
-  default_prompt: "Use \$$skill_name to run the $display_name workflow."
-YAML
-            fi
-
-            seen_orphans[$skill_name]="$agent_name"
-            echo "  Skills: ingested $skill_name from $agent_name -> shared"
         done
     done
 }
@@ -1154,6 +1167,7 @@ _profile_sync_skills() {
 }
 
 _profile_apply_skills() {
+    _profile_ingest_orphan_skills
     _profile_skills_link "$1" "apply"
 }
 

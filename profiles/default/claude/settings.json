@@ -349,6 +349,17 @@
                 ]
             }
         ],
+        "PostToolUse": [
+            {
+                "matcher": "Write",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "~/.claude/hooks/skill-auto-share.sh"
+                    }
+                ]
+            }
+        ],
         "SessionStart": [
             {
                 "matcher": "startup",

@@ -360,17 +360,17 @@ else
     fail "existing profile skill should not be overwritten by orphan"
 fi
 
-_TEST_NAME="apply_skills does not ingest orphans"
+_TEST_NAME="apply_skills ingests orphans at apply time"
 rm -rf "$PROFILES_DIR/default/skills/shared/apply-orphan"
 mkdir -p "$TEST_HOME/.claude/skills/apply-orphan"
 echo -e "---\nname: apply-orphan\n---\n# test" > "$TEST_HOME/.claude/skills/apply-orphan/SKILL.md"
 _profile_apply_skills "default" > /dev/null 2>&1
-if [[ ! -d "$PROFILES_DIR/default/skills/shared/apply-orphan" ]]; then
+if [[ -d "$PROFILES_DIR/default/skills/shared/apply-orphan" ]]; then
     pass
 else
-    fail "apply mode should not ingest orphans"
+    fail "apply mode should ingest orphans"
 fi
-rm -rf "$TEST_HOME/.claude/skills/apply-orphan"
+rm -rf "$TEST_HOME/.claude/skills/apply-orphan" "$PROFILES_DIR/default/skills/shared/apply-orphan"
 
 # Clean up reverse sync test artifacts
 rm -rf "$PROFILES_DIR/default/skills/shared/orphan-skill" "$PROFILES_DIR/default/skills/shared/existing-skill"
