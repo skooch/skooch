@@ -31,6 +31,7 @@ gitcache disable
 - `git clone`, `git fetch`, `git pull`, `git ls-remote`, `git submodule update`, and `git remote update` automatically use the cache wrapper in interactive shells when the cache is enabled.
 - `git push` and other write or non-read commands go straight to real Git.
 - `command git ...` bypasses the shell wrapper explicitly.
+- `profile status` and `profile sync` can refresh dotfiles remote metadata through the same wrapper when the local remote cache is stale.
 
 ## Current scope
 
@@ -40,3 +41,8 @@ gitcache disable
 - can clear all cached data or targeted repos with `profile cache clear [repo]`
 - leaves other hosts unchanged until they are explicitly added
 - complements repo-side submodule helpers, but does not deduplicate linked-worktree submodule object stores
+
+## Profile sync interaction
+
+- `profile status` uses the refreshed remote metadata to tell the difference between a stale checkpoint, safe auto-sync actions, and upstream states that need review.
+- `profile sync` will fast-forward a clean repo when it is only behind upstream, but it refuses to guess through divergence or through a dirty-behind worktree.

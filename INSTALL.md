@@ -20,6 +20,12 @@
    ```
    This also applies the profile-managed Claude and durable Codex config under `~/.claude` and `~/.codex`.
 
+   After that, use:
+   ```sh
+   profile status
+   ```
+   to see whether the current state only needs a new checkpoint, has safe sync actions that can be applied automatically, or has conflicts that need review.
+
 4. Install runtimes managed by mise:
    ```sh
    mise install
@@ -33,9 +39,15 @@
    In interactive shells, read-only GitHub commands like `git clone`, `git fetch`, `git pull`, `git ls-remote`, `git submodule update`, and `git remote update` then use the cache automatically. `command git ...` bypasses the wrapper when needed.
    Use `profile cache status`, `profile cache off`, and `profile cache clear [repo]` to manage it later.
 
-6. Add secrets to `~/projects/dotfiles-private/.zshrc.private` (sourced automatically by `.zshrc`)
+6. When you intentionally change canonical profile-managed files directly, acknowledge the new baseline with:
+   ```sh
+   profile checkpoint
+   ```
+   `profile sync` is now for reconciliation. It preflights remote state first, fast-forwards clean non-diverged repos automatically, applies safe single-owner changes automatically, and stops for conflicts or merged multi-profile outputs that need manual review.
 
-7. (Optional) Install iTerm2 shell integration:
+7. Add secrets to `~/projects/dotfiles-private/.zshrc.private` (sourced automatically by `.zshrc`)
+
+8. (Optional) Install iTerm2 shell integration:
    ```sh
    curl -L https://iterm2.com/shell_integration/zsh -o ~/.iterm2_shell_integration.zsh
    ```

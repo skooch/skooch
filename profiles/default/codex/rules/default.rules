@@ -213,3 +213,8 @@ prefix_rule(pattern=["rm", "-f", "/tmp/esp32s3-core1-reject.99hl8e/qemu.log"], d
 prefix_rule(pattern=["rm", "-f", ".cargo/.gitignore"], decision="allow")
 prefix_rule(pattern=["rm", "-f", ".cargo/config"], decision="allow")
 prefix_rule(pattern=["rm", "-rf", "/Users/skooch/projects/tdeck-pro-rust/worktrees/qemu-cache-sync-fix"], decision="allow")
+prefix_rule(pattern=["rm", "-f", "parser.o", "scanner.o"], decision="allow")
+prefix_rule(pattern=["rm", "-f", ".git/index.lock"], decision="allow")
+prefix_rule(pattern=["rm", "-f", "/tmp/profile-sync-input.txt"], decision="allow")
+prefix_rule(pattern=["rm", "-f", "/tmp/qemu-qmp-debug.sock"], decision="allow")
+prefix_rule(pattern=["rm", "-f", "/Users/skooch/projects/tdeck-pro-rust/tdeck-pro-rust/.git/index.lock"], decision="allow")

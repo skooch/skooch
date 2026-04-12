@@ -1,0 +1,4 @@
+interface:
+  display_name: "Arch Review"
+  short_description: "Looping architecture review with synthesis"
+  default_prompt: "Use $arch-review to run an iterative architecture review, collect issues, and produce a dependency-ordered checklist."

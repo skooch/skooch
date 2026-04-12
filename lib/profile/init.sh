@@ -21,6 +21,7 @@ _profile_machine_id() {
 PROFILE_STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles"
 PROFILE_ACTIVE_FILE="$PROFILE_STATE_DIR/active"
 PROFILE_SNAPSHOT_FILE="$PROFILE_STATE_DIR/snapshot"
+PROFILE_CHECKPOINT_FILE="$PROFILE_STATE_DIR/checkpoint"
 PROFILE_MANAGED_FILE="$PROFILE_STATE_DIR/managed"
 PROFILE_SYNC_SKIPS_FILE="$PROFILE_STATE_DIR/sync_skips"
 
@@ -29,6 +30,10 @@ if [[ -f "$HOME/.profile_active" && ! -f "$PROFILE_ACTIVE_FILE" ]]; then
     mkdir -p "$PROFILE_STATE_DIR"
     mv "$HOME/.profile_active" "$PROFILE_ACTIVE_FILE"
     mv "$HOME/.profile_snapshot" "$PROFILE_SNAPSHOT_FILE" 2>/dev/null
+fi
+
+if [[ -f "$PROFILE_SNAPSHOT_FILE" && ! -f "$PROFILE_CHECKPOINT_FILE" ]]; then
+    cp "$PROFILE_SNAPSHOT_FILE" "$PROFILE_CHECKPOINT_FILE"
 fi
 
 # --- Core symlinks ---

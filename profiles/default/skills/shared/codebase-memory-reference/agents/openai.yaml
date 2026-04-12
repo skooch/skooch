@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codebase Memory Reference"
+  short_description: "Codebase-memory-mcp reference guide. ALWAYS invoke this skill when the user asks about MCP tools, graph queries, Cypher syntax, edge types, or how to use the knowledge graph. Do not guess tool parameters — load this reference first."
+  default_prompt: "Use $codebase-memory-reference to run the Codebase Memory Reference workflow."

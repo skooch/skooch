@@ -41,6 +41,22 @@ _TEST_NAME="prompt_item not_in_profile S is skip"
 local result=$(echo "S" | _profile_prompt_item "brew:wget" "not_in_profile")
 assert_eq "skip" "$result"
 
+_TEST_NAME="prompt_item not_installed without input fails safe to skip"
+local empty_input=$(mktemp)
+_PROFILE_INPUT="$empty_input"
+local result=$(_profile_prompt_item "brew:ripgrep" "not_installed")
+assert_eq "skip" "$result"
+rm -f "$empty_input"
+_PROFILE_INPUT=/dev/stdin
+
+_TEST_NAME="prompt_item not_in_profile without input fails safe to skip"
+local empty_input=$(mktemp)
+_PROFILE_INPUT="$empty_input"
+local result=$(_profile_prompt_item "brew" "wget" "not_in_profile")
+assert_eq "skip" "$result"
+rm -f "$empty_input"
+_PROFILE_INPUT=/dev/stdin
+
 # --- _profile_remove_line ---
 
 _TEST_NAME="remove_line deletes matching line from file"

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Arch Copy"
+  short_description: "Copy repo practices between similar codebases"
+  default_prompt: "Use $arch-copy to inventory a source repo, compare it with a target repo, and write a cautious migration plan for adopting conventions appropriately."

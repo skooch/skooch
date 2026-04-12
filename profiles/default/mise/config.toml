@@ -13,6 +13,3 @@ bun = "latest"
 zig = "latest"
 rust = "stable"
 uv = "latest"
-java = "zulu-21"
-maven = "latest"
-
