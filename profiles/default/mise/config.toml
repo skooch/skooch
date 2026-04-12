@@ -14,3 +14,6 @@ zig = "latest"
 rust = "stable"
 uv = "latest"
 actionlint = "latest"
+java = "zulu-21"
+maven = "latest"
+
