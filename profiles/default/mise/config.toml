@@ -7,7 +7,6 @@ trusted_config_paths = ['~/projects', '~/blinq']
 [tools]
 node = "lts"
 ruby = "3"
-go = "latest"
 python = "3"
 bun = "latest"
 zig = "latest"
