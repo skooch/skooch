@@ -88,8 +88,62 @@ cat > "$fake_bin/git" <<'EOF'
 printf '%s\n' "$@" > "$TEST_HOME/wrapped-git-call.txt"
 EOF
 chmod +x "$fake_bin/git"
-HOME="$TEST_HOME" PATH="$fake_bin:$PATH" zsh -c 'source "$HOME/projects/skooch/functions/git-cache.sh"; source "$HOME/projects/skooch/functions/git.sh"; git push origin main' >/dev/null 2>&1
+HOME="$TEST_HOME" PATH="$fake_bin:$PATH" SKOOCH_GIT_BIN="$fake_bin/git" zsh -c 'source "$HOME/projects/skooch/functions/git-cache.sh"; source "$HOME/projects/skooch/functions/git.sh"; git push origin main' >/dev/null 2>&1
 assert_eq $'push\norigin\nmain' "$(cat "$TEST_HOME/wrapped-git-call.txt")"
+
+_TEST_NAME="git wrapper prefers Homebrew git when PATH would resolve Apple git"
+mkdir -p "$TEST_HOME/homebrew/bin" "$TEST_HOME/system/bin"
+cat > "$TEST_HOME/homebrew/bin/git" <<'EOF'
+#!/usr/bin/env zsh
+printf 'homebrew\n'
+EOF
+cat > "$TEST_HOME/system/bin/git" <<'EOF'
+#!/usr/bin/env zsh
+printf 'system\n'
+EOF
+chmod +x "$TEST_HOME/homebrew/bin/git" "$TEST_HOME/system/bin/git"
+git_bin=$(HOME="$TEST_HOME" HOMEBREW_PREFIX="$TEST_HOME/homebrew" PATH="$TEST_HOME/system/bin:/bin" zsh -c 'source "$HOME/projects/skooch/functions/git.sh"; _git_real_bin')
+assert_eq "$TEST_HOME/homebrew/bin/git" "$git_bin"
+
+_TEST_NAME="git wrapper falls back to PATH git when no preferred git exists"
+git_bin=$(HOME="$TEST_HOME" HOMEBREW_PREFIX="$TEST_HOME/missing-homebrew" PATH="$TEST_HOME/system/bin:/bin" zsh -c 'source "$HOME/projects/skooch/functions/git.sh"; _git_real_bin')
+assert_eq "$TEST_HOME/system/bin/git" "$git_bin"
+
+_TEST_NAME="worktree remove -f prunes node_modules before invoking git"
+mkdir -p "$TEST_HOME/wt/packages/app/node_modules/pkg"
+print "gitdir: fake" > "$TEST_HOME/wt/.git"
+print "x" > "$TEST_HOME/wt/packages/app/node_modules/pkg/file.js"
+cat > "$fake_bin/git" <<'EOF'
+#!/usr/bin/env zsh
+if [[ "$1" == "-C" ]]; then
+    shift 2
+fi
+case "$1" in
+    rev-parse)
+        printf 'worktree-branch\n'
+        ;;
+    worktree)
+        if [[ "$2" == "remove" ]]; then
+            if [[ -d "$TEST_HOME/wt/packages/app/node_modules" ]]; then
+                printf 'present\n' > "$TEST_HOME/worktree-remove-node-modules.txt"
+            else
+                printf 'gone\n' > "$TEST_HOME/worktree-remove-node-modules.txt"
+            fi
+            rm -rf "$TEST_HOME/wt"
+        fi
+        ;;
+esac
+EOF
+chmod +x "$fake_bin/git"
+HOME="$TEST_HOME" SKOOCH_GIT_BIN="$fake_bin/git" zsh -c 'source "$HOME/projects/skooch/functions/git.sh"; _git_worktree_remove -f "$HOME/wt"' >/dev/null 2>&1
+assert_eq "gone" "$(cat "$TEST_HOME/worktree-remove-node-modules.txt")"
+
+_TEST_NAME="worktree remove without force leaves node_modules for git"
+mkdir -p "$TEST_HOME/wt/packages/app/node_modules/pkg"
+print "gitdir: fake" > "$TEST_HOME/wt/.git"
+print "x" > "$TEST_HOME/wt/packages/app/node_modules/pkg/file.js"
+HOME="$TEST_HOME" SKOOCH_GIT_BIN="$fake_bin/git" zsh -c 'source "$HOME/projects/skooch/functions/git.sh"; _git_worktree_remove "$HOME/wt"' >/dev/null 2>&1
+assert_eq "present" "$(cat "$TEST_HOME/worktree-remove-node-modules.txt")"
 
 _TEST_NAME="worktree cargo isolation resolves Python via shared helper when PATH is missing"
 mkdir -p "$fake_dotfiles/lib/shell"
@@ -112,13 +166,13 @@ target-dir = "~/.cache/cargo-target/shared"' > "$TEST_HOME/wt/.cargo/config.toml
 worktree_target=$(HOME="$TEST_HOME" PATH="/bin" zsh -c 'source "$HOME/projects/skooch/functions/git.sh"; _git_worktree_cargo_isolate "$HOME/wt" >/dev/null; cat "$HOME/wt/.cargo/.worktree-target"')
 assert_eq "$TEST_HOME/.cache/cargo-target/shared/worktrees/wt" "$worktree_target"
 
-_TEST_NAME="plain git push remains untouched without global rewrite"
+_TEST_NAME="real git helper forwards push arguments unchanged"
 cat > "$fake_bin/git" <<'EOF'
 #!/usr/bin/env zsh
 printf '%s\n' "$@"
 EOF
 chmod +x "$fake_bin/git"
-args=$(PATH="$fake_bin:$PATH" git push origin main)
+args=$(HOME="$TEST_HOME" SKOOCH_GIT_BIN="$fake_bin/git" zsh -c 'source "$HOME/projects/skooch/functions/git.sh"; _git_real push origin main')
 assert_eq $'push\norigin\nmain' "$args"
 
 # --- Credential helper tests ---

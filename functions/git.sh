@@ -1,3 +1,36 @@
+_git_real_bin() {
+    if [[ -n "${SKOOCH_GIT_BIN:-}" && -x "${SKOOCH_GIT_BIN}" ]]; then
+        printf '%s' "$SKOOCH_GIT_BIN"
+        return 0
+    fi
+
+    local -a candidates=()
+    if [[ -n "${HOMEBREW_PREFIX:-}" ]]; then
+        candidates+=("${HOMEBREW_PREFIX}/bin/git")
+    else
+        candidates+=(
+            /opt/homebrew/bin/git
+            /usr/local/bin/git
+        )
+    fi
+
+    local candidate
+    for candidate in "${candidates[@]}"; do
+        [[ -n "$candidate" && -x "$candidate" ]] || continue
+        printf '%s' "$candidate"
+        return 0
+    done
+
+    whence -p git 2>/dev/null
+}
+
+_git_real() {
+    local git_bin=""
+    git_bin="$(_git_real_bin)" || return $?
+    [[ -n "$git_bin" ]] || return 127
+    "$git_bin" "$@"
+}
+
 git() {
     local subcmd="${1:-}"
     case "$subcmd" in
@@ -11,7 +44,7 @@ git() {
                     gitcache submodule-update "$@"
                     ;;
                 *)
-                    command git "$@"
+                    _git_real "$@"
                     ;;
             esac
             ;;
@@ -22,7 +55,7 @@ git() {
                     gitcache remote-update "$@"
                     ;;
                 *)
-                    command git "$@"
+                    _git_real "$@"
                     ;;
             esac
             ;;
@@ -35,12 +68,12 @@ git() {
                     _git_worktree_remove "${@:3}"
                     ;;
                 *)
-                    command git "$@"
+                    _git_real "$@"
                     ;;
             esac
             ;;
         *)
-            command git "$@"
+            _git_real "$@"
             ;;
     esac
 }
@@ -72,7 +105,7 @@ _git_python_bin() {
 
 _git_worktree_add() {
     # Run the real git worktree add, then bootstrap submodules + cargo isolation
-    command git worktree add "$@" || return $?
+    _git_real worktree add "$@" || return $?
 
     # Parse the worktree path from args (first non-flag argument)
     local wt_path=""
@@ -108,7 +141,7 @@ _git_worktree_bootstrap_submodules() {
     [[ -f "$wt_path/.gitmodules" ]] || return 0
 
     local common_git_dir
-    common_git_dir="$(cd "$wt_path" && cd "$(command git rev-parse --git-common-dir)" && pwd -P)"
+    common_git_dir="$(cd "$wt_path" && cd "$(_git_real rev-parse --git-common-dir)" && pwd -P)"
 
     # If the repo has a bootstrap-submodules script, defer to it
     if [[ -x "$wt_path/scripts/bootstrap-submodules" ]]; then
@@ -120,14 +153,14 @@ _git_worktree_bootstrap_submodules() {
     # Generic: init all submodules, using --reference from main checkout when available
     echo "Bootstrapping submodules..."
     local sub_path
-    command git -C "$wt_path" config -f "$wt_path/.gitmodules" --get-regexp '^submodule\..*\.path$' | while IFS= read -r line; do
+    _git_real -C "$wt_path" config -f "$wt_path/.gitmodules" --get-regexp '^submodule\..*\.path$' | while IFS= read -r line; do
         sub_path="${line#* }"
         local canonical_gitdir="$common_git_dir/modules/$sub_path"
         if [[ -d "$canonical_gitdir" && ! -f "$canonical_gitdir/shallow" ]]; then
-            command git -C "$wt_path" submodule update --init --reference "$canonical_gitdir" -- "$sub_path" 2>/dev/null || \
-                command git -C "$wt_path" submodule update --init -- "$sub_path"
+            _git_real -C "$wt_path" submodule update --init --reference "$canonical_gitdir" -- "$sub_path" 2>/dev/null || \
+                _git_real -C "$wt_path" submodule update --init -- "$sub_path"
         else
-            command git -C "$wt_path" submodule update --init -- "$sub_path"
+            _git_real -C "$wt_path" submodule update --init -- "$sub_path"
         fi
     done
 }
@@ -189,7 +222,7 @@ _git_worktree_remove() {
                 ;;
         esac
     done
-    [[ -z "$wt_path" ]] && { command git worktree remove "$@"; return $?; }
+    [[ -z "$wt_path" ]] && { _git_real worktree remove "$@"; return $?; }
 
     # Resolve to absolute path
     local abs_wt_path
@@ -198,7 +231,7 @@ _git_worktree_remove() {
     # Detect branch before removal
     local branch=""
     if [[ -d "$abs_wt_path/.git" || -f "$abs_wt_path/.git" ]]; then
-        branch="$(command git -C "$abs_wt_path" rev-parse --abbrev-ref HEAD 2>/dev/null)"
+        branch="$(_git_real -C "$abs_wt_path" rev-parse --abbrev-ref HEAD 2>/dev/null)"
     fi
 
     # Read cargo target marker before removal
@@ -207,25 +240,29 @@ _git_worktree_remove() {
         cargo_target="$(cat "$abs_wt_path/.cargo/.worktree-target")"
     fi
 
+    if [[ "$force" == true ]]; then
+        _git_worktree_prune_generated_dirs "$abs_wt_path"
+    fi
+
     # Deinit submodules so git worktree remove succeeds
     if [[ -f "$abs_wt_path/.gitmodules" ]]; then
-        command git -C "$abs_wt_path" submodule deinit --all --force 2>/dev/null
+        _git_real -C "$abs_wt_path" submodule deinit --all --force 2>/dev/null
     fi
 
     # Try proper removal first
-    if ! command git worktree remove "${args[@]}" 2>/dev/null; then
+    if ! _git_real worktree remove "${args[@]}" 2>/dev/null; then
         # Fallback: rm + prune
         echo "git worktree remove failed, falling back to rm + prune"
         rm -rf "$abs_wt_path"
-        command git worktree prune
+        _git_real worktree prune
     fi
 
     # Clean up branch
     if [[ "$delete_branch" == true && -n "$branch" && "$branch" != "HEAD" ]]; then
         if $force; then
-            command git branch -D "$branch" 2>/dev/null && echo "Deleted branch $branch"
+            _git_real branch -D "$branch" 2>/dev/null && echo "Deleted branch $branch"
         else
-            command git branch -d "$branch" 2>/dev/null && echo "Deleted branch $branch"
+            _git_real branch -d "$branch" 2>/dev/null && echo "Deleted branch $branch"
         fi
     fi
 
@@ -234,6 +271,25 @@ _git_worktree_remove() {
         echo "Cleaning cargo target: $cargo_target"
         rm -rf "$cargo_target"
     fi
+}
+
+_git_worktree_prune_generated_dirs() {
+    local wt_path="$1"
+    [[ -d "$wt_path" ]] || return 0
+
+    local pruned_any=false
+    local node_modules_path
+    while IFS= read -r -d '' node_modules_path; do
+        if [[ "$pruned_any" == false ]]; then
+            echo "Pruning node_modules before worktree removal..."
+            pruned_any=true
+        fi
+        rm -rf "$node_modules_path"
+    done < <(
+        find "$wt_path" \
+            -path "$wt_path/.git" -prune -o \
+            -type d -name node_modules -print0 -prune 2>/dev/null
+    )
 }
 
 trifecta() {
