@@ -291,7 +291,8 @@
             "Bash(brew:*)"
         ],
         "additionalDirectories": [
-            "/tmp"
+            "/tmp",
+            "/Users/skooch/projects"
         ]
     },
     "hooks": {
