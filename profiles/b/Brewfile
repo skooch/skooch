@@ -10,3 +10,4 @@ if OS.mac?
     cask "android-platform-tools"
     cask "google-cloud-sdk"
 end
+cask "slack-cli"
