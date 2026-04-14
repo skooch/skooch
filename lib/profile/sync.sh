@@ -713,15 +713,31 @@ _profile_sync_mise() {
                 local target_profile=$(_profile_pick_target "$profiles" "mise tools")
                 local target_mise="$PROFILES_DIR/$target_profile/mise/config.toml"
                 [[ "$target_profile" == "default" ]] && target_mise="$PROFILES_DIR/default/mise/config.toml"
-                # Ensure [tools] section exists
-                if ! grep -q '^\[tools\]' "$target_mise" 2>/dev/null; then
-                    echo "" >> "$target_mise"
-                    echo "[tools]" >> "$target_mise"
-                fi
-                for tool in "${tools_to_add[@]}"; do
-                    echo "$tool = \"latest\"" >> "$target_mise"
+
+                mkdir -p "$(dirname "$target_mise")"
+                [[ -f "$target_mise" ]] || : > "$target_mise"
+
+                local target_seen=false
+                for existing_mise in "${mise_files[@]}"; do
+                    [[ "$existing_mise" == "$target_mise" ]] && target_seen=true && break
                 done
+                [[ "$target_seen" == false ]] && mise_files+=("$target_mise")
+
+                local target_tools=$(mktemp)
+                local target_rest=$(mktemp)
+                local normalized_tools=$(mktemp)
+                _profile_mise_split_tools "$target_mise" "$target_tools" "$target_rest"
+                for tool in "${tools_to_add[@]}"; do
+                    echo "$tool = \"latest\"" >> "$target_tools"
+                done
+                _profile_mise_normalize_tool_lines "$normalized_tools" "$target_tools"
+                _profile_mise_write_config "$target_mise" "$target_rest" "$normalized_tools"
+                rm -f "$target_tools" "$target_rest" "$normalized_tools"
             fi
+
+            for mise_file in "${mise_files[@]}"; do
+                _profile_mise_normalize_file "$mise_file"
+            done
 
             # Uninstall
             for tool in "${tools_to_uninstall[@]}"; do
@@ -848,41 +864,30 @@ _profile_sync_mise() {
                 local orig="${mise_files[$idx]}"
                 local rest_src="${rest_sources[$idx]}"
                 local orig_tools=$(mktemp)
+                local normalized_orig_tools=$(mktemp)
                 local orig_rest=$(mktemp)
                 _profile_mise_split_tools "$orig" "$orig_tools" "$orig_rest"
-                { [[ -s "$rest_src" ]] && cat "$rest_src"; echo "[tools]"; cat "$orig_tools"; } > "$orig"
-                rm -f "$orig_tools" "$orig_rest" "$rest_src"
+                _profile_mise_normalize_tool_lines "$normalized_orig_tools" "$orig_tools"
+                _profile_mise_write_config "$orig" "$rest_src" "$normalized_orig_tools"
+                rm -f "$orig_tools" "$normalized_orig_tools" "$orig_rest" "$rest_src"
             done
         else
             rm -f "${rest_sources[@]}"
         fi
 
-        # Reassemble full target
-        {
-            cat "$target_rest"
-            echo "[tools]"
-            for f in "${mise_files[@]}"; do
-                local tools_tmp=$(mktemp)
-                local rest_tmp=$(mktemp)
-                _profile_mise_split_tools "$f" "$tools_tmp" "$rest_tmp"
-                cat "$tools_tmp"
-                rm -f "$tools_tmp" "$rest_tmp"
-            done
-        } > "$target"
+        local merged_tools=$(mktemp)
+        _profile_mise_collect_tools "$merged_tools" "${mise_files[@]}"
+        _profile_mise_write_config "$target" "$target_rest" "$merged_tools"
+        rm -f "$merged_tools"
 
         rm -f "$expected_rest" "$target_rest"
     else
         mkdir -p "$(dirname "$target")"
-        {
-            echo "[tools]"
-            for f in "${mise_files[@]}"; do
-                local tools_tmp=$(mktemp)
-                local rest_tmp=$(mktemp)
-                _profile_mise_split_tools "$f" "$tools_tmp" "$rest_tmp"
-                cat "$tools_tmp"
-                rm -f "$tools_tmp" "$rest_tmp"
-            done
-        } > "$target"
+        local empty_rest=$(mktemp)
+        local merged_tools=$(mktemp)
+        _profile_mise_collect_tools "$merged_tools" "${mise_files[@]}"
+        _profile_mise_write_config "$target" "$empty_rest" "$merged_tools"
+        rm -f "$empty_rest" "$merged_tools"
     fi
 
     # Run mise install if tools changed

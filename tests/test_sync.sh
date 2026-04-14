@@ -233,6 +233,29 @@ assert_contains "$synced_mise_config" 'trusted_config_paths = ["~/projects", "~/
 _TEST_NAME="sync_mise merged config.toml includes later-profile tools"
 assert_contains "$synced_mise_config" 'python = "3.12"'
 
+_TEST_NAME="sync_mise merged config.toml deduplicates overlapping tools"
+cat > "$PROFILES_DIR/default/mise/config.toml" << 'EOF'
+[settings]
+trusted_config_paths = ["~/projects", "~/blinq"]
+
+[tools]
+node = "lts"
+EOF
+cat > "$PROFILES_DIR/testprofile/mise/config.toml" << 'EOF'
+[settings]
+not_found_auto_install = true
+
+[tools]
+node = "20"
+python = "3.12"
+EOF
+rm -f "$TEST_HOME/.config/mise/config.toml"
+_profile_sync_mise "testprofile" > /dev/null 2>&1
+local deduped_sync_mise_config=$(cat "$TEST_HOME/.config/mise/config.toml")
+local sync_node_count=$(echo "$deduped_sync_mise_config" | grep -c '^node = ')
+assert_eq "1" "$sync_node_count"
+assert_contains "$deduped_sync_mise_config" 'node = "20"'
+
 # --- _profile_sync_codex ---
 
 _TEST_NAME="sync_codex symlinks single-source config.toml"

@@ -115,6 +115,29 @@ assert_contains "$apply_mise_merged_content" 'trusted_config_paths = ["~/project
 _TEST_NAME="apply_mise merged config.toml includes tools from later profiles"
 assert_contains "$apply_mise_merged_content" 'python = "3.12"'
 
+_TEST_NAME="apply_mise merged config.toml deduplicates overlapping tools"
+cat > "$PROFILES_DIR/default/mise/config.toml" << 'EOF'
+[settings]
+trusted_config_paths = ["~/projects"]
+
+[tools]
+node = "lts"
+EOF
+cat > "$PROFILES_DIR/testprofile/mise/config.toml" << 'EOF'
+[settings]
+not_found_auto_install = true
+
+[tools]
+node = "20"
+python = "3.12"
+EOF
+rm -f "$TEST_HOME/.config/mise/config.toml"
+_profile_apply_mise "testprofile" > /dev/null 2>&1
+local apply_mise_deduped_content=$(cat "$TEST_HOME/.config/mise/config.toml")
+local apply_node_count=$(echo "$apply_mise_deduped_content" | grep -c '^node = ')
+assert_eq "1" "$apply_node_count"
+assert_contains "$apply_mise_deduped_content" 'node = "20"'
+
 # --- _profile_apply_tmux ---
 
 _TEST_NAME="apply_tmux copies winning profile tmux.conf to home"

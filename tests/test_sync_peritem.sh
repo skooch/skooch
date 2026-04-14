@@ -202,4 +202,14 @@ assert_not_contains "$content" "ruby"
 assert_contains "$content" "node"
 _profile_sync_skip_forget "mise" "ruby"
 
+_TEST_NAME="sync_mise per-item: add writes one canonical tool entry"
+printf '[tools]\nnode = "lts"\n\n[settings]\nnot_found_auto_install = true\n' > "$misefile"
+local output=$(printf 'a\n' | _profile_sync_mise "default" 2>&1)
+local content=$(cat "$misefile")
+local ruby_count=$(echo "$content" | grep -c '^ruby = "latest"$')
+local tools_header_count=$(echo "$content" | grep -c '^\[tools\]$')
+assert_eq "1" "$ruby_count"
+assert_eq "1" "$tools_header_count"
+assert_contains "$content" "[settings]"
+
 _test_summary

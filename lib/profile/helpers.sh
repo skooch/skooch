@@ -1413,6 +1413,96 @@ _profile_mise_split_tools() {
     done < "$input"
 }
 
+_profile_mise_normalize_tool_lines() {
+    local outfile="$1"; shift
+    local -a inputs=("$@")
+    local -A seen_keys=()
+    local -a ordered_keys=()
+    local -a ordered_lines=()
+    local literal_index=1
+
+    : > "$outfile"
+
+    for input in "${inputs[@]}"; do
+        [[ -f "$input" ]] || continue
+        while IFS= read -r line || [[ -n "$line" ]]; do
+            [[ -z "$line" ]] && continue
+
+            local trimmed="$line"
+            trimmed="${trimmed#"${trimmed%%[![:space:]]*}"}"
+
+            local entry_key=""
+            local is_assignment=false
+            if [[ "$trimmed" != \#* && "$trimmed" == *=* ]]; then
+                entry_key="${trimmed%%=*}"
+                entry_key="${entry_key%"${entry_key##*[![:space:]]}"}"
+                is_assignment=true
+            else
+                entry_key="__literal_${literal_index}"
+                (( literal_index++ ))
+            fi
+
+            if [[ "$is_assignment" == true && -n "${seen_keys[$entry_key]+x}" ]]; then
+                ordered_lines[${seen_keys[$entry_key]}]="$line"
+                continue
+            fi
+
+            ordered_keys+=("$entry_key")
+            ordered_lines+=("$line")
+            seen_keys[$entry_key]="${#ordered_lines[@]}"
+        done < "$input"
+    done
+
+    printf '%s\n' "${ordered_lines[@]}" > "$outfile"
+}
+
+_profile_mise_collect_tools() {
+    local outfile="$1"; shift
+    local -a inputs=("$@")
+    local -a tool_parts=()
+
+    for input in "${inputs[@]}"; do
+        [[ -f "$input" ]] || continue
+        local tools_tmp=$(mktemp)
+        local rest_tmp=$(mktemp)
+        _profile_mise_split_tools "$input" "$tools_tmp" "$rest_tmp"
+        tool_parts+=("$tools_tmp")
+        rm -f "$rest_tmp"
+    done
+
+    _profile_mise_normalize_tool_lines "$outfile" "${tool_parts[@]}"
+    rm -f "${tool_parts[@]}"
+}
+
+_profile_mise_write_config() {
+    local outfile="$1" rest_file="$2" tools_file="$3"
+
+    {
+        [[ -f "$rest_file" ]] && cat "$rest_file"
+        echo "[tools]"
+        [[ -f "$tools_file" ]] && cat "$tools_file"
+    } > "$outfile"
+}
+
+_profile_mise_normalize_file() {
+    local input="$1"
+    local tools_tmp=$(mktemp)
+    local rest_tmp=$(mktemp)
+    local normalized_tools=$(mktemp)
+
+    if [[ -f "$input" ]]; then
+        _profile_mise_split_tools "$input" "$tools_tmp" "$rest_tmp"
+    else
+        : > "$tools_tmp"
+        : > "$rest_tmp"
+    fi
+
+    _profile_mise_normalize_tool_lines "$normalized_tools" "$tools_tmp"
+    _profile_mise_write_config "$input" "$rest_tmp" "$normalized_tools"
+
+    rm -f "$tools_tmp" "$rest_tmp" "$normalized_tools"
+}
+
 _profile_read_mise_tools_sourced() {
     local -a files=("$@")
     for f in "${files[@]}"; do

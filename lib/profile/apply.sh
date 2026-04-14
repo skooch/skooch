@@ -286,21 +286,31 @@ _profile_mise_merge() {
     local outfile="$1"; shift
     local -a infiles=("$@")
 
+    local merged_rest=$(mktemp)
     local -A sections
+    local -a section_order=()
     local current_section="_top"
     for f in "${infiles[@]}"; do
         while IFS= read -r line || [[ -n "$line" ]]; do
-            if [[ "$line" =~ '^\[' ]]; then
+            if [[ "$line" == \[* ]]; then
                 current_section="$line"
-            elif [[ -n "$line" ]]; then
+                if [[ "$current_section" != "[tools]" ]]; then
+                    local seen_section=false
+                    for section in "${section_order[@]}"; do
+                        [[ "$section" == "$current_section" ]] && seen_section=true && break
+                    done
+                    [[ "$seen_section" == false ]] && section_order+=("$current_section")
+                fi
+            elif [[ -n "$line" && "$current_section" != "[tools]" ]]; then
                 sections[$current_section]+="$line"$'\n'
             fi
         done < "$f"
     done
 
     {
-        for section in "${(@k)sections}"; do
-            [[ "$section" != "_top" ]] && echo "$section"
+        [[ -n "${sections[_top]:-}" ]] && printf '%s' "${sections[_top]}"
+        for section in "${section_order[@]}"; do
+            echo "$section"
             local -A seen_keys=()
             local -a ordered_lines=()
             while IFS= read -r line; do
@@ -318,7 +328,13 @@ _profile_mise_merge() {
             printf '%s\n' "${ordered_lines[@]}"
             echo ""
         done
-    } > "$outfile"
+    } > "$merged_rest"
+
+    local merged_tools=$(mktemp)
+    _profile_mise_collect_tools "$merged_tools" "${infiles[@]}"
+    _profile_mise_write_config "$outfile" "$merged_rest" "$merged_tools"
+
+    rm -f "$merged_rest" "$merged_tools"
 }
 
 _profile_apply_mise() {
