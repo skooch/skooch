@@ -24,6 +24,7 @@ PROFILE_SNAPSHOT_FILE="$PROFILE_STATE_DIR/snapshot"
 PROFILE_CHECKPOINT_FILE="$PROFILE_STATE_DIR/checkpoint"
 PROFILE_MANAGED_FILE="$PROFILE_STATE_DIR/managed"
 PROFILE_SYNC_SKIPS_FILE="$PROFILE_STATE_DIR/sync_skips"
+PROFILE_DRIFT_CACHE="$PROFILE_STATE_DIR/drift-cache"
 
 # --- Migration from old paths ---
 if [[ -f "$HOME/.profile_active" && ! -f "$PROFILE_ACTIVE_FILE" ]]; then

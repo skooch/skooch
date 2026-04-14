@@ -58,9 +58,9 @@ fi
 ZSH_AUTOSUGGEST_BUFFER_MAX_SIZE="20"
 ZSH_AUTOSUGGEST_USE_ASYNC=1
 
-### Profile drift check
+### Profile drift check (async: shows cached result, refreshes in background)
 if [[ -f "${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/active" ]]; then
-    _profile_check_drift
+    _profile_check_drift_async
 fi
 
 # zprof - uncomment matching line in .zshenv to use

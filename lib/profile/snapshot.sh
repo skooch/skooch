@@ -556,6 +556,53 @@ _profile_check_drift() {
     echo "Run 'profile status' to review remote state before checkpointing."
 }
 
+# --- Async drift check ---
+
+_profile_drift_cache_stale() {
+    local cache="$PROFILE_DRIFT_CACHE"
+    [[ -f "$cache" ]] || return 0
+
+    local mtime
+    mtime=$(stat -c %Y "$cache" 2>/dev/null || stat -f %m "$cache" 2>/dev/null)
+    [[ "$mtime" =~ ^[0-9]+$ ]] || return 0
+    local age=$(( $(date +%s) - mtime ))
+    (( age > 1800 ))
+}
+
+_profile_check_drift_async() {
+    local cache="$PROFILE_DRIFT_CACHE"
+    local pidfile="$PROFILE_STATE_DIR/drift-check.pid"
+
+    # Show cached result from previous run (instant)
+    if [[ -s "$cache" ]]; then
+        cat "$cache"
+    fi
+
+    # If cache is fresh enough, skip background fork
+    if ! _profile_drift_cache_stale; then
+        return 0
+    fi
+
+    # If a background check is already running, skip
+    if [[ -f "$pidfile" ]]; then
+        local old_pid
+        old_pid=$(<"$pidfile")
+        if kill -0 "$old_pid" 2>/dev/null; then
+            return 0
+        fi
+        rm -f "$pidfile"
+    fi
+
+    # Fork the actual check to background
+    (
+        local tmpfile="${cache}.$$"
+        _profile_check_drift > "$tmpfile" 2>/dev/null
+        mv "$tmpfile" "$cache"
+        rm -f "$pidfile"
+    ) & disown
+    echo $! > "$pidfile"
+}
+
 # --- Remote check ---
 
 _profile_remote_refresh_needed() {
