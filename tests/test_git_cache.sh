@@ -70,7 +70,7 @@ HOME="$TEST_HOME" zsh -c 'source "$HOME/projects/skooch/functions/git-cache.sh";
 assert_eq "git:fetch origin" "$(cat "$TEST_HOME/git-call.txt")"
 
 _TEST_NAME="interactive git wrapper routes clone through gitcache"
-cp /Users/skooch/projects/skooch/functions/git.sh "$fake_dotfiles/functions/git.sh"
+cp "${0:A:h}/../functions/git.sh" "$fake_dotfiles/functions/git.sh"
 HOME="$TEST_HOME" zsh -c 'source "$HOME/projects/skooch/functions/git-cache.sh"; source "$HOME/projects/skooch/functions/git.sh"; git clone https://github.com/example/project repo' >/dev/null 2>&1
 assert_eq "git:clone https://github.com/example/project repo" "$(cat "$TEST_HOME/git-call.txt")"
 

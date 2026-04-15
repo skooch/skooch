@@ -10,7 +10,7 @@ typeset -g _SKOOCH_PYTHON_HELPERS_LOADED=1
 
 _skooch_in_codex_shell() {
     case ":$PATH:" in
-        *:/Applications/Codex.app/Contents/Resources:*|*:/Users/skooch/.codex/tmp/arg0/codex-arg0:*)
+        *:/Applications/Codex.app/Contents/Resources:*|*:"$HOME"/.codex/tmp/arg0/codex-arg0:*)
             return 0
             ;;
     esac

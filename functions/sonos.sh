@@ -1,7 +1,7 @@
 # Sonos utilities (soco-cli wrappers)
 
 check_if_refresh_sonos() {
-  local SPEAKERS_MODIFIED=$(date -r /Users/skooch/.soco-cli/speakers_v2.pickle +%s)
+  local SPEAKERS_MODIFIED=$(date -r "$HOME/.soco-cli/speakers_v2.pickle" +%s)
   local CURRENT_DATE=$(date +%s)
   local DIFFERENCE=$(($CURRENT_DATE - $SPEAKERS_MODIFIED))
   if [ $DIFFERENCE -gt 43200 ]; then

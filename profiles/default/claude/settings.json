@@ -36,9 +36,9 @@
             "Bash(mise:*)",
             "Bash(zig:*)",
             "Bash(profile switch:*)",
-            "Read(//Users/skooch/**)",
-            "Glob(//Users/skooch/**)",
-            "Grep(//Users/skooch/**)",
+            "Read(~/**)",
+            "Glob",
+            "Grep",
             "Read(//opt/homebrew/**)",
             "Read(//tmp/**)",
             "Edit(//tmp/**)",
@@ -292,7 +292,7 @@
         ],
         "additionalDirectories": [
             "/tmp",
-            "/Users/skooch/projects"
+            "~/projects"
         ]
     },
     "hooks": {
