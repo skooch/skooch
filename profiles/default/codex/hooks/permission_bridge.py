@@ -925,6 +925,23 @@ def family_has_exact_allow_pattern(
     return family in allow_patterns
 
 
+_HOST_SCOPED_PATH_PREFIXES = ("/Users/", "/home/", "/private/var/folders/")
+
+
+def family_contains_host_scoped_path(family: tuple[str, ...]) -> bool:
+    """Reject promotion of families whose argv carries an absolute home-scoped path.
+
+    These rules are inherently per-host (worktree names, cargo target dirs,
+    ephemeral plan files) and promoting them leaks host identity into the
+    committed profile. Repeatedly typing the same such command across sessions
+    is not evidence that it should be a global allow rule.
+    """
+    for token in family:
+        if any(token.startswith(prefix) for prefix in _HOST_SCOPED_PATH_PREFIXES):
+            return True
+    return False
+
+
 def consolidation_candidates_from_stats(
     stats: dict[tuple[str, ...], dict[str, object]],
     base_allow_patterns: set[tuple[str, ...]],
@@ -1420,6 +1437,7 @@ def sync_rules(output_path: Path | None = None) -> dict[str, object]:
     skipped_threshold: list[str] = []
     skipped_covered: list[str] = []
     skipped_unsafe: list[str] = []
+    skipped_host_scoped: list[str] = []
 
     for family, family_stats in sorted(
         stats.items(),
@@ -1437,6 +1455,9 @@ def sync_rules(output_path: Path | None = None) -> dict[str, object]:
             continue
         if family_covered_by_allow_patterns(family, base_allow_patterns):
             skipped_covered.append(family_text)
+            continue
+        if family_contains_host_scoped_path(family):
+            skipped_host_scoped.append(family_text)
             continue
         if family_has_exact_allow_pattern(family, managed_allow_patterns):
             candidate_lines.append(render_rule_line(family, hits))
@@ -1457,6 +1478,9 @@ def sync_rules(output_path: Path | None = None) -> dict[str, object]:
         hits = int(suggestion["hits"])
         if family_covered_by_allow_patterns(family, base_allow_patterns):
             skipped_covered.append(family_text)
+            continue
+        if family_contains_host_scoped_path(family):
+            skipped_host_scoped.append(family_text)
             continue
         if family_has_exact_allow_pattern(family, managed_allow_patterns):
             candidate_lines.append(render_rule_line(family, hits))
@@ -1488,6 +1512,7 @@ def sync_rules(output_path: Path | None = None) -> dict[str, object]:
         "skipped_threshold": skipped_threshold,
         "skipped_covered": skipped_covered,
         "skipped_unsafe": skipped_unsafe,
+        "skipped_host_scoped": skipped_host_scoped,
         "rule_count": len(merged_lines),
         "observed_count": sum(int(family_stats["hits"]) for family_stats in stats.values()),
         "observed_families": sorted(" ".join(family) for family in stats),
