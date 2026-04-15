@@ -85,7 +85,7 @@ Run the target repo's relevant checks for every adopted item.
 
 ## Example Shape
 
-For `/Users/skooch/projects/align-internal` -> `/Users/skooch/projects/codebase-memory-zig`:
+For `~/projects/<source-repo>` -> `~/projects/<target-repo>` (e.g. a Zig-based comparison):
 - Adopt or translate Zig CI checks, formatting, test, and possibly cross-compile coverage.
 - Ask before changing the Zig version or broadening release policy.
 - Keep the target's stronger `AGENTS.md` or `CLAUDE.md` plus `docs/plans/` layout if it already exists.

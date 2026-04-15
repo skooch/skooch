@@ -60,7 +60,7 @@ After the user chooses a commit mode, ask each open decision as its own step-by-
 
 ## Example Notes For The Zig Pair
 
-For `/Users/skooch/projects/align-internal` -> `/Users/skooch/projects/codebase-memory-zig`, a good plan would usually:
+For a source/target pair like `~/projects/<source-repo>` -> `~/projects/<target-repo>` (e.g. comparing two Zig repos), a good plan would usually:
 - adopt or translate formatting, test, and CI checks
 - ask before changing Zig version policy
 - keep the target's existing agent-doc and plan layout
