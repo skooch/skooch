@@ -57,7 +57,15 @@ Audit both files against these compaction-resilience standards. For each violati
 - **No dead rules.** If a rule references a tool, workflow, or convention that no longer exists in the project, remove it.
 - **Minimal examples.** Examples in rules should be parenthetical, not block-quoted multi-line demonstrations. Save tokens.
 
-## Phase 3: Cross-reference with git history
+## Phase 3: Currency Check
+
+Verify rules still reference reality. For each tool, command, or path mentioned in either file:
+
+1. Extract candidate references (tool names, commands, file paths, env vars).
+2. Verify each: `command -v <tool>`, check the path exists, or grep the project for the convention.
+3. For anything that no longer resolves: flag it. Remove only with user approval (a stale-looking reference may be aspirational or recently broken).
+
+## Phase 4: Cross-reference with git history
 
 Run `git log --oneline -20` and scan recent commits for patterns like:
 - Repeated fixes to the same kind of mistake (suggests a missing rule)
@@ -68,17 +76,31 @@ If you find patterns worth capturing as rules, propose them in the report but do
 
 ## Output
 
-Print a structured report with these sections:
+Print a structured report. Every change (except trivial whitespace) must show a diff and a one-line **Why:**.
 
 ```
 ## Corrections Incorporated
-- [list of corrections promoted to permanent rules, or "None"]
+- <file>: **Why:** <reason promoted>
+  ```diff
+  - <removed>
+  + <added>
+  ```
 
 ## Standards Violations Fixed
-- [list of style/structural fixes made, with before/after]
+- <file>: **Why:** <which standard>
+  ```diff
+  - <before>
+  + <after>
+  ```
 
 ## Orphaned Rules Found
-- [rules in one file but not the other, now fixed]
+- **Why:** rule existed in <file A> but missing from <file B>
+  ```diff
+  + <added to file B>
+  ```
+
+## Currency Issues Found
+- `<reference>` in <file>: <verification command> → <result>. Action: removed | kept | flagged.
 
 ## Git History Suggestions
 - [proposed new rules from commit patterns — user must approve]
@@ -89,4 +111,4 @@ Print a structured report with these sections:
 - local corrections.md: X entries remaining
 ```
 
-After printing the report, apply all fixes (except git history suggestions) directly to the files.
+Apply style/structural/orphan fixes directly. Do NOT auto-apply: correction promotions, currency removals, or git suggestions — these need user approval.
