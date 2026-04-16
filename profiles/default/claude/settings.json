@@ -325,7 +325,7 @@
                 "hooks": [
                     {
                         "type": "command",
-                        "command": "~/.claude/hooks/subagent-opus-enforcer.sh",
+                        "command": "~/.claude/hooks/subagent-spawn-logger.sh",
                         "statusMessage": "Logging subagent spawn..."
                     }
                 ]
@@ -339,15 +339,6 @@
                         "type": "command",
                         "command": "~/.claude/hooks/bash-command-checker.sh",
                         "statusMessage": "Checking bash command..."
-                    }
-                ]
-            },
-            {
-                "matcher": "Grep|Glob|Read|Search",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "~/.claude/hooks/cbm-code-discovery-gate"
                     }
                 ]
             }

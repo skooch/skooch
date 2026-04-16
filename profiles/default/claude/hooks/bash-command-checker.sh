@@ -4,7 +4,7 @@
 # Derives the allow list from Bash() permissions — single source of truth.
 # Input: JSON via stdin with tool_input.command
 
-SETTINGS="$HOME/.claude/settings.json"
+SETTINGS="${CLAUDE_SETTINGS_FILE:-$HOME/.claude/settings.json}"
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""')
 
@@ -51,11 +51,6 @@ declare
 typeset"
 
 ALLOW_LIST=$(printf '%s\n%s' "$ALLOW_LIST" "$BUILTINS")
-
-# Build a regex from the allow list, escaping regex metacharacters
-ALLOW_RE=$(echo "$ALLOW_LIST" | sed '/^$/d' \
-    | sed 's/\./\\./g; s/\[/\\[/g; s/\*/\\*/g; s/\+/\\+/g; s/\?/\\?/g' \
-    | tr '\n' '|' | sed 's/|$//')
 
 # Preprocess: join backslash-continuation lines, strip quoted strings,
 # and split semicolons so each "statement" can be checked independently.
@@ -121,6 +116,10 @@ sys.stdout.write(''.join(result))
 
 PROCESSED=$(preprocess "$COMMAND")
 
+# Fail-safe: if preprocessing produced nothing for a non-empty command, defer
+# to default permission flow rather than auto-allowing.
+[ -z "$PROCESSED" ] && echo '{}' && exit 0
+
 all_allowed=true
 in_heredoc=""
 while IFS= read -r line; do
@@ -173,7 +172,7 @@ while IFS= read -r line; do
         # Strip path prefix in case a relative path slipped through
         base="${first##*/}"
 
-        if ! echo "$base" | grep -qxE "$ALLOW_RE" 2>/dev/null; then
+        if ! echo "$ALLOW_LIST" | grep -qFx "$base" 2>/dev/null; then
             all_allowed=false
             break 2
         fi
