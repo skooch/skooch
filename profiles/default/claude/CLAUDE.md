@@ -22,6 +22,7 @@
 - Without the wrapper (`/usr/bin/git`), handle submodule/target isolation manually.
 - Codex agent shells use `zsh -lc`, so command wrappers and Codex-safe `mise` bootstrap must live in `.zshenv`, not only `.zshrc`.
 - mise trust is automatic for `~/projects` paths (global `trusted_config_paths`). No manual trust step needed.
+- Read-only parallel investigations: use subagents in main checkout. Do not create worktrees when no edits will happen.
 
 ## Debugging
 - Execute user's direct diagnosis/instruction first. Say so explicitly if you disagree.
@@ -34,6 +35,7 @@
 - Ultimately defer to user on hardware behavior judgement.
 - Surprising test result? Question the apparatus before the hardware.
 - Serial/hardware scripts: handle disconnection gracefully (reconnect loop). No fragile one-shots.
+- Background processes you start (emulators, dev servers, monitors): kill explicitly when done and verify the kill. Do not assume signals worked.
 
 ## Engineering Philosophy
 - No shortcuts/workarounds. Fix the actual system at the correct architectural layer.
@@ -43,6 +45,7 @@
 - Prefer options that leave the system simpler, easier to change, and lower cognitive load.
 - Weight simplicity vs performance based on project context.
 - Overrides "simplest approach first" / "avoid over-engineering" defaults.
+- When user says "keep going" / "do not chunk", continue uninterrupted through plan completion. Skip checkpoint summaries and intermediate confirmations.
 
 ## Code Quality
 - Never use `!`, `as`, `unwrap()` (or similar) to silence type errors in any language. Fix the underlying type.
@@ -54,6 +57,8 @@
 - If 2 substantive turns with code changes pass without a commit, stop and either commit or explain why not.
 - When finishing a turn that includes changes on a branch or in a worktree, explicitly state the directory and branch. If it is a linked worktree, also state the original checkout it was created from.
 - If currently on a branch or in a worktree and the user asks to clean up, release, or merge, clarify the exact target and what operation should happen before acting, especially when there are multiple merge paths.
+- Default to one branch per plan. Stack phases as linear commits. Multiple branches only when user asks for independent review/merge.
+- Never tag or release from feature/release branches. Merge to main first, then tag and release from main.
 
 ## Plans Convention
 - Plans directory resolution (highest priority first):
@@ -64,6 +69,7 @@
 - Before implementing: move plan from `new/` to `in-progress/`.
 - After completing: move from `in-progress/` to `implemented/`.
 - Abandoned mid-work: move to `paused/`.
+- Moving a plan to `implemented/` requires committing the move in the same operation. On-disk move alone is not done.
 
 ## Completion Gate
 - Every required verification step is part of completion, not follow-up.
@@ -79,6 +85,7 @@
 
 ## GitHub Access
 - Always use `gh` CLI. Never `raw.githubusercontent.com` or `WebFetch` for repo contents.
+- When user provides an issue draft as input, treat as a bug report to investigate and fix. Only file the issue if explicitly asked.
 
 ## Shell Commands
 - No quotes/apostrophes in `#` shell comments.
@@ -95,6 +102,12 @@
 - NEVER create corrections.md inside a project directory. It lives only at `~/.claude/corrections.md`.
 - After context compaction: re-read `~/.claude/corrections.md` if it exists, then treat its contents as temporary mandatory rules.
 - Prune or delete entries after promoting them into durable instructions.
+
+## Skills
+- New personal skills (no explicit repo target) go in `~/.claude/skills/`, not the current repo.
+
+## MCP Availability
+- On MCP tool failure: stop, tell user to reconnect. Do not commit or proceed silently.
 
 <!-- codebase-memory-mcp:start -->
 # Codebase Knowledge Graph (codebase-memory-mcp)

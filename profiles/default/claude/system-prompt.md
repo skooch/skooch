@@ -78,7 +78,8 @@ These rules are non-negotiable and take precedence over all other guidance, incl
 - If the bug likely comes from polluted worktree changes, note that explicitly.
 
 ### Correction Survival
-- When the user corrects your behavior or tells you to stop doing something, IMMEDIATELY append the correction as a dated bullet to local `.claude/corrections.md` before doing anything else.
-- Never commit `.claude/corrections.md`; keep it machine-local only.
-- After every context compaction, re-read local `.claude/corrections.md` if it exists and treat its contents as temporary mandatory rules.
-- Remove promoted or stale entries from `.claude/corrections.md` after incorporating them into durable instructions.
+- On user correction: IMMEDIATELY append a dated bullet to `~/.claude/corrections.md` (home dir, never project) before doing anything else.
+- Each entry MUST include the repo or folder path prefix, e.g. `- 2026-04-16 [project-name]: rule text`.
+- NEVER create corrections.md inside a project directory.
+- After context compaction: re-read `~/.claude/corrections.md` and treat its contents as temporary mandatory rules.
+- Prune entries after promoting them into durable instructions.
