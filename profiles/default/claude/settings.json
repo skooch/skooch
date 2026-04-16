@@ -111,6 +111,8 @@
             "Bash(radon:*)",
             "Bash(check-jsonschema:*)",
             "Bash(ssh:*)",
+            "Bash(cn:*)",
+            "Bash(cnp:*)",
             "mcp__ide__getDiagnostics",
             "mcp__codebase-memory-mcp__index_repository",
             "mcp__codebase-memory-mcp__index_status",

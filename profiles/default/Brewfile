@@ -1,10 +1,12 @@
 tap "homebrew/autoupdate"
+tap "mylee04/tools"
 
 # Core CLI (macOS needs GNU tools; Linux has them natively)
 if OS.mac?
     brew "coreutils"
     brew "grep"
     brew "rsync"
+    brew "terminal-notifier" # Better desktop notifications (used by code-notify)
 end
 brew "jq"
 brew "sevenzip"
@@ -44,6 +46,8 @@ brew "mtr"              # Network diagnostics
 brew "nmap"
 
 # AI
+brew "code-notify"      # Desktop notifications for Claude Code / Codex / Gemini
+
 
 # Media
 brew "ffmpeg"
