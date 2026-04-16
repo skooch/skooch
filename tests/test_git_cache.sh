@@ -145,6 +145,12 @@ print "x" > "$TEST_HOME/wt/packages/app/node_modules/pkg/file.js"
 HOME="$TEST_HOME" SKOOCH_GIT_BIN="$fake_bin/git" zsh -c 'source "$HOME/projects/skooch/functions/git.sh"; _git_worktree_remove "$HOME/wt"' >/dev/null 2>&1
 assert_eq "present" "$(cat "$TEST_HOME/worktree-remove-node-modules.txt")"
 
+_TEST_NAME="worktree remove with unresolvable relative path errors loudly instead of silently no-oping"
+output=$(HOME="$TEST_HOME" SKOOCH_GIT_BIN="$fake_bin/git" zsh -c 'cd /tmp; source "$HOME/projects/skooch/functions/git.sh"; _git_worktree_remove definitely-not-a-real-worktree-xyz' 2>&1)
+exit_code=$?
+assert_neq "0" "$exit_code"
+assert_contains "$output" "cannot resolve path"
+
 _TEST_NAME="worktree cargo isolation resolves Python via shared helper when PATH is missing"
 mkdir -p "$fake_dotfiles/lib/shell"
 cat > "$fake_dotfiles/lib/shell/python.sh" <<'EOF'

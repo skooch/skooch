@@ -224,9 +224,27 @@ _git_worktree_remove() {
     done
     [[ -z "$wt_path" ]] && { _git_real worktree remove "$@"; return $?; }
 
-    # Resolve to absolute path
-    local abs_wt_path
-    abs_wt_path="$(cd "$wt_path" 2>/dev/null && pwd -P)" || abs_wt_path="$wt_path"
+    # Resolve to absolute path: try cwd, then absolute, then enclosing repo,
+    # then registered worktree list. Fail loudly rather than silently no-op.
+    local abs_wt_path=""
+    if abs_wt_path="$(cd "$wt_path" 2>/dev/null && pwd -P)"; then
+        :
+    elif [[ "$wt_path" = /* && -d "$wt_path" ]]; then
+        abs_wt_path="$wt_path"
+    else
+        local repo_top
+        repo_top="$(_git_real rev-parse --show-toplevel 2>/dev/null)"
+        if [[ -n "$repo_top" && -d "$repo_top/$wt_path" ]]; then
+            abs_wt_path="$(cd "$repo_top/$wt_path" && pwd -P)"
+        else
+            abs_wt_path="$(_git_real worktree list --porcelain 2>/dev/null \
+                | awk -v t="$wt_path" '/^worktree / { p=$2; if (p == t || p ~ "/"t"$") { print p; exit } }')"
+        fi
+    fi
+    if [[ -z "$abs_wt_path" || ! -d "$abs_wt_path" ]]; then
+        echo "git worktree remove: cannot resolve path '$wt_path'" >&2
+        return 1
+    fi
 
     # Detect branch before removal
     local branch=""
