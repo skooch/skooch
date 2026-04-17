@@ -38,17 +38,36 @@ _profile_status() {
 
     _profile_collect_reconcile_status "$active"
 
-    if [[ "$checkpoint_state" == "current" && $_PROFILE_RECONCILE_SAFE_COUNT -eq 0 && $_PROFILE_RECONCILE_BLOCKED_COUNT -eq 0 && $_PROFILE_RECONCILE_CONFLICT_COUNT -eq 0 ]]; then
-        echo "Everything is in sync."
+    local has_actionable=$(( _PROFILE_RECONCILE_SAFE_COUNT + _PROFILE_RECONCILE_BLOCKED_COUNT + _PROFILE_RECONCILE_CONFLICT_COUNT ))
+
+    if [[ "$checkpoint_state" == "current" && has_actionable -eq 0 ]]; then
+        if (( _PROFILE_RECONCILE_INFO_COUNT > 0 )); then
+            echo "Files are in sync. Tool inventory has informational differences:"
+            local line=""
+            for line in "${_PROFILE_RECONCILE_LINES[@]}"; do
+                echo "  - $line"
+            done
+            echo "Run 'profile sync' to interactively reconcile tool inventory."
+        else
+            echo "Everything is in sync."
+        fi
         return 0
     fi
 
-    if [[ "$checkpoint_state" == "stale" && $_PROFILE_RECONCILE_SAFE_COUNT -eq 0 && $_PROFILE_RECONCILE_BLOCKED_COUNT -eq 0 && $_PROFILE_RECONCILE_CONFLICT_COUNT -eq 0 ]]; then
+    if [[ "$checkpoint_state" == "stale" && has_actionable -eq 0 ]]; then
         echo "Managed targets already match the canonical profile state."
         if [[ "$_PROFILE_REMOTE_STATE" == "behind" || "$_PROFILE_REMOTE_STATE" == "diverged" || "$_PROFILE_REMOTE_STATE" == "stale" || "$_PROFILE_REMOTE_STATE" == "refresh_failed" || "$_PROFILE_REMOTE_STATE" == "unknown" ]]; then
             echo "Resolve the remote state above before running 'profile checkpoint'."
         else
             echo "Run 'profile checkpoint' to acknowledge the new baseline."
+        fi
+        if (( _PROFILE_RECONCILE_INFO_COUNT > 0 )); then
+            echo ""
+            echo "Tool inventory (informational):"
+            local line=""
+            for line in "${_PROFILE_RECONCILE_LINES[@]}"; do
+                echo "  - $line"
+            done
         fi
         return 0
     fi
@@ -60,6 +79,7 @@ _profile_status() {
     (( _PROFILE_RECONCILE_SAFE_COUNT > 0 )) && echo "Safe sync actions: $_PROFILE_RECONCILE_SAFE_COUNT"
     (( _PROFILE_RECONCILE_BLOCKED_COUNT > 0 )) && echo "Blocked sync-back items: $_PROFILE_RECONCILE_BLOCKED_COUNT"
     (( _PROFILE_RECONCILE_CONFLICT_COUNT > 0 )) && echo "Conflicts requiring review: $_PROFILE_RECONCILE_CONFLICT_COUNT"
+    (( _PROFILE_RECONCILE_INFO_COUNT > 0 )) && echo "Tool inventory (informational): $_PROFILE_RECONCILE_INFO_COUNT"
 
     local line=""
     for line in "${_PROFILE_RECONCILE_LINES[@]}"; do

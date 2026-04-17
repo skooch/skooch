@@ -18,6 +18,22 @@ _profile_sync_merge_status() {
     fi
 }
 
+_profile_backup_stale_target() {
+    local stale_path="$1"
+    local backup_dir="$PROFILE_STATE_DIR/backups"
+    local basename="${stale_path:t}"
+    local timestamp=$(date +%Y%m%d%H%M%S)
+    local backup_path="$backup_dir/${basename}.${timestamp}"
+
+    mkdir -p "$backup_dir"
+    if [[ -d "$stale_path" ]]; then
+        cp -R "$stale_path" "$backup_path"
+    else
+        cp "$stale_path" "$backup_path"
+    fi
+    echo "$backup_path"
+}
+
 _profile_prune_stale_managed_targets() {
     local profiles="$1"
     local overall=0
@@ -39,15 +55,26 @@ _profile_prune_stale_managed_targets() {
                 echo "  Removed stale managed directory: $(_profile_display_managed_path "$stale_path")"
                 overall=$(_profile_sync_merge_status "$overall" 1)
             else
-                echo "  Stale managed target requires review: $(_profile_display_managed_path "$stale_path")"
-                overall=$(_profile_sync_merge_status "$overall" 2)
+                local backup=$(_profile_backup_stale_target "$stale_path")
+                rm -rf "$stale_path"
+                echo "  Backed up and removed stale managed directory: $(_profile_display_managed_path "$stale_path") (backup: $backup)"
+                overall=$(_profile_sync_merge_status "$overall" 1)
             fi
             continue
         fi
 
         if [[ -e "$stale_path" ]]; then
-            echo "  Stale managed target requires review: $(_profile_display_managed_path "$stale_path")"
-            overall=$(_profile_sync_merge_status "$overall" 2)
+            local snap_hash=$(_profile_local_snap_hash "$stale_path")
+            local current_hash=$(_platform_md5 "$stale_path" 2>/dev/null)
+            if [[ -n "$snap_hash" && "$current_hash" == "$snap_hash" ]]; then
+                rm -f "$stale_path"
+                echo "  Removed stale managed file: $(_profile_display_managed_path "$stale_path")"
+            else
+                local backup=$(_profile_backup_stale_target "$stale_path")
+                rm -f "$stale_path"
+                echo "  Backed up and removed stale managed file: $(_profile_display_managed_path "$stale_path") (backup: $backup)"
+            fi
+            overall=$(_profile_sync_merge_status "$overall" 1)
         fi
     done < <(_profile_stale_managed_paths "$profiles")
 

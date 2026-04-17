@@ -4,6 +4,7 @@ typeset -ga _PROFILE_RECONCILE_LINES=()
 typeset -g _PROFILE_RECONCILE_SAFE_COUNT=0
 typeset -g _PROFILE_RECONCILE_BLOCKED_COUNT=0
 typeset -g _PROFILE_RECONCILE_CONFLICT_COUNT=0
+typeset -g _PROFILE_RECONCILE_INFO_COUNT=0
 typeset -g _PROFILE_REMOTE_STATE=""
 typeset -g _PROFILE_REMOTE_AHEAD=0
 typeset -g _PROFILE_REMOTE_BEHIND=0
@@ -119,6 +120,12 @@ _profile_record_reconcile_blocked() {
     local label="$1" detail="$2"
     (( _PROFILE_RECONCILE_BLOCKED_COUNT++ )) || true
     _PROFILE_RECONCILE_LINES+=("$label: $detail")
+}
+
+_profile_record_reconcile_info() {
+    local label="$1" detail="$2"
+    (( _PROFILE_RECONCILE_INFO_COUNT++ )) || true
+    _PROFILE_RECONCILE_LINES+=("[info] $label: $detail")
 }
 
 _profile_record_link_reconcile_state() {
@@ -287,22 +294,16 @@ _profile_scan_stale_managed_targets() {
         fi
 
         if [[ -d "$stale_path" && ! -L "$stale_path" ]]; then
-            if _profile_dir_is_empty "$stale_path"; then
-                _profile_record_reconcile_safe \
-                    "Stale managed target ($(_profile_display_managed_path "$stale_path"))" \
-                    "obsolete empty managed directory can be removed automatically"
-            else
-                _profile_record_reconcile_blocked \
-                    "Stale managed target ($(_profile_display_managed_path "$stale_path"))" \
-                    "managed target is no longer expected but a local directory still exists"
-            fi
+            _profile_record_reconcile_safe \
+                "Stale managed target ($(_profile_display_managed_path "$stale_path"))" \
+                "obsolete managed directory can be removed automatically"
             continue
         fi
 
         if [[ -e "$stale_path" ]]; then
-            _profile_record_reconcile_blocked \
+            _profile_record_reconcile_safe \
                 "Stale managed target ($(_profile_display_managed_path "$stale_path"))" \
-                "managed target is no longer expected but a local file still exists"
+                "obsolete managed file can be removed automatically"
         fi
     done < <(_profile_stale_managed_paths "$profiles")
 }
@@ -339,8 +340,8 @@ _profile_scan_brew_state() {
         review_to_add+="$pkg"$'\n'
     done
 
-    [[ -n "$to_install" ]] && _profile_record_reconcile_review "Brew packages" "profile expects packages that are not installed; review install vs removing them from the profile"
-    [[ -n "$review_to_add" ]] && _profile_record_reconcile_review "Brew packages" "packages are installed locally but not tracked by the active profiles; review add vs uninstall"
+    [[ -n "$to_install" ]] && _profile_record_reconcile_info "Brew packages" "profile expects packages that are not installed; run 'profile sync' to review"
+    [[ -n "$review_to_add" ]] && _profile_record_reconcile_info "Brew packages" "packages are installed locally but not tracked by the active profiles; run 'profile sync' to review"
 }
 
 _profile_scan_vscode_extensions_state() {
@@ -373,8 +374,8 @@ _profile_scan_vscode_extensions_state() {
             review_to_add+="$ext"$'\n'
         done
 
-        [[ -n "$to_install" ]] && _profile_record_reconcile_review "VSCode extensions ($inst_label)" "profile expects extensions that are not installed; review install vs removing them from the profile"
-        [[ -n "$review_to_add" ]] && _profile_record_reconcile_review "VSCode extensions ($inst_label)" "extensions are installed locally but not tracked by the active profiles; review add vs uninstall"
+        [[ -n "$to_install" ]] && _profile_record_reconcile_info "VSCode extensions ($inst_label)" "profile expects extensions that are not installed; run 'profile sync' to review"
+        [[ -n "$review_to_add" ]] && _profile_record_reconcile_info "VSCode extensions ($inst_label)" "extensions are installed locally but not tracked by the active profiles; run 'profile sync' to review"
     done <<< "$instances"
 }
 
@@ -404,8 +405,8 @@ _profile_scan_mise_tools_state() {
         review_to_add+="$tool"$'\n'
     done
 
-    [[ -n "$to_install" ]] && _profile_record_reconcile_review "Mise tools" "profile expects tools that are not installed; review install vs removing them from the profile"
-    [[ -n "$review_to_add" ]] && _profile_record_reconcile_review "Mise tools" "tools are installed locally but not tracked by the active profiles; review add vs uninstall"
+    [[ -n "$to_install" ]] && _profile_record_reconcile_info "Mise tools" "profile expects tools that are not installed; run 'profile sync' to review"
+    [[ -n "$review_to_add" ]] && _profile_record_reconcile_info "Mise tools" "tools are installed locally but not tracked by the active profiles; run 'profile sync' to review"
 }
 
 _profile_collect_reconcile_status() {
@@ -414,6 +415,7 @@ _profile_collect_reconcile_status() {
     _PROFILE_RECONCILE_SAFE_COUNT=0
     _PROFILE_RECONCILE_BLOCKED_COUNT=0
     _PROFILE_RECONCILE_CONFLICT_COUNT=0
+    _PROFILE_RECONCILE_INFO_COUNT=0
 
     _profile_scan_structured_profile_target "Claude settings" "structured_canonical" "$profiles" "claude" "settings.json" "$HOME/.claude" "json"
     _profile_scan_structured_profile_target "Codex config" "structured_canonical" "$profiles" "codex" "config.toml" "$HOME/.codex" "toml"

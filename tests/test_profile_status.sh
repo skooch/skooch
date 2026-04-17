@@ -188,7 +188,7 @@ EOF
 chmod +x "$TEST_HOME/mock-code"
 local review_output=$(profile status 2>/dev/null)
 assert_contains "$review_output" "Checkpoint: current"
-assert_contains "$review_output" "Conflicts requiring review: 1"
+assert_contains "$review_output" "Tool inventory has informational differences"
 assert_contains "$review_output" "VSCode extensions (MockCode)"
 assert_not_contains "$review_output" "Everything is in sync."
 

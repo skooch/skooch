@@ -610,7 +610,7 @@ fi
 _TEST_NAME="profile sync reports stale managed link pruning"
 assert_contains "$prune_output" "Removed stale managed link: ~/.codex/hooks/permission_bridge.py"
 
-_TEST_NAME="profile use surfaces blocked stale managed cleanup"
+_TEST_NAME="profile use auto-cleans stale managed directory with backup"
 HOME="$TEST_HOME"
 _profile_apply_cbm() {
     return 0
@@ -629,7 +629,6 @@ _profile_apply_codex "default" >/dev/null 2>&1
 _profile_apply_mise "default" >/dev/null 2>&1
 _test_write_managed "default"
 _profile_take_snapshot "default"
-local use_checkpoint_before=$(cat "$PROFILE_CHECKPOINT_FILE")
 rm -f "$PROFILES_DIR/default/codex/hooks/permission_bridge.py"
 rm -f "$TEST_HOME/.codex/hooks/permission_bridge.py"
 mkdir -p "$TEST_HOME/.codex/hooks/permission_bridge.py"
@@ -639,15 +638,73 @@ profile use default > "$use_tmpout" 2>&1
 local use_rc=$?
 local use_output=$(cat "$use_tmpout")
 rm -f "$use_tmpout"
-assert_eq "2" "$use_rc"
+assert_eq "0" "$use_rc"
 
-_TEST_NAME="profile use reports blocked stale managed cleanup"
-assert_contains "$use_output" "Stale managed target requires review: ~/.codex/hooks/permission_bridge.py"
-assert_contains "$use_output" "Checkpoint not updated because profile switch still requires review."
+_TEST_NAME="profile use backs up and removes stale managed directory"
+assert_contains "$use_output" "Backed up and removed stale managed directory: ~/.codex/hooks/permission_bridge.py"
+if [[ -e "$TEST_HOME/.codex/hooks/permission_bridge.py" ]]; then
+    fail "stale directory should be removed"
+else
+    pass
+fi
 
-_TEST_NAME="profile use does not update checkpoint when stale cleanup is blocked"
-local use_checkpoint_after=$(cat "$PROFILE_CHECKPOINT_FILE")
-assert_eq "$use_checkpoint_before" "$use_checkpoint_after"
+_TEST_NAME="profile use creates backup for stale managed directory"
+local backup_dir="$PROFILE_STATE_DIR/backups"
+local backup_count=$(ls "$backup_dir"/permission_bridge.py.* 2>/dev/null | wc -l | tr -d ' ')
+assert_neq "0" "$backup_count"
+
+_TEST_NAME="profile use auto-removes unmodified stale managed file"
+HOME="$TEST_HOME"
+echo "default" > "$PROFILE_ACTIVE_FILE"
+# Create a regular file (not symlink) as a managed target
+local stale_test_file="$TEST_HOME/.codex/stale-test-config.json"
+echo '{"stale": true}' > "$stale_test_file"
+_profile_apply_codex "default" >/dev/null 2>&1
+_test_write_managed "default"
+echo "$stale_test_file" >> "$PROFILE_MANAGED_FILE"
+printf '%s\t%s\n' "$stale_test_file" "$(_platform_md5 "$stale_test_file")" >> "$PROFILE_STATE_DIR/snapshot-local"
+_profile_take_snapshot "default"
+printf '%s\t%s\n' "$stale_test_file" "$(_platform_md5 "$stale_test_file")" >> "$PROFILE_STATE_DIR/snapshot-local"
+# Touch a profile source to invalidate the hash so profile use proceeds past no-op check
+echo '# stale file test' >> "$PROFILES_DIR/default/codex/config.toml"
+local stale_tmpout=$(mktemp)
+profile use default > "$stale_tmpout" 2>&1
+local stale_output=$(cat "$stale_tmpout")
+rm -f "$stale_tmpout"
+assert_contains "$stale_output" "Removed stale managed file"
+assert_not_contains "$stale_output" "Backed up"
+if [[ -e "$stale_test_file" ]]; then
+    fail "unmodified stale file should be removed"
+else
+    pass
+fi
+
+_TEST_NAME="profile use backs up modified stale managed file"
+HOME="$TEST_HOME"
+echo "default" > "$PROFILE_ACTIVE_FILE"
+local stale_mod_file="$TEST_HOME/.codex/stale-mod-config.json"
+echo '{"original": true}' > "$stale_mod_file"
+local orig_hash=$(_platform_md5 "$stale_mod_file")
+_profile_apply_codex "default" >/dev/null 2>&1
+_test_write_managed "default"
+echo "$stale_mod_file" >> "$PROFILE_MANAGED_FILE"
+printf '%s\t%s\n' "$stale_mod_file" "$orig_hash" >> "$PROFILE_STATE_DIR/snapshot-local"
+_profile_take_snapshot "default"
+printf '%s\t%s\n' "$stale_mod_file" "$orig_hash" >> "$PROFILE_STATE_DIR/snapshot-local"
+# Modify the file so hash diverges from snapshot
+echo '{"modified": true}' > "$stale_mod_file"
+# Touch a profile source to invalidate the hash so profile use proceeds past no-op check
+echo '# mod file test' >> "$PROFILES_DIR/default/codex/config.toml"
+local mod_tmpout=$(mktemp)
+profile use default > "$mod_tmpout" 2>&1
+local mod_output=$(cat "$mod_tmpout")
+rm -f "$mod_tmpout"
+assert_contains "$mod_output" "Backed up and removed stale managed file"
+if [[ -e "$stale_mod_file" ]]; then
+    fail "modified stale file should be removed after backup"
+else
+    pass
+fi
 
 # Restore default
 _PROFILE_INPUT=/dev/stdin

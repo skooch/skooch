@@ -168,4 +168,37 @@ local checkpoint_output=$(_profile_check_drift 2>/dev/null)
 assert_contains "$checkpoint_output" "changed since the last checkpoint"
 assert_contains "$checkpoint_output" "profile status"
 
+_TEST_NAME="check_drift does not nag for brew-only mismatches"
+# Restore canonical state first
+cat > "$PROFILES_DIR/default/codex/config.toml" << 'EOF'
+model = "gpt-5.4"
+
+[features]
+codex_hooks = true
+EOF
+_profile_apply_claude "default" >/dev/null 2>&1
+_profile_apply_codex "default" >/dev/null 2>&1
+_profile_apply_mise "default" >/dev/null 2>&1
+_profile_apply_git "default" >/dev/null 2>&1
+_profile_take_snapshot "default"
+# Mock brew to report a mismatch: profile expects "jq" but its not installed
+brew() {
+    case "$1" in
+        leaves)
+            echo "git"
+            ;;
+        list)
+            [[ "$2" == "--cask" ]] && return 0
+            ;;
+    esac
+    return 0
+}
+# Add jq to the Brewfile so there is a to_install mismatch
+echo 'brew "jq"' >> "$PROFILES_DIR/default/Brewfile"
+local brew_drift=$(_profile_check_drift 2>/dev/null)
+assert_not_contains "$brew_drift" "need review"
+assert_not_contains "$brew_drift" "safe changes"
+# Restore Brewfile
+sed -i '' '/brew "jq"/d' "$PROFILES_DIR/default/Brewfile"
+
 _test_summary
