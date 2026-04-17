@@ -69,3 +69,6 @@ export PATH="$HOME/.bun/bin:$PATH"
 
 # Added by codebase-memory-mcp install
 export PATH="$HOME/.local/bin:$PATH"
+
+# Added by codebase-memory-mcp install
+export PATH="/Users/skooch/.local/bin:$PATH"

@@ -460,6 +460,7 @@
       }
     }
   },
+  "enableAllProjectMcpServers": true,
   "alwaysThinkingEnabled": true,
   "effortLevel": "medium",
   "voiceEnabled": true,

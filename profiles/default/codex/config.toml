@@ -251,7 +251,7 @@ approval_mode = "approve"
 approval_mode = "approve"
 
 [mcp_servers.codebase-memory-mcp]
-command = "codebase-memory-mcp"
+command = "/Users/skooch/.local/bin/codebase-memory-mcp"
 
 [mcp_servers.codebase-memory-mcp.tools.index_repository]
 approval_mode = "approve"
