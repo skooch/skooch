@@ -680,18 +680,25 @@ _profile_sync_preflight() {
             return 0
             ;;
         behind)
+            # git pull --ff-only is safe even with a dirty worktree: it refuses and leaves
+            # the tree untouched if any local change would be overwritten.
+            local pull_err_file=$(mktemp)
+            if git -C "$DOTFILES_DIR" pull --ff-only 2>"$pull_err_file" >/dev/null; then
+                rm -f "$pull_err_file"
+                _PROFILE_REMOTE_STATE="current"
+                _PROFILE_REMOTE_MESSAGE="Dotfiles repo was fast-forwarded before syncing."
+                return 0
+            fi
+            local pull_err=$(<"$pull_err_file")
+            rm -f "$pull_err_file"
+            echo "$_PROFILE_REMOTE_MESSAGE"
             if _profile_git_worktree_dirty; then
-                echo "$_PROFILE_REMOTE_MESSAGE"
-                echo "Pull the upstream changes before syncing because the dotfiles worktree is dirty."
-                return 1
+                echo "Fast-forward failed — local changes in the dotfiles worktree conflict with upstream."
+                echo "Commit or stash the conflicting files, then run 'profile sync' again."
+            else
+                echo "Fast-forward failed: ${pull_err#fatal: }"
             fi
-            if ! git -C "$DOTFILES_DIR" pull --ff-only --quiet >/dev/null 2>&1; then
-                echo "Could not fast-forward the dotfiles repo before syncing."
-                return 1
-            fi
-            _PROFILE_REMOTE_STATE="current"
-            _PROFILE_REMOTE_MESSAGE="Dotfiles repo was fast-forwarded before syncing."
-            return 0
+            return 1
             ;;
         diverged)
             echo "$_PROFILE_REMOTE_MESSAGE"
