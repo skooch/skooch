@@ -522,8 +522,19 @@ _profile_apply_tmux() {
 
 _profile_apply_cbm() {
     if ! command -v codebase-memory-mcp &>/dev/null; then
-        echo "codebase-memory-mcp: not installed, skipping"
-        return 0
+        echo "Installing codebase-memory-mcp..."
+        if ! curl -fsSL https://raw.githubusercontent.com/DeusData/codebase-memory-mcp/main/install.sh \
+            | bash -s -- --skip-config 2>&1 | sed 's/^/  /'; then
+            echo "codebase-memory-mcp: install failed, skipping config"
+            return 0
+        fi
+        # Installer writes to ~/.local/bin; ensure it's on PATH for the config step below
+        [[ ":$PATH:" == *":$HOME/.local/bin:"* ]] || export PATH="$HOME/.local/bin:$PATH"
+        hash -r 2>/dev/null
+        if ! command -v codebase-memory-mcp &>/dev/null; then
+            echo "codebase-memory-mcp: install claimed success but binary not on PATH"
+            return 0
+        fi
     fi
 
     echo "Configuring codebase-memory-mcp..."
