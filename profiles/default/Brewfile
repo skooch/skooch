@@ -1,5 +1,4 @@
 tap "homebrew/autoupdate"
-tap "mylee04/tools"
 
 # Core CLI (macOS needs GNU tools; Linux has them natively)
 if OS.mac?
@@ -46,7 +45,7 @@ brew "mtr"              # Network diagnostics
 brew "nmap"
 
 # AI
-brew "code-notify"      # Desktop notifications for Claude Code / Codex / Gemini
+brew "mylee04/tools/code-notify"  # Desktop notifications for Claude Code / Codex / Gemini
 
 
 # Media
