@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codebase Memory Exploring"
+  short_description: "Codebase knowledge graph expert. ALWAYS invoke this skill when the user explores code, searches for functions/classes/routes, asks about architecture, or needs codebase orientation. Do not use Grep, Glob, or file search directly — use codebase-memory-mcp search_graph and get_architecture first."
+  default_prompt: "Use $codebase-memory-exploring to run the Codebase Memory Exploring workflow."

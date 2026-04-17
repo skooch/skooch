@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codebase Memory Quality"
+  short_description: "Code quality analysis expert. ALWAYS invoke this skill when the user asks about dead code, unused functions, complexity, refactor candidates, or cleanup opportunities. Do not search files manually — use codebase-memory-mcp search_graph with degree filters first."
+  default_prompt: "Use $codebase-memory-quality to run the Codebase Memory Quality workflow."
