@@ -300,6 +300,7 @@
       "~/.cache"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "hooks": {
     "UserPromptSubmit": [
       {
@@ -425,7 +426,6 @@
       }
     ]
   },
-  "defaultMode": "acceptEdits",
   "statusLine": {
     "type": "command",
     "command": "~/.claude/statusline.sh"
@@ -460,12 +460,12 @@
       }
     }
   },
-  "enableAllProjectMcpServers": true,
   "alwaysThinkingEnabled": true,
-  "effortLevel": "medium",
-  "voiceEnabled": true,
+  "effortLevel": "xhigh",
   "voice": {
     "enabled": true,
     "mode": "hold"
-  }
+  },
+  "voiceEnabled": true,
+  "defaultMode": "acceptEdits"
 }
