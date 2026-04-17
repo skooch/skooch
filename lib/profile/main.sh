@@ -437,6 +437,15 @@ profile() {
             echo "Flags:"
             echo "  -f, --force                      Force use even if already up to date"
             echo ""
+            echo "Upgrading codebase-memory-mcp agent config:"
+            echo "  'profile use' only installs the cbm binary; hooks and MCP entries are"
+            echo "  vendored in this repo. To adopt upstream config changes from a newer"
+            echo "  cbm release:"
+            echo "      codebase-memory-mcp install -y"
+            echo "      profile sync"
+            echo "  'profile sync' walks each drifted file interactively — keep the parts"
+            echo "  you want, reject host-scoped paths, then commit."
+            echo ""
             echo "Available profiles:"
             local active=$(_profile_active)
             for dir in "$PROFILES_DIR"/*/; do

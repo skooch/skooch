@@ -353,6 +353,15 @@
             "statusMessage": "Checking bash command..."
           }
         ]
+      },
+      {
+        "matcher": "Grep|Glob|Read|Search",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/cbm-code-discovery-gate"
+          }
+        ]
       }
     ],
     "PostToolUse": [

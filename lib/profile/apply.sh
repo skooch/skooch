@@ -519,16 +519,29 @@ _profile_apply_tmux() {
 }
 
 # --- codebase-memory-mcp ---
+#
+# Ownership split: we bootstrap the binary here, but agent config (hooks,
+# MCP server entries, session reminders) is vendored in profiles/default/*
+# and written by the profile system's own apply functions.
+#
+# We deliberately do NOT run `codebase-memory-mcp install -y`. That command
+# is a multi-agent bootstrapper that would mutate settings.json, config.toml,
+# and hooks we already manage — producing host-scoped paths, duplicate
+# .zshrc PATH entries, and phantom drift on every `profile use`.
+#
+# To adopt upstream agent-config changes from a newer cbm release, run
+# `codebase-memory-mcp install -y` manually, then `profile sync` to review
+# the drift and import the changes you want. See `profile help`.
 
 _profile_apply_cbm() {
     if ! command -v codebase-memory-mcp &>/dev/null; then
         echo "Installing codebase-memory-mcp..."
         if ! curl -fsSL https://raw.githubusercontent.com/DeusData/codebase-memory-mcp/main/install.sh \
             | bash -s -- --skip-config 2>&1 | sed 's/^/  /'; then
-            echo "codebase-memory-mcp: install failed, skipping config"
+            echo "codebase-memory-mcp: install failed"
             return 0
         fi
-        # Installer writes to ~/.local/bin; ensure it's on PATH for the config step below
+        # Installer writes to ~/.local/bin; ensure it's on PATH for the version check below
         [[ ":$PATH:" == *":$HOME/.local/bin:"* ]] || export PATH="$HOME/.local/bin:$PATH"
         hash -r 2>/dev/null
         if ! command -v codebase-memory-mcp &>/dev/null; then
@@ -537,8 +550,9 @@ _profile_apply_cbm() {
         fi
     fi
 
-    echo "Configuring codebase-memory-mcp..."
-    codebase-memory-mcp install -y 2>&1 | sed 's/^/  /'
+    local version
+    version=$(codebase-memory-mcp --version 2>/dev/null | awk '{print $NF}')
+    echo "codebase-memory-mcp: installed (${version:-unknown})"
 }
 
 # --- Git cache ---
