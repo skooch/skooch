@@ -1008,16 +1008,8 @@ _profile_ingest_single_skill() {
         local display_name="" short_desc=""
         # Extract from SKILL.md frontmatter
         if head -1 "$target/SKILL.md" | grep -q '^---'; then
-            display_name=$(sed -n '/^---$/,/^---$/{ /^name:/{ s/^name:[[:space:]]*//; p; q; } }' "$target/SKILL.md")
-            short_desc=$(sed -n '/^---$/,/^---$/{
-                /^description:/{
-                    s/^description:[[:space:]]*>\{0,1\}[[:space:]]*//
-                    /./{ p; q; }
-                    n
-                    s/^[[:space:]]*//
-                    p; q
-                }
-            }' "$target/SKILL.md")
+            display_name=$(skill_frontmatter_name "$target/SKILL.md")
+            short_desc=$(skill_frontmatter_desc "$target/SKILL.md")
         fi
         # Fallback to skill name
         [[ -z "$display_name" ]] && display_name="$skill_name"

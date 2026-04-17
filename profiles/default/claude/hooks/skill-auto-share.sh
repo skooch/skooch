@@ -46,6 +46,9 @@ SKILL_NAME="${SKILL_DIR##*/}"
 DOTFILES_DIR="${DOTFILES_DIR:-$HOME/projects/skooch}"
 PROFILES_DIR="$DOTFILES_DIR/profiles"
 
+# shellcheck source=../../../../lib/skill-frontmatter.sh
+source "$DOTFILES_DIR/lib/skill-frontmatter.sh"
+
 # Check if skill already exists in a profile
 for profile_dir in "$PROFILES_DIR"/*/; do
     [ -d "${profile_dir}skills/shared/$SKILL_NAME" ] && exit 0
@@ -63,16 +66,8 @@ if [ ! -f "$TARGET/agents/openai.yaml" ]; then
     DISPLAY_NAME=""
     SHORT_DESC=""
     if head -1 "$TARGET/SKILL.md" | grep -q '^---'; then
-        DISPLAY_NAME=$(sed -n '/^---$/,/^---$/{ /^name:/{ s/^name:[[:space:]]*//; p; q; } }' "$TARGET/SKILL.md")
-        SHORT_DESC=$(sed -n '/^---$/,/^---$/{
-            /^description:/{
-                s/^description:[[:space:]]*>\{0,1\}[[:space:]]*//
-                /./{ p; q; }
-                n
-                s/^[[:space:]]*//
-                p; q
-            }
-        }' "$TARGET/SKILL.md")
+        DISPLAY_NAME=$(skill_frontmatter_name "$TARGET/SKILL.md")
+        SHORT_DESC=$(skill_frontmatter_desc "$TARGET/SKILL.md")
     fi
     [ -z "$DISPLAY_NAME" ] && DISPLAY_NAME="$SKILL_NAME"
     [ -z "$SHORT_DESC" ] && SHORT_DESC="$SKILL_NAME skill"

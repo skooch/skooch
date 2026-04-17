@@ -51,6 +51,10 @@ echo 'ext.default' > "$TEST_DOTFILES/profiles/default/vscode/extensions.txt"
 echo '{"Profiles":[{"Name":"Default"}]}' > "$TEST_DOTFILES/profiles/default/iterm/profile.json"
 echo 'brew "git"' > "$TEST_DOTFILES/profiles/default/Brewfile"
 
+# Expose lib/ helpers that hook scripts source at runtime via $DOTFILES_DIR
+mkdir -p "$TEST_DOTFILES/lib"
+ln -sf "${0:A:h}/../lib/skill-frontmatter.sh" "$TEST_DOTFILES/lib/skill-frontmatter.sh"
+
 echo '{"extra": true}' > "$TEST_DOTFILES/profiles/testprofile/claude/settings.json"
 cat > "$TEST_DOTFILES/profiles/testprofile/codex/config.toml" << 'EOF'
 approval_policy = "on-request"
@@ -84,6 +88,8 @@ _PROFILE_INPUT=/dev/stdin
 
 # Source the profile system
 _PROFILE_LIB_DIR="${0:A:h}/../lib/profile"
+_DOTFILES_LIB_DIR="${0:A:h}/../lib"
+source "$_DOTFILES_LIB_DIR/skill-frontmatter.sh"
 source "$_PROFILE_LIB_DIR/platform.sh"
 source "$_PROFILE_LIB_DIR/init.sh"
 

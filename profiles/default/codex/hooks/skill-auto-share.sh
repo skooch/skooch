@@ -6,6 +6,9 @@
 DOTFILES_DIR="${DOTFILES_DIR:-$HOME/projects/skooch}"
 PROFILES_DIR="$DOTFILES_DIR/profiles"
 
+# shellcheck source=../../../../lib/skill-frontmatter.sh
+source "$DOTFILES_DIR/lib/skill-frontmatter.sh"
+
 skill_exists_in_profile() {
     local skill_name="$1"
     for profile_dir in "$PROFILES_DIR"/*/; do
@@ -22,16 +25,8 @@ scaffold_openai_yaml() {
 
     local display_name="" short_desc=""
     if head -1 "$target/SKILL.md" | grep -q '^---'; then
-        display_name=$(sed -n '/^---$/,/^---$/{ /^name:/{ s/^name:[[:space:]]*//; p; q; } }' "$target/SKILL.md")
-        short_desc=$(sed -n '/^---$/,/^---$/{
-            /^description:/{
-                s/^description:[[:space:]]*>\{0,1\}[[:space:]]*//
-                /./{ p; q; }
-                n
-                s/^[[:space:]]*//
-                p; q
-            }
-        }' "$target/SKILL.md")
+        display_name=$(skill_frontmatter_name "$target/SKILL.md")
+        short_desc=$(skill_frontmatter_desc "$target/SKILL.md")
     fi
     [ -z "$display_name" ] && display_name="$skill_name"
     [ -z "$short_desc" ] && short_desc="$skill_name skill"

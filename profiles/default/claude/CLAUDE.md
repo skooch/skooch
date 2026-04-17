@@ -91,6 +91,7 @@
 - No quotes/apostrophes in `#` shell comments.
 - Guard `curl | json` pipelines against empty responses (`-f` or check status).
 - Inspect API response shapes before writing field access code.
+- Always write shell commands and scripts to work under both BSD (macOS default) and GNU (Linux default) variants of `sed`, `awk`, `grep`, `find`, `date`, `readlink`, `xargs`, `stat`, etc. If a feature only exists in one variant, either use a portable alternative (often `awk` or `perl`) or branch on `uname`. Common traps: `sed -i` syntax differs, BSD `sed` requires `{...}` closing `}` on its own line, `grep -P` is GNU-only, `date -d` vs `date -v`, `readlink -f` is GNU-only, `find -mindepth` is GNU-only, `xargs -r` is GNU-only, `stat -c` vs `stat -f`.
 
 ## Logging bugs
 - If you come across something that is likely a bug, but don't consider it a blocker related to the task at hand, stop and ask the user if you should log it before continuing
