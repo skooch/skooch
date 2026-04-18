@@ -5,6 +5,13 @@
 
 set -euo pipefail
 
+# Isolate sandbox state from any git env vars leaked by a parent process.
+# When invoked from a git hook (e.g. pre-commit), git exports GIT_DIR,
+# GIT_INDEX_FILE, GIT_PREFIX, GIT_WORK_TREE into the hook environment. Any
+# child `git` invocation in tests or helpers would otherwise point at the
+# caller's git dir instead of the test sandbox.
+unset GIT_DIR GIT_INDEX_FILE GIT_PREFIX GIT_WORK_TREE GIT_OBJECT_DIRECTORY GIT_NAMESPACE
+
 TESTS_DIR="${0:A:h}"
 
 # Determine zsh binary
