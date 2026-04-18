@@ -7,8 +7,38 @@
 SETTINGS="${CLAUDE_SETTINGS_FILE:-$HOME/.claude/settings.json}"
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // ""')
+TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.transcript_path // ""')
+CWD=$(echo "$INPUT" | jq -r '.cwd // ""')
 
 [ -z "$COMMAND" ] && echo '{}' && exit 0
+
+# Returns 0 if the given first-token resolves to a file that was Write'd or
+# Edit'd earlier in this session's transcript. Canonicalizes both sides via
+# os.path.realpath to handle symlinks. Fail-safe: returns 1 on any
+# missing/unreadable transcript or jq/python error. Never approves on error.
+session_authored() {
+    local token="$1"
+    [ -z "$TRANSCRIPT_PATH" ] && return 1
+    [ -r "$TRANSCRIPT_PATH" ] || return 1
+    local authored
+    authored=$(jq -rc 'select(.message.content[]? | .type=="tool_use" and (.name=="Write" or .name=="Edit")) | .message.content[] | select(.type=="tool_use" and (.name=="Write" or .name=="Edit")) | .input.file_path' "$TRANSCRIPT_PATH" 2>/dev/null) || return 1
+    [ -z "$authored" ] && return 1
+    CWD="$CWD" TOKEN="$token" AUTHORED="$authored" python3 -c '
+import os, sys
+cwd = os.environ.get("CWD") or os.getcwd()
+tok = os.environ.get("TOKEN", "")
+if not tok:
+    sys.exit(1)
+probe = tok if os.path.isabs(tok) else os.path.join(cwd, tok)
+probe = os.path.realpath(probe)
+for line in os.environ.get("AUTHORED", "").splitlines():
+    if not line:
+        continue
+    if os.path.realpath(line) == probe:
+        sys.exit(0)
+sys.exit(1)
+' 2>/dev/null
+}
 
 # Extract allowed prefixes from Bash() permissions in settings.json
 # Bash(git:*) -> git, Bash(defaults read:*) -> defaults, Bash([:*) -> [
@@ -121,6 +151,7 @@ PROCESSED=$(preprocess "$COMMAND")
 [ -z "$PROCESSED" ] && echo '{}' && exit 0
 
 all_allowed=true
+used_session_authored=false
 in_heredoc=""
 while IFS= read -r line; do
     # Track heredoc state -- skip body lines
@@ -164,9 +195,10 @@ while IFS= read -r line; do
             '$'*) continue ;;
         esac
 
-        # Allow absolute and relative paths -- user explicitly specified the binary
+        # Allow explicit paths; also allow bare relatives (foo/bar) if session-authored.
         case "$first" in
             /*|./*|../*) continue ;;
+            */*) if session_authored "$first"; then used_session_authored=true; continue; fi ;;
         esac
 
         # Strip path prefix in case a relative path slipped through
@@ -180,7 +212,11 @@ while IFS= read -r line; do
 done <<< "$PROCESSED"
 
 if [ "$all_allowed" = true ]; then
-    echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"All command prefixes are in allow list"}}'
+    if [ "$used_session_authored" = true ]; then
+        echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"All command prefixes are in allow list (includes session-authored provenance)"}}'
+    else
+        echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"All command prefixes are in allow list"}}'
+    fi
 else
     echo '{}'
 fi
