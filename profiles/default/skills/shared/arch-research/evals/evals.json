@@ -1,0 +1,26 @@
+{
+  "skill_name": "arch-research",
+  "evals": [
+    {
+      "id": 1,
+      "name": "generic-backend-postgres-errors",
+      "prompt": "We're building a Go backend service. Can you research Postgres's error handling approach — how they classify errors, how error codes work, what retry semantics look like — and produce a comparison doc that tells us which ideas are worth adopting?",
+      "expected_output": "Comparison doc exists at the project's resolved comparisons path (detected from agent-facing docs; default docs/comparisons/postgres.md). Intro names Go as the stack and error-handling as the lens. Contains 'Where We Already Match or Beat Postgres' table with at least 3 rows, each Us cell citing a file path or graph node. Contains tiered 'Ideas Worth Stealing' entries. Each idea has Classification (adopt/translate/keep/skip/ask) and Tier. Cites primary sources (Postgres docs, source repo, SQLSTATE spec). Contains no verbatim C code copied from Postgres. Contains 'Concepts That Don't Apply' table. Ends with summary + priority list using domain-appropriate categories.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "creative-tool-pdf-converter",
+      "prompt": "I'm maintaining a PDF-to-HTML converter and want to understand how Pandoc structures its AST-based converter pipeline. Research Pandoc with a focus on its intermediate representation and filter system. Produce a comparison doc.",
+      "expected_output": "Comparison doc exists at resolved path (default docs/comparisons/pandoc.md). Intro names the converter-pipeline domain and the focus lens (IR + filters). Contains grounded Us column with file citations. Contains tiered ideas with classification labels. Cites Pandoc's documentation and Haskell source (via gh). No verbatim Haskell code copied. Matches the skill's output contract section by section.",
+      "files": []
+    },
+    {
+      "id": 3,
+      "name": "historical-inspirational-xerox-parc",
+      "prompt": "We're designing a new document editor. Research the Xerox PARC systems (Smalltalk, Bravo, Alto) for their document editing and UI architecture ideas. Treat it as an inspirational / historical comparison.",
+      "expected_output": "Comparison doc exists at resolved path (default docs/comparisons/xerox-parc.md or similar). Intro explicitly frames the comparison as historical/inspirational. All Ideas Worth Stealing entries have Classification of translate or keep (not adopt — per historical override rules). Proposed fields translate patterns into modern document-editor vocabulary without suggesting literal code ports. No Tier field says 'adopt' for a historical entry. Cites preservation projects, oral histories, or original papers. Concepts That Don't Apply table acknowledges era-specific constraints.",
+      "files": []
+    }
+  ]
+}

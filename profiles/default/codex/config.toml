@@ -296,6 +296,6 @@ approval_mode = "approve"
 approval_mode = "approve"
 
 [marketplaces.openai-bundled]
-last_updated = "2026-04-17T08:49:56Z"
+last_updated = "2026-04-19T07:50:22Z"
 source_type = "local"
 source = "/Users/skooch/.codex/.tmp/bundled-marketplaces/openai-bundled"
