@@ -40,6 +40,47 @@ sys.exit(1)
 ' 2>/dev/null
 }
 
+# Returns 0 if $1 is a bare path (not a flag) that resolves to an existing
+# regular file inside the current project tree. "Project tree" = nearest
+# ancestor of CWD containing a .git entry, falling back to CWD itself. Used
+# to auto-allow interpreter invocations like "bash tests/run.sh" without
+# requiring `bash` in the allow list, while still prompting for scripts
+# outside the project.
+project_local_script() {
+    local candidate="$1"
+    [ -z "$candidate" ] && return 1
+    [ -z "$CWD" ] && return 1
+    case "$candidate" in -*) return 1 ;; esac
+    CWD="$CWD" CAND="$candidate" python3 -c '
+import os, sys
+cwd = os.environ.get("CWD") or os.getcwd()
+cand = os.environ.get("CAND", "")
+if not cand:
+    sys.exit(1)
+# Walk up from CWD looking for .git; fall back to CWD if none found.
+root = os.path.abspath(cwd)
+while True:
+    if os.path.exists(os.path.join(root, ".git")):
+        break
+    parent = os.path.dirname(root)
+    if parent == root:
+        root = os.path.abspath(cwd)
+        break
+    root = parent
+root = os.path.realpath(root)
+path = cand if os.path.isabs(cand) else os.path.join(cwd, cand)
+try:
+    path = os.path.realpath(path)
+except Exception:
+    sys.exit(1)
+if not os.path.isfile(path):
+    sys.exit(1)
+if path == root or path.startswith(root + os.sep):
+    sys.exit(0)
+sys.exit(1)
+' 2>/dev/null
+}
+
 # Extract allowed prefixes from Bash() permissions in settings.json
 # Bash(git:*) -> git, Bash(defaults read:*) -> defaults, Bash([:*) -> [
 ALLOW_LIST=$(jq -r '.permissions.allow[]? // empty' "$SETTINGS" 2>/dev/null \
@@ -183,6 +224,7 @@ PROCESSED="${PROCESSED//)/ }"
 
 all_allowed=true
 used_session_authored=false
+used_local_script=false
 in_heredoc=""
 while IFS= read -r line; do
     # Track heredoc state -- skip body lines
@@ -235,6 +277,27 @@ while IFS= read -r line; do
         # Strip path prefix in case a relative path slipped through
         base="${first##*/}"
 
+        # Fast path: "bash script.sh" / "zsh script.sh" style invocations
+        # where the script lives inside the project tree. Gated on the raw
+        # $COMMAND being free of URLs, backticks, and $(...) substitutions
+        # — dynamic construction warrants manual review. Second token must
+        # be a bare path (no leading '-' flag like `bash -c "..."`).
+        case "$base" in
+            bash|sh|zsh|dash)
+                case "$COMMAND" in
+                    *'http://'*|*'https://'*|*'ftp://'*|*'file://'*) ;;
+                    *'$('*|*'`'*) ;;
+                    *)
+                        second=$(echo "$stmt" | awk '{print $2}')
+                        if project_local_script "$second"; then
+                            used_local_script=true
+                            continue
+                        fi
+                        ;;
+                esac
+                ;;
+        esac
+
         if ! allow_match "$base"; then
             all_allowed=false
             break 2
@@ -243,11 +306,14 @@ while IFS= read -r line; do
 done <<< "$PROCESSED"
 
 if [ "$all_allowed" = true ]; then
-    if [ "$used_session_authored" = true ]; then
-        echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"All command prefixes are in allow list (includes session-authored provenance)"}}'
-    else
-        echo '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"All command prefixes are in allow list"}}'
+    reason="All command prefixes are in allow list"
+    provenance=""
+    [ "$used_session_authored" = true ] && provenance="session-authored"
+    if [ "$used_local_script" = true ]; then
+        provenance="${provenance:+$provenance and }project-local script"
     fi
+    [ -n "$provenance" ] && reason="$reason (includes $provenance provenance)"
+    printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","permissionDecision":"allow","permissionDecisionReason":"%s"}}\n' "$reason"
 else
     echo '{}'
 fi

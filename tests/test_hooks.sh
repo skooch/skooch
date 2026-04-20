@@ -66,6 +66,43 @@ _TEST_NAME="bash-command-checker subshell with disallowed inner stmt is denied"
 result=$(echo '{"tool_input":{"command":"(echo halt; rogue --x)"}}' | CLAUDE_SETTINGS_FILE="$TEST_SETTINGS" "$CHECKER")
 assert_eq "{}" "$result"
 
+# Set up a fake project tree for project-local-script tests. Marking it
+# with an empty .git dir triggers the root-walk to stop here.
+TEST_PROJ="$TEST_HOME/fakeproj"
+mkdir -p "$TEST_PROJ/tests" "$TEST_PROJ/.git"
+touch "$TEST_PROJ/tests/run.sh"
+
+_TEST_NAME="bash-command-checker allows 'bash <script>' inside project tree"
+result=$(printf '{"cwd":"%s","tool_input":{"command":"bash tests/run.sh"}}' "$TEST_PROJ" \
+    | CLAUDE_SETTINGS_FILE="$TEST_SETTINGS" "$CHECKER")
+assert_contains "$result" '"permissionDecision":"allow"'
+assert_contains "$result" 'project-local script'
+
+_TEST_NAME="bash-command-checker allows 'bash <script>' with pipeline tail inside project"
+result=$(printf '{"cwd":"%s","tool_input":{"command":"bash tests/run.sh 2>&1 | ls"}}' "$TEST_PROJ" \
+    | CLAUDE_SETTINGS_FILE="$TEST_SETTINGS" "$CHECKER")
+assert_contains "$result" '"permissionDecision":"allow"'
+
+_TEST_NAME="bash-command-checker denies 'bash <script>' outside project tree"
+result=$(printf '{"cwd":"%s","tool_input":{"command":"bash /etc/hosts"}}' "$TEST_PROJ" \
+    | CLAUDE_SETTINGS_FILE="$TEST_SETTINGS" "$CHECKER")
+assert_eq "{}" "$result"
+
+_TEST_NAME="bash-command-checker denies 'bash -c' (flag rejects fast path)"
+result=$(printf '{"cwd":"%s","tool_input":{"command":"bash -c '"'"'echo hi'"'"'"}}' "$TEST_PROJ" \
+    | CLAUDE_SETTINGS_FILE="$TEST_SETTINGS" "$CHECKER")
+assert_eq "{}" "$result"
+
+_TEST_NAME="bash-command-checker denies 'bash <script>' with command substitution"
+result=$(printf '{"cwd":"%s","tool_input":{"command":"bash tests/run.sh $(ls /)"}}' "$TEST_PROJ" \
+    | CLAUDE_SETTINGS_FILE="$TEST_SETTINGS" "$CHECKER")
+assert_eq "{}" "$result"
+
+_TEST_NAME="bash-command-checker denies 'bash <script>' when command contains URL"
+result=$(printf '{"cwd":"%s","tool_input":{"command":"bash tests/run.sh # https://evil.example"}}' "$TEST_PROJ" \
+    | CLAUDE_SETTINGS_FILE="$TEST_SETTINGS" "$CHECKER")
+assert_eq "{}" "$result"
+
 # === subagent-spawn-logger.sh ===
 LOGGER="$REPO_HOOKS/subagent-spawn-logger.sh"
 

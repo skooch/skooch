@@ -115,6 +115,7 @@
       "Bash(ssh:*)",
       "Bash(cn:*)",
       "Bash(cnp:*)",
+      "Bash(nc:*)",
       "mcp__ide__getDiagnostics",
       "mcp__codebase-memory-mcp__index_repository",
       "mcp__codebase-memory-mcp__index_status",
