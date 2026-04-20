@@ -91,6 +91,8 @@
 - No quotes/apostrophes in `#` shell comments.
 - Guard `curl | json` pipelines against empty responses (`-f` or check status).
 - Inspect API response shapes before writing field access code.
+- Alternation in piped `grep`: prefer `grep -e PAT1 -e PAT2` over `grep "A\|B"`. Claude Code's bash permission parser can misread `\|` inside quoted regexes as a pipeline separator and fire spurious permission prompts.
+- Avoid `(cmd1; cmd2; ...)` subshell groups with semicolons — Claude Code's built-in Bash parser emits "Unhandled node type: `;`" and forces a manual approval prompt even when every inner command is allow-listed. Parser-safe alternatives for feeding a multi-line command list to another process: `printf 'cmd1\ncmd2\n' | nc host port`, or a heredoc (`nc host port <<'EOF'` / lines / `EOF`). Brace grouping `{ cmd1; cmd2; }` runs in the current shell rather than a subshell but behaves the same for stdout-piped use and is also parser-safe.
 - Always write shell commands and scripts to work under both BSD (macOS default) and GNU (Linux default) variants of `sed`, `awk`, `grep`, `find`, `date`, `readlink`, `xargs`, `stat`, etc. If a feature only exists in one variant, either use a portable alternative (often `awk` or `perl`) or branch on `uname`. Common traps: `sed -i` syntax differs, BSD `sed` requires `{...}` closing `}` on its own line, `grep -P` is GNU-only, `date -d` vs `date -v`, `readlink -f` is GNU-only, `find -mindepth` is GNU-only, `xargs -r` is GNU-only, `stat -c` vs `stat -f`.
 
 ## Logging bugs

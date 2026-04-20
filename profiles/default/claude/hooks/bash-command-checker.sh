@@ -166,6 +166,17 @@ sys.stdout.write(''.join(result))
 
 PROCESSED=$(preprocess "$COMMAND")
 
+# Strip subshell / command-substitution parens. preprocess() has already
+# replaced quoted content with "Q" / 'Q' placeholders, so remaining '(' and
+# ')' sit outside strings. Replacing them with spaces exposes the inner
+# statements to the per-token allow-list check — otherwise a leading '(' glues
+# to the first command (e.g. "(echo foo") producing a bogus first token that
+# nothing matches. Also works around Claude Code's built-in parser emitting
+# "Unhandled node type: ;" on (a; b) groups, though only for the hook's own
+# decision; the built-in prompt still fires until upstream is fixed.
+PROCESSED="${PROCESSED//(/ }"
+PROCESSED="${PROCESSED//)/ }"
+
 # Fail-safe: if preprocessing produced nothing for a non-empty command, defer
 # to default permission flow rather than auto-allowing.
 [ -z "$PROCESSED" ] && echo '{}' && exit 0

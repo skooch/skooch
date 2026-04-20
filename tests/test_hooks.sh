@@ -58,6 +58,14 @@ _TEST_NAME="bash-command-checker glob prefix does not over-match unrelated comma
 result=$(echo '{"tool_input":{"command":"xtensa-other-toolchain --foo"}}' | CLAUDE_SETTINGS_FILE="$TEST_SETTINGS" "$CHECKER")
 assert_eq "{}" "$result"
 
+_TEST_NAME="bash-command-checker strips subshell parens around allowed commands"
+result=$(echo '{"tool_input":{"command":"(echo halt; echo resume) | ls"}}' | CLAUDE_SETTINGS_FILE="$TEST_SETTINGS" "$CHECKER")
+assert_contains "$result" '"permissionDecision":"allow"'
+
+_TEST_NAME="bash-command-checker subshell with disallowed inner stmt is denied"
+result=$(echo '{"tool_input":{"command":"(echo halt; rogue --x)"}}' | CLAUDE_SETTINGS_FILE="$TEST_SETTINGS" "$CHECKER")
+assert_eq "{}" "$result"
+
 # === subagent-spawn-logger.sh ===
 LOGGER="$REPO_HOOKS/subagent-spawn-logger.sh"
 
