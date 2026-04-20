@@ -37,6 +37,7 @@
       "Bash(zig:*)",
       "Bash(profile switch:*)",
       "Read(~/**)",
+      "Read(~/.cargo/**)",
       "Glob",
       "Grep",
       "Read(//opt/homebrew/**)",
@@ -115,6 +116,9 @@
       "Bash(ssh:*)",
       "Bash(cn:*)",
       "Bash(cnp:*)",
+      "Bash(actionlint:*)",
+      "Bash(curl:*)",
+      "Bash(xargs:*)",
       "Bash(nc:*)",
       "mcp__ide__getDiagnostics",
       "mcp__codebase-memory-mcp__index_repository",
@@ -270,11 +274,9 @@
       "Bash(git clean -fd:*)",
       "Bash(git clean *-f*)",
       "Bash(git checkout -- .:*)",
-      "Bash(curl:*)",
       "Bash(wget:*)",
       "Bash(mkfs:*)",
       "Bash(dd:*)",
-      "Bash(xargs:*)",
       "Edit(.git/hooks/**)",
       "Write(.git/hooks/**)",
       "Edit(.env*)",
@@ -300,7 +302,10 @@
     "additionalDirectories": [
       "/tmp",
       "~/projects",
-      "~/.cache"
+      "~/.cache",
+      "~/.cargo",
+      "~/.rustup",
+      "~/Library/Caches"
     ]
   },
   "enableAllProjectMcpServers": true,
