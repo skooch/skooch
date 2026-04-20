@@ -86,6 +86,8 @@
       "Bash(true:*)",
       "Bash(false:*)",
       "Bash(xtensa-esp32s3-elf*:*)",
+      "Bash(xtensa-esp32s3-elf-objdump:*)",
+      "Bash(xtensa-esp32s3-elf-nm:*)",
       "Bash(timeout:*)",
       "Bash(defmt-print:*)",
       "Bash(sips:*)",

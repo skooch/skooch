@@ -20,7 +20,8 @@ cat > "$TEST_SETTINGS" <<'EOF'
             "Bash(git:*)",
             "Bash(ls:*)",
             "Bash(echo:*)",
-            "Bash([:*)"
+            "Bash([:*)",
+            "Bash(xtensa-esp32s3-elf*:*)"
         ]
     }
 }
@@ -48,6 +49,14 @@ assert_eq "{}" "$result"
 _TEST_NAME="bash-command-checker handles regex-meta tokens like [ via exact-match"
 result=$(echo '{"tool_input":{"command":"[ -f foo ]"}}' | CLAUDE_SETTINGS_FILE="$TEST_SETTINGS" "$CHECKER")
 assert_contains "$result" '"permissionDecision":"allow"'
+
+_TEST_NAME="bash-command-checker allows glob-wildcard prefix (xtensa-esp32s3-elf* matches -nm)"
+result=$(echo '{"tool_input":{"command":"xtensa-esp32s3-elf-nm /tmp/bin"}}' | CLAUDE_SETTINGS_FILE="$TEST_SETTINGS" "$CHECKER")
+assert_contains "$result" '"permissionDecision":"allow"'
+
+_TEST_NAME="bash-command-checker glob prefix does not over-match unrelated commands"
+result=$(echo '{"tool_input":{"command":"xtensa-other-toolchain --foo"}}' | CLAUDE_SETTINGS_FILE="$TEST_SETTINGS" "$CHECKER")
+assert_eq "{}" "$result"
 
 # === subagent-spawn-logger.sh ===
 LOGGER="$REPO_HOOKS/subagent-spawn-logger.sh"

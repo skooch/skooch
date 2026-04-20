@@ -82,6 +82,26 @@ typeset"
 
 ALLOW_LIST=$(printf '%s\n%s' "$ALLOW_LIST" "$BUILTINS")
 
+# Match a command basename against the allow list.
+# Patterns containing '*' are matched as bash globs (so "xtensa-esp32s3-elf*"
+# from Bash(xtensa-esp32s3-elf*:*) matches "xtensa-esp32s3-elf-nm"). Non-glob
+# patterns match literally, avoiding surprises from shell metachars like '['
+# appearing in command names.
+allow_match() {
+    local base="$1"
+    local pattern
+    while IFS= read -r pattern; do
+        [ -z "$pattern" ] && continue
+        if [[ "$pattern" == *\** ]]; then
+            # shellcheck disable=SC2254  # glob expansion intentional
+            [[ "$base" == $pattern ]] && return 0
+        else
+            [ "$base" = "$pattern" ] && return 0
+        fi
+    done <<< "$ALLOW_LIST"
+    return 1
+}
+
 # Preprocess: join backslash-continuation lines, strip quoted strings,
 # and split semicolons so each "statement" can be checked independently.
 preprocess() {
@@ -204,7 +224,7 @@ while IFS= read -r line; do
         # Strip path prefix in case a relative path slipped through
         base="${first##*/}"
 
-        if ! echo "$ALLOW_LIST" | grep -qFx "$base" 2>/dev/null; then
+        if ! allow_match "$base"; then
             all_allowed=false
             break 2
         fi
