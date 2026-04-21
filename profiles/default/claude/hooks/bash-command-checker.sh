@@ -40,18 +40,26 @@ sys.exit(1)
 ' 2>/dev/null
 }
 
+# Additional project roots drawn from permissions.additionalDirectories
+# in settings.json. These are directories the user has already granted
+# session-wide trust for Read/Write — extending that trust to
+# bash/sh/zsh/dash script execution under any of them matches the
+# existing security model (the agent can already drop files there).
+ADDL_DIRS=$(jq -r '.permissions.additionalDirectories[]? // empty' "$SETTINGS" 2>/dev/null)
+
 # Returns 0 if $1 is a bare path (not a flag) that resolves to an existing
-# regular file inside the current project tree. "Project tree" = nearest
-# ancestor of CWD containing a .git entry, falling back to CWD itself. Used
-# to auto-allow interpreter invocations like "bash tests/run.sh" without
-# requiring `bash` in the allow list, while still prompting for scripts
-# outside the project.
+# regular file inside:
+#   (a) the nearest .git-bearing ancestor of CWD (the project root), or
+#   (b) any entry in permissions.additionalDirectories
+# Used to auto-allow interpreter invocations like "bash tests/run.sh" or
+# "sh ~/projects/other-repo/scripts/foo" without requiring `bash` in the
+# allow list, while still prompting for scripts outside these trusted trees.
 project_local_script() {
     local candidate="$1"
     [ -z "$candidate" ] && return 1
     [ -z "$CWD" ] && return 1
     case "$candidate" in -*) return 1 ;; esac
-    CWD="$CWD" CAND="$candidate" python3 -c '
+    CWD="$CWD" CAND="$candidate" ADDL="$ADDL_DIRS" python3 -c '
 import os, sys
 cwd = os.environ.get("CWD") or os.getcwd()
 cand = os.environ.get("CAND", "")
@@ -68,6 +76,21 @@ while True:
         break
     root = parent
 root = os.path.realpath(root)
+
+# Expand additionalDirectories entries (with ~ expansion and realpath).
+addl_roots = []
+for line in os.environ.get("ADDL", "").splitlines():
+    d = line.strip()
+    if not d:
+        continue
+    d = os.path.expanduser(d)
+    try:
+        d = os.path.realpath(d)
+    except Exception:
+        continue
+    if os.path.isdir(d):
+        addl_roots.append(d)
+
 path = cand if os.path.isabs(cand) else os.path.join(cwd, cand)
 try:
     path = os.path.realpath(path)
@@ -75,8 +98,9 @@ except Exception:
     sys.exit(1)
 if not os.path.isfile(path):
     sys.exit(1)
-if path == root or path.startswith(root + os.sep):
-    sys.exit(0)
+for r in [root] + addl_roots:
+    if path == r or path.startswith(r + os.sep):
+        sys.exit(0)
 sys.exit(1)
 ' 2>/dev/null
 }
@@ -217,6 +241,17 @@ PROCESSED=$(preprocess "$COMMAND")
 # decision; the built-in prompt still fires until upstream is fixed.
 PROCESSED="${PROCESSED//(/ }"
 PROCESSED="${PROCESSED//)/ }"
+
+# Normalise pipeline / conditional operators into statement separators so
+# every sub-command is checked independently. Order matters: replace the
+# double-char operators first, otherwise "||" would become ";;" via a
+# premature "|" pass. preprocess() has already replaced quoted content
+# with "Q" / 'Q' placeholders, so these `|` `&` characters are structural
+# operators, not literal text.
+PROCESSED="${PROCESSED//&&/;}"
+PROCESSED="${PROCESSED//||/;}"
+PROCESSED="${PROCESSED//|&/;}"
+PROCESSED="${PROCESSED//|/;}"
 
 # Fail-safe: if preprocessing produced nothing for a non-empty command, defer
 # to default permission flow rather than auto-allowing.

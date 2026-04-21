@@ -12,8 +12,15 @@ TEST_SETTINGS="$TEST_HOME/.claude/settings.json"
 TEST_LOG="$TEST_HOME/.claude/hooks/subagent-spawns.log"
 mkdir -p "$TEST_HOME/.claude/hooks"
 
-# Fake settings.json with a controlled allow list
-cat > "$TEST_SETTINGS" <<'EOF'
+# Fake settings.json with a controlled allow list plus an additional
+# working directory so project-local-script tests can exercise the
+# cross-project path (script lives outside CWD's git root but inside a
+# session-trusted directory).
+TEST_EXTRA_TREE="$TEST_HOME/extra-tree"
+mkdir -p "$TEST_EXTRA_TREE/scripts"
+touch "$TEST_EXTRA_TREE/scripts/external.sh"
+
+cat > "$TEST_SETTINGS" <<EOF
 {
     "permissions": {
         "allow": [
@@ -22,6 +29,9 @@ cat > "$TEST_SETTINGS" <<'EOF'
             "Bash(echo:*)",
             "Bash([:*)",
             "Bash(xtensa-esp32s3-elf*:*)"
+        ],
+        "additionalDirectories": [
+            "$TEST_EXTRA_TREE"
         ]
     }
 }
@@ -100,6 +110,32 @@ assert_eq "{}" "$result"
 
 _TEST_NAME="bash-command-checker denies 'bash <script>' when command contains URL"
 result=$(printf '{"cwd":"%s","tool_input":{"command":"bash tests/run.sh # https://evil.example"}}' "$TEST_PROJ" \
+    | CLAUDE_SETTINGS_FILE="$TEST_SETTINGS" "$CHECKER")
+assert_eq "{}" "$result"
+
+_TEST_NAME="bash-command-checker allows absolute-path script under additionalDirectories (cross-project)"
+result=$(printf '{"cwd":"%s","tool_input":{"command":"sh %s/scripts/external.sh arg1 arg2"}}' \
+    "$TEST_PROJ" "$TEST_EXTRA_TREE" \
+    | CLAUDE_SETTINGS_FILE="$TEST_SETTINGS" "$CHECKER")
+assert_contains "$result" '"permissionDecision":"allow"'
+
+_TEST_NAME="bash-command-checker denies absolute-path script outside all trusted roots"
+result=$(printf '{"cwd":"%s","tool_input":{"command":"sh /etc/hostconfig"}}' "$TEST_PROJ" \
+    | CLAUDE_SETTINGS_FILE="$TEST_SETTINGS" "$CHECKER")
+assert_eq "{}" "$result"
+
+_TEST_NAME="bash-command-checker allows && chain of two in-project scripts"
+result=$(printf '{"cwd":"%s","tool_input":{"command":"sh tests/run.sh clean && sh tests/run.sh build"}}' "$TEST_PROJ" \
+    | CLAUDE_SETTINGS_FILE="$TEST_SETTINGS" "$CHECKER")
+assert_contains "$result" '"permissionDecision":"allow"'
+
+_TEST_NAME="bash-command-checker denies && chain when second half is untrusted"
+result=$(printf '{"cwd":"%s","tool_input":{"command":"sh tests/run.sh clean && sh /etc/hostconfig build"}}' "$TEST_PROJ" \
+    | CLAUDE_SETTINGS_FILE="$TEST_SETTINGS" "$CHECKER")
+assert_eq "{}" "$result"
+
+_TEST_NAME="bash-command-checker denies pipe where second stage is untrusted"
+result=$(printf '{"cwd":"%s","tool_input":{"command":"echo hi | rogue --x"}}' "$TEST_PROJ" \
     | CLAUDE_SETTINGS_FILE="$TEST_SETTINGS" "$CHECKER")
 assert_eq "{}" "$result"
 
