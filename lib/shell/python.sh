@@ -8,7 +8,12 @@ if [[ -n "${_SKOOCH_PYTHON_HELPERS_LOADED:-}" ]]; then
 fi
 typeset -g _SKOOCH_PYTHON_HELPERS_LOADED=1
 
-_skooch_in_codex_shell() {
+_skooch_in_agent_shell() {
+    # Claude Code sets CLAUDECODE=1 in every child process; its Bash tool
+    # replays a snapshot that captures only `export PATH`, so `.mise.toml`
+    # [env] directives (LIBCLANG_PATH, xtensa toolchain path, etc.) need
+    # `mise env activate` to reach the subshell.
+    [[ -n "${CLAUDECODE:-}" ]] && return 0
     case ":$PATH:" in
         *:/Applications/Codex.app/Contents/Resources:*|*:"$HOME"/.codex/tmp/arg0/codex-arg0:*)
             return 0
@@ -31,7 +36,7 @@ _skooch_activate_mise() {
         [[ "$path_changed" == true ]] && rehash
         return 0
     fi
-    if ! _skooch_in_codex_shell; then
+    if ! _skooch_in_agent_shell; then
         [[ "$path_changed" == true ]] && rehash
         return 0
     fi

@@ -71,6 +71,33 @@ assert_contains "$(cat "$TEST_HOME/runtime-codex/mise-calls.txt")" "env activate
 _TEST_NAME="Codex shell runtime prepends uv binary from mise install"
 assert_contains "$codex_output" "$TEST_HOME/runtime-codex/mise-root/uv-1.2.3/uv"
 
+_TEST_NAME="Claude Code shell runtime enables mise env via CLAUDECODE=1"
+claude_output=$(
+    HOME="$TEST_HOME/runtime-claude" PATH="/usr/bin:/bin" CLAUDECODE=1 zsh -c '
+        mkdir -p "$HOME/mise-root/uv-1.2.3"
+        print "#!/usr/bin/env zsh\nexit 0" > "$HOME/mise-root/uv-1.2.3/uv"
+        chmod +x "$HOME/mise-root/uv-1.2.3/uv"
+        function mise() {
+            print -r -- "$*" >> "$HOME/mise-calls.txt"
+            case "$*" in
+                "env activate zsh")
+                    print "export TEST_MISE_ENV_ACTIVATE=1"
+                    ;;
+                "where uv")
+                    print "$HOME/mise-root"
+                    ;;
+            esac
+        }
+        source "'"$_RUNTIME_SRC"'"
+        printf "%s\n%s" "${TEST_MISE_ENV_ACTIVATE:-0}" "$(command -v uv)"
+    '
+)
+assert_contains "$claude_output" "1"
+_TEST_NAME="Claude Code shell runtime calls mise env activate"
+assert_contains "$(cat "$TEST_HOME/runtime-claude/mise-calls.txt")" "env activate zsh"
+_TEST_NAME="Claude Code shell runtime prepends uv binary from mise install"
+assert_contains "$claude_output" "$TEST_HOME/runtime-claude/mise-root/uv-1.2.3/uv"
+
 _TEST_NAME="Codex Python launcher resolves interpreter via uv instead of PATH"
 launcher_output=$(
     HOME="$TEST_HOME/runtime-launcher" PATH="/bin" zsh -c '
